@@ -65,14 +65,27 @@ See **MANIFEST.md** for the complete file listing.
 
 ---
 
+## Local-first & API disentanglement
+
+The goal is to **run an ADE entirely locally** that **primarily interfaces with the local API** (Letta OSS, Sanctum, or equivalent). The scrape is reference; a rebuilt local client will default to that local backend. Letta Cloud has its own ADE at app.letta.com—as Cloud drifts from OSS, that’s fine; this ADE serves the local stack.
+
+- **Architecture:** [LOCAL_ARCHITECTURE.md](LOCAL_ARCHITECTURE.md) — primary = local API, options (rebuild vs proxy), and `API_BASE_URL` defaulting to local.
+- **Config:** `.env.example` documents scraper credentials (`GITHUB_EMAIL`, `GITHUB_PASSWORD`) and the future `API_BASE_URL` for the local client (default: local backend).
+- **De-minify first:** [DECODE.md](DECODE.md) — run `npm run decode` to beautify scraped JS and build a chunk/source index in `scraped-beautified/` (gitignored). Use that to read the code and find API/config references before rebuilding.
+
+---
+
 ## Directory Structure
 
 ```
 .
-├── README.md           # This file
-├── MANIFEST.md         # Full scraped file listing
-├── SCRAPE_NOTES.md     # Technical notes, API patterns, issues
-├── scrape.js           # Playwright scraper (GitHub OAuth)
+├── README.md             # This file
+├── LOCAL_ARCHITECTURE.md # Local-first, API-disentanglement plan
+├── DECODE.md             # De-minify / de-obfuscate strategy (npm run decode)
+├── MANIFEST.md           # Full scraped file listing
+├── SCRAPE_NOTES.md       # Technical notes, API patterns, issues
+├── scrape.js             # Playwright scraper (GitHub OAuth)
+├── decode.js             # Beautify scraped JS + build chunk index
 ├── run-scrape.sh       # Helper to run scraper with .env
 ├── package.json
 ├── index.html          # Login page HTML (unauthenticated)

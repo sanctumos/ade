@@ -4,3 +4,4 @@ node_modules/
 *.log
 login-failure.png
 oauth-failure.png
+scraped-beautified/

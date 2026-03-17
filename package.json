@@ -5,9 +5,13 @@
   "type": "module",
   "scripts": {
     "scrape": "node scrape.js",
-    "scrape:headed": "HEADLESS=false node scrape.js"
+    "scrape:headed": "HEADLESS=false node scrape.js",
+    "decode": "node decode.js"
   },
   "dependencies": {
     "playwright": "^1.49.0"
+  },
+  "devDependencies": {
+    "js-beautify": "^1.15.4"
   }
 }
