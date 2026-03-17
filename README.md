@@ -13,26 +13,26 @@ Scraped frontend source from app.letta.com for reverse engineering reference. Pr
 
 ## Authenticated Scraping
 
-To scrape all authenticated routes (dashboard, agent list, chat, memory editor, settings):
+Uses **GitHub OAuth** (not email/password). To scrape all authenticated routes:
 
 ```bash
 # Install dependencies (first time)
 npm install
 npx playwright install chromium
-npx playwright install-deps chromium   # Linux: installs libglib etc.
+npx playwright install --with-deps chromium   # Linux: installs libglib etc.
 
-# Run with your Letta credentials
-LETTA_EMAIL=your@email.com LETTA_PASSWORD=yourpassword npm run scrape
+# Run with your GitHub credentials (for OAuth flow)
+GITHUB_EMAIL=your@email.com GITHUB_PASSWORD=yourpassword npm run scrape
 ```
 
 The scraper will:
-1. Log in to app.letta.com
-2. Save session cookies to `.cookies.json` (gitignored)
-3. Visit dashboard, agents, settings, and agent detail pages
-4. Save HTML to `scraped/pages/`
-5. Download JS, CSS, and assets to `scraped/`
-
-**Note:** Letta signup uses Google/GitHub OAuth. For email/password login you need an existing account.
+1. Navigate to Letta GitHub OAuth init
+2. Log in to GitHub with your credentials
+3. Authorize the Letta app
+4. Save session cookies to `.cookies.json` (gitignored)
+5. Visit dashboard, agents, chat, memory editor, settings, and agent detail pages
+6. Save HTML to `scraped/pages/`
+7. Download JS, CSS, and assets to `scraped/`
 
 ## Source
 
