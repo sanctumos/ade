@@ -1,0 +1,13 @@
+{
+  "name": "letta-ade-scraper",
+  "version": "1.0.0",
+  "description": "Playwright-based scraper for Letta ADE authenticated frontend",
+  "type": "module",
+  "scripts": {
+    "scrape": "node scrape.js",
+    "scrape:headless": "HEADLESS=true node scrape.js"
+  },
+  "dependencies": {
+    "playwright": "^1.49.0"
+  }
+}
