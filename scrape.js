@@ -57,30 +57,50 @@ async function savePage(page, route, slug) {
 
 async function login(page, email, password) {
   console.log('Navigating to login...');
-  await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle' });
-  await page.waitForTimeout(2000);
+  await page.goto(`${BASE_URL}/login`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await page.waitForTimeout(3000);
 
-  const emailInput = page.locator('input[type="email"], input[name="email"]').first();
-  const passwordInput = page.locator('input[type="password"], input[name="password"]').first();
-
+  // Letta uses progressive disclosure: email first, then password appears after Continue
+  const emailInput = page.locator('input[type="email"]').first();
+  await emailInput.waitFor({ state: 'visible', timeout: 10000 });
   if ((await emailInput.count()) === 0) {
     throw new Error('Login form not found - page structure may have changed');
   }
 
-  await emailInput.click({ force: true });
+  await emailInput.clear();
   await emailInput.fill(email);
-  await page.waitForTimeout(500);
-  await passwordInput.fill(password, { force: true });
+  await page.waitForTimeout(800);
+
+  // Letta keeps password field in DOM but hidden - use React-compatible value setter
+  const passwordFilled = await page.evaluate((pwd) => {
+    const pw = document.querySelector('input[type="password"]');
+    if (!pw) return false;
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+    setter.call(pw, pwd);
+    pw.dispatchEvent(new Event('input', { bubbles: true }));
+    return true;
+  }, password);
+  if (!passwordFilled) {
+    throw new Error('Password field not found in DOM');
+  }
+  await page.waitForTimeout(1000);
 
   const submitBtn = page.locator('button[type="submit"], button:has-text("Login"), button:has-text("Sign in")').first();
-  await submitBtn.click();
+  await submitBtn.waitFor({ state: 'visible', timeout: 5000 });
 
   try {
-    await page.waitForURL(url => !url.pathname.includes('/login') && !url.pathname.includes('/signup'), { timeout: 30000 });
+    await Promise.all([
+      page.waitForURL(url => !url.pathname.includes('/login') && !url.pathname.includes('/signup'), { timeout: 60000 }),
+      submitBtn.click()
+    ]);
     console.log('Login successful');
   } catch (err) {
-    const errMsg = await page.locator('[role="alert"], .text-red-500, [data-state="error"]').first().textContent().catch(() => '');
-    throw new Error(`Login failed. Check LETTA_EMAIL and LETTA_PASSWORD. ${errMsg ? `Server: ${errMsg}` : ''}`);
+    const screenshotPath = join(__dirname, 'login-failure.png');
+    await page.screenshot({ path: screenshotPath }).catch(() => {});
+    await page.waitForTimeout(2000);
+    const errMsg = await page.locator('[role="alert"], .text-red-500, [data-state="error"], [data-testid="error"], [class*="error"], [class*="alert"]').first().textContent().catch(() => '');
+    const currentUrl = page.url();
+    throw new Error(`Login failed. Check LETTA_EMAIL and LETTA_PASSWORD. URL: ${currentUrl}. ${errMsg ? `Server: ${errMsg}` : ''}. Screenshot: ${screenshotPath}`);
   }
   return page;
 }
