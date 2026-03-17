@@ -6,6 +6,7 @@ const nav = [
   { to: '/projects', label: 'Projects' },
   { to: '/agents', label: 'Agents' },
   { to: '/chat', label: 'Chat' },
+  { to: '/settings', label: 'Settings' },
 ];
 
 export default function Layout({ children }) {
