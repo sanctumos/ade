@@ -8,6 +8,7 @@
 </head>
 <body>
   <div class="layout">
+    <button type="button" class="sidebar-backdrop" id="nav-backdrop" aria-label="Close menu"></button>
     <aside class="sidebar">
       <h2>ADE (Local)</h2>
       <nav>
@@ -21,6 +22,7 @@
       <p class="api-badge">API: <span id="api-base-display">…</span></p>
     </aside>
     <main class="main">
+      <button type="button" class="nav-toggle" id="nav-toggle" aria-label="Open menu">≡</button>
       <h1>Settings</h1>
       <p class="muted">Base URL and API key are read from <code>config.js</code> (copy from config.example.js) or from this page (saved in this browser).</p>
       <form id="form" style="max-width:480px">

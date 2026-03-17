@@ -8,6 +8,7 @@
 </head>
 <body>
   <div class="layout">
+    <button type="button" class="sidebar-backdrop" id="nav-backdrop" aria-label="Close menu"></button>
     <aside class="sidebar">
       <h2>ADE (Local)</h2>
       <nav>
@@ -21,6 +22,7 @@
       <p class="api-badge">API: <span id="api-base-display">…</span></p>
     </aside>
     <main class="main">
+      <button type="button" class="nav-toggle" id="nav-toggle" aria-label="Open menu">≡</button>
       <h1>Chat</h1>
       <div id="error"></div>
       <p class="muted">Agent: <select id="agent"></select></p>

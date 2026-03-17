@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   getAgent,
   getAgentMemory,
   updateAgentMemory,
   updateAgent,
+  deleteAgent,
   listModels,
   listTools,
 } from '../api/client';
@@ -31,6 +32,7 @@ function toolName(t) {
 
 export default function AgentDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [agent, setAgent] = useState(null);
   const [models, setModels] = useState([]);
   const [tools, setTools] = useState([]);
@@ -124,10 +126,21 @@ export default function AgentDetail() {
             borderRadius: 8,
             color: '#e0e0e0',
             textDecoration: 'none',
+            marginRight: 8,
           }}
         >
           Open in Chat →
         </Link>
+        <button
+          type="button"
+          onClick={() => {
+            if (!window.confirm('Delete this agent? This cannot be undone.')) return;
+            deleteAgent(id).then(() => navigate('/agents')).catch((e) => setError(e.message));
+          }}
+          style={{ padding: '10px 16px', background: '#4a2020', border: '1px solid #6a3030', borderRadius: 8, color: '#e0a0a0', cursor: 'pointer' }}
+        >
+          Delete agent
+        </button>
       </section>
 
       <section style={{ marginBottom: 24 }}>

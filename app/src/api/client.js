@@ -78,6 +78,16 @@ export function updateAgent(id, body) {
   return apiFetch(`/v1/agents/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
 }
 
+/** DELETE /v1/agents/:id */
+export function deleteAgent(id) {
+  return apiFetch(`/v1/agents/${id}`, { method: 'DELETE' });
+}
+
+/** POST /v1/agents/:id/messages/cancel */
+export function cancelAgentMessages(agentId, body = {}) {
+  return apiFetch(`/v1/agents/${agentId}/messages/cancel`, { method: 'POST', body: JSON.stringify(body) });
+}
+
 /** GET /v1/agents/:id/messages (history, if supported) */
 export function getAgentMessages(agentId) {
   return apiFetch(`/v1/agents/${agentId}/messages`);
@@ -109,6 +119,36 @@ export function listTools(params = {}) {
   return apiFetch('/v1/tools' + (q ? '?' + q : ''));
 }
 
+/** GET /v1/tools/:id */
+export function getTool(id) {
+  return apiFetch(`/v1/tools/${id}`);
+}
+
+/** POST /v1/tools */
+export function createTool(body) {
+  return apiFetch('/v1/tools', { method: 'POST', body: JSON.stringify(body) });
+}
+
+/** PATCH /v1/tools/:id */
+export function updateTool(id, body) {
+  return apiFetch(`/v1/tools/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
+}
+
+/** DELETE /v1/tools/:id */
+export function deleteTool(id) {
+  return apiFetch(`/v1/tools/${id}`, { method: 'DELETE' });
+}
+
+/** PUT /v1/tools (upsert) */
+export function upsertTool(body) {
+  return apiFetch('/v1/tools', { method: 'PUT', body: JSON.stringify(body) });
+}
+
+/** POST /v1/tools/search (semantic search; cloud / embed_tools) */
+export function searchTools(body = {}) {
+  return apiFetch('/v1/tools/search', { method: 'POST', body: JSON.stringify(body) });
+}
+
 /** GET /v1/mcp-servers */
 export function listMcpServers() {
   return apiFetch('/v1/mcp-servers');
@@ -119,9 +159,78 @@ export function createMcpServer(body) {
   return apiFetch('/v1/mcp-servers', { method: 'POST', body: JSON.stringify(body) });
 }
 
+/** GET /v1/mcp-servers/:id */
+export function getMcpServer(id) {
+  return apiFetch(`/v1/mcp-servers/${id}`);
+}
+
+/** PATCH /v1/mcp-servers/:id */
+export function updateMcpServer(id, body) {
+  return apiFetch(`/v1/mcp-servers/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
+}
+
+/** DELETE /v1/mcp-servers/:id */
+export function deleteMcpServer(id) {
+  return apiFetch(`/v1/mcp-servers/${id}`, { method: 'DELETE' });
+}
+
+/** PATCH /v1/mcp-servers/:id/refresh */
+export function refreshMcpServer(id, params = {}) {
+  const q = new URLSearchParams(params).toString();
+  return apiFetch(`/v1/mcp-servers/${id}/refresh` + (q ? '?' + q : ''), { method: 'PATCH' });
+}
+
 /** GET /v1/mcp-servers/:id/tools */
 export function listMcpServerTools(serverId) {
   return apiFetch(`/v1/mcp-servers/${serverId}/tools`);
+}
+
+/** GET /v1/mcp-servers/:serverId/tools/:toolId */
+export function getMcpServerTool(serverId, toolId) {
+  return apiFetch(`/v1/mcp-servers/${serverId}/tools/${toolId}`);
+}
+
+/** POST /v1/mcp-servers/:serverId/tools/:toolId/run */
+export function runMcpTool(serverId, toolId, body = {}) {
+  return apiFetch(`/v1/mcp-servers/${serverId}/tools/${toolId}/run`, { method: 'POST', body: JSON.stringify(body) });
+}
+
+/** GET /v1/models/embedding */
+export function listEmbeddingModels() {
+  return apiFetch('/v1/models/embedding');
+}
+
+/** GET /v1/runs */
+export function listRuns(params = {}) {
+  const q = new URLSearchParams(params).toString();
+  return apiFetch('/v1/runs' + (q ? '?' + q : ''));
+}
+
+/** GET /v1/runs/:id */
+export function getRun(id) {
+  return apiFetch(`/v1/runs/${id}`);
+}
+
+/** GET /v1/runs/:id/messages */
+export function getRunMessages(runId, params = {}) {
+  const q = new URLSearchParams(params).toString();
+  return apiFetch(`/v1/runs/${runId}/messages` + (q ? '?' + q : ''));
+}
+
+/** GET /v1/runs/:id/usage */
+export function getRunUsage(runId) {
+  return apiFetch(`/v1/runs/${runId}/usage`);
+}
+
+/** GET /v1/runs/:id/steps */
+export function getRunSteps(runId, params = {}) {
+  const q = new URLSearchParams(params).toString();
+  return apiFetch(`/v1/runs/${runId}/steps` + (q ? '?' + q : ''));
+}
+
+/** GET /v1/agents/:id/tools */
+export function listAgentTools(agentId) {
+  return apiFetch(`/v1/agents/${agentId}/tools`);
 }
 
 /** GET /v1/projects (optional; some backends) */
@@ -137,4 +246,14 @@ export function createProject(body) {
 /** GET /v1/projects/:id */
 export function getProject(id) {
   return apiFetch(`/v1/projects/${id}`);
+}
+
+/** PATCH /v1/projects/:id */
+export function updateProject(id, body) {
+  return apiFetch(`/v1/projects/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
+}
+
+/** DELETE /v1/projects/:id */
+export function deleteProject(id) {
+  return apiFetch(`/v1/projects/${id}`, { method: 'DELETE' });
 }

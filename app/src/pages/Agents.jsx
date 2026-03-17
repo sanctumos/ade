@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { listAgents, createAgent, listModels, listTools } from '../api/client';
+import { listAgents, createAgent, deleteAgent, listModels, listTools } from '../api/client';
 import Loading from '../components/Loading';
 import ErrorBanner from '../components/ErrorBanner';
 
@@ -130,20 +130,22 @@ export default function Agents() {
           const aid = a.id ?? a.agent_id;
           return (
             <li key={aid} style={{ marginBottom: 8 }}>
-              <Link
-                to={`/agents/${aid}`}
-                style={{
-                  display: 'block',
-                  padding: 16,
-                  background: '#1a1a1a',
-                  border: '1px solid #333',
-                  borderRadius: 8,
-                  textDecoration: 'none',
-                  color: '#e0e0e0',
-                }}
-              >
-                {a.name ?? a.agent_name ?? aid}
-              </Link>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 16, background: '#1a1a1a', border: '1px solid #333', borderRadius: 8 }}>
+                <Link to={`/agents/${aid}`} style={{ flex: 1, textDecoration: 'none', color: '#e0e0e0' }}>
+                  {a.name ?? a.agent_name ?? aid}
+                </Link>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (!window.confirm('Delete this agent?')) return;
+                    deleteAgent(aid).then(() => listAgents()).then((data) => setAgents(normalizeAgents(data))).catch((e) => setError(e.message));
+                  }}
+                  style={{ padding: '4px 10px', fontSize: 13, background: '#4a2020', border: '1px solid #6a3030', borderRadius: 6, color: '#e0a0a0', cursor: 'pointer' }}
+                >
+                  Delete
+                </button>
+              </div>
             </li>
           );
         })}

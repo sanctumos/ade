@@ -44,24 +44,22 @@ Both UIs default to `http://localhost:8283` as the API base. Use **Settings** in
 
 ## API compatibility
 
-Both local ADEs call a **single base URL** with optional **Bearer token** (`Authorization: Bearer <key>`). They expect these endpoints (Letta-style; your backend may use slightly different shapes):
+Both local ADEs call a **single base URL** with optional **Bearer token** (`Authorization: Bearer <key>`). They expect Letta-style endpoints; your backend may use slightly different shapes. For **full endpoint coverage** (including delete, cancel, runs, tool CRUD, MCP refresh), see [LETTA_API_COVERAGE.md](LETTA_API_COVERAGE.md).
 
 | Method + path | Purpose |
 |--------------|--------|
-| `GET /health` or `GET /v1/health` | Optional; used for “API connected” on dashboard. |
-| `GET /v1/agents` | List agents. Response: array or `{ data: [] }` / `{ agents: [] }`. |
-| `GET /v1/agents/:id` | Get one agent. |
-| `POST /v1/agents` | Create agent. Body: e.g. `{ "name": "..." }`. |
-| `PATCH /v1/agents/:id` | Update agent (full app). |
-| `GET /v1/agents/:id/messages` | List messages (optional; chat may still work without it). |
-| `POST /v1/agents/:id/messages` | Send message. Body: e.g. `{ "message": "..." }`. Response: assistant message (e.g. `message` or `content`). |
-| `GET /v1/agents/:id/core-memory/blocks/:label` | Get memory block (e.g. `persona`). |
-| `PATCH /v1/agents/:id/core-memory/blocks/:label` | Update memory. Body: e.g. `{ "content": "..." }`. |
-| `GET /v1/models` | List models (for agent create/edit). |
-| `GET /v1/tools` | List tools (server + MCP). Attach via `tool_ids` on agent. |
-| `GET /v1/mcp-servers`, `POST /v1/mcp-servers` | List and register MCP servers. |
-| `GET /v1/mcp-servers/:id/tools` | List tools from an MCP server. |
-| `GET /v1/projects`, `POST /v1/projects`, `GET /v1/projects/:id` | Optional; full app uses for Projects. Simple ADE does not. |
+| `GET /health` or `GET /v1/health` | Optional; dashboard “API connected”. |
+| `GET /v1/agents`, `GET /v1/agents/:id` | List / get agents. |
+| `POST /v1/agents`, `PATCH /v1/agents/:id`, `DELETE /v1/agents/:id` | Create, update, delete agent. |
+| `GET /v1/agents/:id/messages`, `POST /v1/agents/:id/messages` | List history, send message. |
+| `POST /v1/agents/:id/messages/cancel` | Cancel runs (optional). |
+| `GET/PATCH /v1/agents/:id/core-memory/blocks/:label` | Get/update memory block (e.g. `persona`). |
+| `GET /v1/models`, `GET /v1/models/embedding` | List LLM / embedding models. |
+| `GET /v1/tools`, `GET /v1/tools/:id`, `POST/PATCH/DELETE /v1/tools` | List, get, create, update, delete tools. |
+| `GET/POST /v1/mcp-servers`, `GET/PATCH/DELETE /v1/mcp-servers/:id` | MCP server CRUD. |
+| `PATCH /v1/mcp-servers/:id/refresh`, `GET /v1/mcp-servers/:id/tools` | Refresh MCP tools, list tools. |
+| `GET /v1/projects`, `POST /v1/projects`, `GET/PATCH/DELETE /v1/projects/:id` | Optional; Projects (full app). |
+| `GET /v1/runs`, `GET /v1/runs/:id`, `GET /v1/runs/:id/messages` | Optional; run-centric history. |
 
 If your backend uses different paths or field names, adapt the API layer in `app/src/api/client.js` or `ade-simple/app.js`.
 
@@ -71,6 +69,7 @@ If your backend uses different paths or field names, adapt the API layer in `app
 
 | Doc | Description |
 |-----|-------------|
+| [LETTA_API_COVERAGE.md](LETTA_API_COVERAGE.md) | Letta API endpoint list, cloud vs local, 100% client coverage. |
 | [LOCAL_ARCHITECTURE.md](LOCAL_ARCHITECTURE.md) | Local-first goals, API-as-swap-point, Cloud vs OSS. |
 | [DECODE.md](DECODE.md) | De-minify scraped JS (`npm run decode`), chunk index, no source maps. |
 | [MANIFEST.md](MANIFEST.md) | Full list of scraped files. |

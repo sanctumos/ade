@@ -8,6 +8,7 @@
 </head>
 <body>
   <div class="layout">
+    <button type="button" class="sidebar-backdrop" id="nav-backdrop" aria-label="Close menu"></button>
     <aside class="sidebar">
       <h2>ADE (Local)</h2>
       <nav>
@@ -21,6 +22,7 @@
       <p class="api-badge">API: <span id="api-base-display">…</span></p>
     </aside>
     <main class="main">
+      <button type="button" class="nav-toggle" id="nav-toggle" aria-label="Open menu">≡</button>
       <h1>MCP servers</h1>
       <p class="muted">Register MCP servers. Their tools become available to attach to agents.</p>
       <div id="error"></div>
@@ -42,11 +44,28 @@
     var errorEl = document.getElementById('error');
     function norm(d) { return Array.isArray(d) ? d : (d && d.data) ? d.data : (d && d.mcp_servers) ? d.mcp_servers : []; }
     function render(servers) {
-      listEl.innerHTML = servers.length ? servers.map(function(s) {
+      if (!servers.length) { listEl.innerHTML = '<li class="muted">No MCP servers. Add one above.</li>'; return; }
+      listEl.innerHTML = servers.map(function(s) {
         var sid = s.id != null ? s.id : s.mcp_server_id;
         var sname = s.server_name != null ? s.server_name : s.name || sid;
-        return '<li style="margin-bottom:8px"><div class="card" style="padding:16px"><strong>' + sname + '</strong> <span style="color:#888">' + sid + '</span></div></li>';
-      }).join('') : '<li class="muted">No MCP servers. Add one above.</li>';
+        return '<li style="margin-bottom:8px"><div class="card" style="padding:16px"><strong>' + sname + '</strong> <span style="color:#888">' + sid + '</span> <button type="button" class="btn-mcp-refresh" data-id="' + encodeURIComponent(sid) + '" style="margin-left:8px;padding:4px 10px;font-size:13px;background:#2a3a4a;border:1px solid #3a4a5a;border-radius:6px;color:#a0c0e0;cursor:pointer">Refresh tools</button> <button type="button" class="btn-mcp-delete" data-id="' + encodeURIComponent(sid) + '" style="margin-left:4px;padding:4px 10px;font-size:13px;background:#4a2020;border:1px solid #6a3030;border-radius:6px;color:#e0a0a0;cursor:pointer">Delete</button></div></li>';
+      }).join('');
+      listEl.querySelectorAll('.btn-mcp-refresh').forEach(function(btn) {
+        btn.onclick = function() {
+          var sid = btn.getAttribute('data-id');
+          btn.disabled = true;
+          window.ADE.refreshMcpServer(sid).then(function() { return window.ADE.listMcpServers(); }).then(function(d) { render(norm(d)); }).catch(function(err) { errorEl.innerHTML = '<div class="error">' + err.message + '</div>'; }).finally(function() { btn.disabled = false; });
+        };
+      });
+      listEl.querySelectorAll('.btn-mcp-delete').forEach(function(btn) {
+        btn.onclick = function() {
+          var sid = btn.getAttribute('data-id');
+          var sname = (servers.find(function(s) { return (s.id != null ? s.id : s.mcp_server_id) === sid; }) || {}).server_name || sid;
+          if (!confirm('Remove MCP server "' + sname + '"?')) return;
+          btn.disabled = true;
+          window.ADE.deleteMcpServer(sid).then(function() { return window.ADE.listMcpServers(); }).then(function(d) { render(norm(d)); }).catch(function(err) { errorEl.innerHTML = '<div class="error">' + err.message + '</div>'; }).finally(function() { btn.disabled = false; });
+        };
+      });
     }
     window.ADE.listMcpServers().then(function(d) { render(norm(d)); }).catch(function(e) { errorEl.innerHTML = '<div class="error">' + e.message + '</div>'; });
     document.getElementById('create-form').onsubmit = function(e) {

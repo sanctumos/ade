@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { listMcpServers, createMcpServer, listMcpServerTools } from '../api/client';
+import { listMcpServers, createMcpServer, listMcpServerTools, deleteMcpServer, refreshMcpServer } from '../api/client';
 import Loading from '../components/Loading';
 import ErrorBanner from '../components/ErrorBanner';
 
@@ -20,6 +20,8 @@ export default function Mcp() {
   const [authToken, setAuthToken] = useState('');
   const [expandedServer, setExpandedServer] = useState(null);
   const [serverTools, setServerTools] = useState({});
+  const [refreshingId, setRefreshingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -118,6 +120,41 @@ export default function Mcp() {
                 >
                   {name} {isExpanded ? '▼' : '▶'}
                 </button>
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <button
+                    type="button"
+                    disabled={refreshingId === sid}
+                    onClick={() => {
+                      setRefreshingId(sid);
+                      refreshMcpServer(sid)
+                        .then(() => { setServerTools((p) => ({ ...p, [sid]: undefined })); loadServerTools(sid); })
+                        .catch((e) => setError(e.message))
+                        .finally(() => setRefreshingId(null));
+                    }}
+                    style={{ padding: '4px 10px', fontSize: 13, background: '#2a3a4a', border: '1px solid #3a4a5a', borderRadius: 6, color: '#a0c0e0', cursor: 'pointer' }}
+                  >
+                    {refreshingId === sid ? 'Refreshing…' : 'Refresh tools'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={deletingId === sid}
+                    onClick={() => {
+                      if (!window.confirm(`Remove MCP server "${name}"?`)) return;
+                      setDeletingId(sid);
+                      deleteMcpServer(sid)
+                        .then(() => {
+                          setServers((prev) => prev.filter((x) => (x.id ?? x.mcp_server_id) !== sid));
+                          setServerTools((prev) => { const next = { ...prev }; delete next[sid]; return next; });
+                          if (expandedServer === sid) setExpandedServer(null);
+                        })
+                        .catch((e) => setError(e.message))
+                        .finally(() => setDeletingId(null));
+                    }}
+                    style={{ padding: '4px 10px', fontSize: 13, background: '#4a2020', border: '1px solid #6a3030', borderRadius: 6, color: '#e0a0a0', cursor: 'pointer' }}
+                  >
+                    Delete
+                  </button>
+                </div>
                 {isExpanded && (
                   <div style={{ marginTop: 12, fontSize: 14 }}>
                     {Array.isArray(serverTools[sid]) ? (

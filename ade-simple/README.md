@@ -1,6 +1,6 @@
 # ADE Simple — no Node, no build
 
-Plain HTML, CSS, and JS. Point at your Letta (or compatible) API and go. No install beyond editing one config file (or using the in-app Settings).
+Plain HTML, CSS, and JS. Point at your Letta (or compatible) API and go. No install beyond editing one config file (or using the in-app Settings). **Responsive and PWA-ready**: mobile breakpoint at 768px with hamburger nav, touch-friendly tap targets, and safe-area insets for notched devices.
 
 ---
 
@@ -49,6 +49,15 @@ python3 genconfig.py
 ```
 
 This writes `config.js`. No Node required.
+
+---
+
+## Responsive & PWA-ready
+
+- **Breakpoint 768px:** Below this width the sidebar becomes an overlay; a **hamburger (≡)** at the top of the main area opens it. Tapping the dimmed backdrop or a nav link closes the menu.
+- **Touch targets:** Buttons, links, and inputs use at least 44px height for reliable tap on phones and tablets.
+- **Safe areas:** Padding respects `env(safe-area-inset-*)` so content isn’t hidden by notches or home indicators when installed as a PWA or full-screen.
+- To ship as a **PWA**, add a `manifest.json` (name, icons, start_url, display: standalone) and a service worker; the layout and nav are already mobile-friendly.
 
 ---
 

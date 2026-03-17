@@ -8,6 +8,7 @@
 </head>
 <body>
   <div class="layout">
+    <button type="button" class="sidebar-backdrop" id="nav-backdrop" aria-label="Close menu"></button>
     <aside class="sidebar">
       <h2>ADE (Local)</h2>
       <nav>
@@ -21,6 +22,7 @@
       <p class="api-badge">API: <span id="api-base-display">…</span></p>
     </aside>
     <main class="main">
+      <button type="button" class="nav-toggle" id="nav-toggle" aria-label="Open menu">≡</button>
       <h1>Agents</h1>
       <p class="muted">Create and open agents. Set model, system prompt, and tools.</p>
       <div id="error"></div>
@@ -51,7 +53,18 @@
     function toolId(t) { return t.id != null ? t.id : t.tool_id || t.name; }
     function toolName(t) { return t.name != null ? t.name : t.tool_id || t.id; }
     function render(agents) {
-      listEl.innerHTML = agents.length ? agents.map(function(a) { return '<li><a class="card" href="agent.html?id=' + encodeURIComponent(id(a)) + '">' + name(a) + '</a></li>'; }).join('') : '<li class="muted">No agents yet.</li>';
+      if (!agents.length) { listEl.innerHTML = '<li class="muted">No agents yet.</li>'; return; }
+      listEl.innerHTML = agents.map(function(a) {
+        var aid = id(a);
+        return '<li style="margin-bottom:8px"><div style="display:flex;align-items:center;gap:8px;padding:16px;background:#1a1a1a;border-radius:8px;border:1px solid #333"><a class="card" href="agent.html?id=' + encodeURIComponent(aid) + '" style="flex:1;text-decoration:none">' + name(a) + '</a><button type="button" class="btn-delete" data-id="' + encodeURIComponent(aid) + '">Delete</button></div></li>';
+      }).join('');
+      listEl.querySelectorAll('.btn-delete').forEach(function(btn) {
+        btn.onclick = function() {
+          if (!confirm('Delete this agent?')) return;
+          var aid = btn.getAttribute('data-id');
+          window.ADE.deleteAgent(aid).then(function() { return window.ADE.listAgents(); }).then(function(d) { render(norm(d)); }).catch(function(err) { errorEl.innerHTML = '<div class="error">' + err.message + '</div>'; });
+        };
+      });
     }
     Promise.all([window.ADE.listAgents(), window.ADE.listModels().catch(function() { return []; }), window.ADE.listTools().catch(function() { return []; })]).then(function(arr) {
       var agentsData = arr[0], modelsData = arr[1], toolsData = arr[2];
