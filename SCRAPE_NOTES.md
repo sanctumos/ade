@@ -47,10 +47,10 @@ index.html      - Main HTML shell (login page)
 
 A Playwright scraper (`scrape.js`) handles authenticated routes:
 
-- **Auth:** Email/password login; cookies saved to `.cookies.json` for reuse
-- **Routes:** `/`, `/dashboard`, `/agents`, `/agents/new`, `/settings/*`, agent detail pages
+- **Auth:** GitHub OAuth (not email/password); cookies saved to `.cookies.json` for reuse
+- **Routes:** `/`, `/agents/new`, `/chat`, `/projects`, `/settings/*`, organization pages
 - **Output:** `scraped/pages/*.html`, `scraped/_next/` (assets)
-- **Run:** `LETTA_EMAIL=... LETTA_PASSWORD=... npm run scrape`
+- **Run:** `GITHUB_EMAIL=... GITHUB_PASSWORD=... npm run scrape`
 
 ## Issues Encountered
 
