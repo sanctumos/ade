@@ -1,218 +1,220 @@
-# Letta ADE Scrape
+# ADE (Agent Development Environment) — Local
 
-Scraped frontend source from **app.letta.com** (Letta Agent Development Environment) for reverse engineering reference. Private use in building a minimal ADE for the Sanctum fork.
-
-**Scrape date:** March 17, 2025  
-**Authentication:** GitHub OAuth (all pages captured with authenticated session)
+This repo contains a **scraped reference** of Letta’s cloud ADE (app.letta.com) and **two runnable local ADEs** that talk to your own API (Letta OSS, Sanctum, or any compatible backend). No dependency on Letta Cloud at runtime.
 
 ---
 
-## What Was Scraped
+## Table of contents
 
-### Summary
-
-| Category | Count |
-|----------|-------|
-| **HTML Pages** | 17 |
-| **Static Assets** | 77 (JS, CSS, fonts) |
-| **Total Files** | 92+ |
-
-### Pages Captured
-
-All pages were captured via authenticated GitHub OAuth session.
-
-#### Main Application
-
-| File | Route | Description |
-|------|-------|-------------|
-| `index.html` | `/` | Main dashboard (projects overview) - landing after login |
-| `projects.html` | `/projects` | Projects main dashboard - project list and creation |
-| `chat.html` | `/chat` | Chat interface for conversing with agents |
-| `agents_new.html` | `/agents/new` | Create new agent form and configuration |
-
-#### Settings (Profile & Account)
-
-| File | Route | Description |
-|------|-------|-------------|
-| `settings.html` | `/settings` | Settings hub / navigation |
-| `settings_profile.html` | `/settings/profile` | User profile settings |
-| `settings_account.html` | `/settings/account` | Account settings |
-
-#### Settings (Organization)
-
-| File | Route | Description |
-|------|-------|-------------|
-| `settings_organization.html` | `/settings/organization` | Organization overview |
-| `settings_organization_settings.html` | `/settings/organization/settings` | Organization general settings |
-| `settings_organization_members.html` | `/settings/organization/members` | Team members management |
-| `settings_organization_members_invite-rules.html` | `/settings/organization/members/invite-rules` | Invite rules configuration |
-| `settings_organization_projects.html` | `/settings/organization/projects` | Organization projects |
-| `settings_organization_billing.html` | `/settings/organization/billing` | Billing and subscription |
-| `settings_organization_usage.html` | `/settings/organization/usage` | Usage metrics and quotas |
-| `settings_organization_api-logs.html` | `/settings/organization/api-logs` | API request logs |
-| `settings_organization_integrations.html` | `/settings/organization/integrations` | Third-party integrations |
-| `settings_organization_rate-limits.html` | `/settings/organization/rate-limits` | Rate limit configuration |
-
-### Static Assets (77 files)
-
-- **CSS:** 14 stylesheets in `scraped/_next/static/css/`
-- **JavaScript:** 48 chunks (webpack, polyfills, main-app, route-specific bundles)
-- **Fonts:** 1 woff2 font in `scraped/_next/static/media/`
-- **SEO:** favicon.svg in `scraped/seo/`
-- **CDN:** Cloudflare email-decode script in `scraped/cdn-cgi/`
-
-See **MANIFEST.md** for the complete file listing.
+- [Quick start](#quick-start)
+- [Requirements](#requirements)
+- [API compatibility](#api-compatibility)
+- [Documentation index](#documentation-index)
+- [Directory structure](#directory-structure)
+- [Run the local ADE](#run-the-local-ade)
+- [Scraper (reference capture)](#how-to-run-the-scraper)
+- [What was scraped](#what-was-scraped)
+- [Limitations & notes](#limitations--notes)
+- [Troubleshooting](#troubleshooting)
+- [Source & repository](#source--repository)
 
 ---
 
-## Local-first & API disentanglement
+## Quick start
 
-The goal is to **run an ADE entirely locally** that **primarily interfaces with the local API** (Letta OSS, Sanctum, or equivalent). The scrape is reference; a rebuilt local client will default to that local backend. Letta Cloud has its own ADE at app.letta.com—as Cloud drifts from OSS, that’s fine; this ADE serves the local stack.
+**You need a running backend** that exposes the API (see [API compatibility](#api-compatibility)). Then choose one:
 
-- **Architecture:** [LOCAL_ARCHITECTURE.md](LOCAL_ARCHITECTURE.md) — primary = local API, options (rebuild vs proxy), and `API_BASE_URL` defaulting to local.
-- **Config:** `.env.example` documents scraper credentials (`GITHUB_EMAIL`, `GITHUB_PASSWORD`) and the future `API_BASE_URL` for the local client (default: local backend).
-- **De-minify first:** [DECODE.md](DECODE.md) — run `npm run decode` to beautify scraped JS and build a chunk/source index in `scraped-beautified/` (gitignored). Use that to read the code and find API/config references before rebuilding.
-- **Run the local ADE:**  
-  - **Simple (no Node):** [ade-simple/](ade-simple/) — plain HTML/CSS/JS. Copy `config.example.js` to `config.js`, set base URL and key, then open `index.html` or serve the folder. Optional: `python3 genconfig.py` to generate `config.js` from a `.env` file.  
-  - **Full (Vite + React):** `cd app && npm install && npm run dev`. Set `VITE_API_BASE` in `app/.env` (default `http://localhost:8283`).
+| Option | Install | Run |
+|--------|--------|-----|
+| **Simple (no Node)** | Copy `ade-simple/config.example.js` → `ade-simple/config.js`, set `base` (and optional `key`). | Open `ade-simple/index.html` in a browser, or serve the `ade-simple/` folder with any web server. |
+| **Full (Vite + React)** | `cd app && npm install` | `npm run dev` (from `app/` or `npm run dev` from repo root). Set `VITE_API_BASE` in `app/.env` if needed. |
+
+Both UIs default to `http://localhost:8283` as the API base. Use **Settings** in either app to change base URL and API key without editing files (saved in the browser).
 
 ---
 
-## Directory Structure
+## Requirements
+
+- **Backend:** A running instance that speaks the API (Letta OSS, Sanctum, or compatible). The ADE is only a frontend; it does not start or manage the backend.
+- **Simple ADE:** Any browser; optional Python 3 if you use `.env` + `genconfig.py`. No Node.
+- **Full ADE:** Node.js 18+ (for install and dev server). Build output is static and can be served by anything.
+- **Scraper (optional):** Node.js 18+, Playwright, GitHub account (no 2FA) if you want to re-run the reference scrape.
+
+---
+
+## API compatibility
+
+Both local ADEs call a **single base URL** with optional **Bearer token** (`Authorization: Bearer <key>`). They expect these endpoints (Letta-style; your backend may use slightly different shapes):
+
+| Method + path | Purpose |
+|--------------|--------|
+| `GET /health` or `GET /v1/health` | Optional; used for “API connected” on dashboard. |
+| `GET /v1/agents` | List agents. Response: array or `{ data: [] }` / `{ agents: [] }`. |
+| `GET /v1/agents/:id` | Get one agent. |
+| `POST /v1/agents` | Create agent. Body: e.g. `{ "name": "..." }`. |
+| `PATCH /v1/agents/:id` | Update agent (full app). |
+| `GET /v1/agents/:id/messages` | List messages (optional; chat may still work without it). |
+| `POST /v1/agents/:id/messages` | Send message. Body: e.g. `{ "message": "..." }`. Response: assistant message (e.g. `message` or `content`). |
+| `GET /v1/agents/:id/core-memory/blocks/:label` | Get memory block (e.g. `persona`). |
+| `PATCH /v1/agents/:id/core-memory/blocks/:label` | Update memory. Body: e.g. `{ "content": "..." }`. |
+| `GET /v1/projects`, `POST /v1/projects`, `GET /v1/projects/:id` | Optional; full app uses for Projects. Simple ADE does not. |
+
+If your backend uses different paths or field names, adapt the API layer in `app/src/api/client.js` or `ade-simple/app.js`.
+
+---
+
+## Documentation index
+
+| Doc | Description |
+|-----|-------------|
+| [LOCAL_ARCHITECTURE.md](LOCAL_ARCHITECTURE.md) | Local-first goals, API-as-swap-point, Cloud vs OSS. |
+| [DECODE.md](DECODE.md) | De-minify scraped JS (`npm run decode`), chunk index, no source maps. |
+| [MANIFEST.md](MANIFEST.md) | Full list of scraped files. |
+| [SCRAPE_NOTES.md](SCRAPE_NOTES.md) | Scrape tech notes, API patterns, issues. |
+| [ade-simple/README.md](ade-simple/README.md) | Simple ADE: setup, config, .env, troubleshooting. |
+| [app/README.md](app/README.md) | Full ADE: run, build, routes, troubleshooting. |
+
+---
+
+## Directory structure
 
 ```
 .
-├── README.md             # This file
-├── LOCAL_ARCHITECTURE.md # Local-first, API-disentanglement plan
-├── DECODE.md             # De-minify / de-obfuscate strategy (npm run decode)
-├── MANIFEST.md           # Full scraped file listing
-├── SCRAPE_NOTES.md       # Technical notes, API patterns, issues
-├── scrape.js             # Playwright scraper (GitHub OAuth)
-├── decode.js             # Beautify scraped JS + build chunk index
-├── ade-simple/           # No-Node ADE: HTML/CSS/JS + config.js (or .env → genconfig.py)
-├── app/                  # Local ADE frontend (Vite + React)
-│   ├── src/
-│   │   ├── api/client.js # Single API client (VITE_API_BASE)
-│   │   ├── pages/       # Dashboard, Projects, Agents, Chat
-│   │   └── components/
-│   └── package.json
-├── run-scrape.sh       # Helper to run scraper with .env
-├── package.json
-├── index.html          # Login page HTML (unauthenticated)
-├── _next/              # Static assets (login page)
-├── seo/                # Favicons, manifest (root level)
-└── scraped/            # Authenticated scrape output
-    ├── pages/          # 17 HTML pages (dashboard, chat, agents, settings)
-    ├── _next/          # Static assets (JS, CSS, fonts)
-    ├── seo/            # Favicon
-    └── cdn-cgi/        # Cloudflare scripts
+├── README.md               # This file
+├── LOCAL_ARCHITECTURE.md   # Local-first, API-disentanglement plan
+├── DECODE.md               # De-minify strategy (npm run decode)
+├── MANIFEST.md             # Full scraped file listing
+├── SCRAPE_NOTES.md         # Technical notes, API patterns
+├── scrape.js               # Playwright scraper (GitHub OAuth)
+├── run-scrape.sh           # Run scraper with .env
+├── decode.js               # Beautify scraped JS + build chunk index
+├── package.json            # Scraper + decode scripts (npm run dev → app)
+├── .env.example            # GITHUB_* for scraper; API_BASE_URL for reference
+│
+├── ade-simple/             # No-Node ADE (HTML/CSS/JS)
+│   ├── config.example.js   # Copy to config.js and edit
+│   ├── config.js           # Your base URL + key (gitignored)
+│   ├── app.js              # API helpers
+│   ├── index.html, agents.html, agent.html, chat.html, settings.html
+│   ├── styles.css
+│   ├── genconfig.py        # Optional: .env → config.js
+│   └── README.md
+│
+├── app/                    # Full ADE (Vite + React)
+│   ├── src/api/client.js, pages/, components/
+│   ├── package.json
+│   └── README.md
+│
+├── index.html, _next/, seo/   # Root: login-page scrape assets
+└── scraped/                   # Authenticated scrape output
+    ├── pages/                  # 17 HTML pages
+    └── _next/                  # JS, CSS, fonts
 ```
 
 ---
 
-## How to Run the Scraper
+## Run the local ADE
+
+### Simple (no Node)
+
+1. **Config:** `cd ade-simple && cp config.example.js config.js`. Edit `config.js`: set `base` to your API URL (e.g. `http://localhost:8283`), and `key` if your backend requires a Bearer token.
+2. **Optional .env:** Create `ade-simple/.env` with `ADE_BASE=...` and `ADE_KEY=...`, then run `python3 genconfig.py` to generate `config.js`.
+3. **Run:** Open `ade-simple/index.html` in a browser, or serve the `ade-simple/` folder (nginx, Apache, PHP, etc.). You can also use **Settings** in the app to set base URL and key (stored in this browser only).
+
+See [ade-simple/README.md](ade-simple/README.md) for details and troubleshooting.
+
+### Full (Vite + React)
+
+1. **Install:** `cd app && npm install`
+2. **Config:** Create `app/.env` with `VITE_API_BASE=http://localhost:8283` (or your backend URL). Default is already `http://localhost:8283`.
+3. **Run:** `npm run dev` (from `app/` or `npm run dev` from repo root). Open the URL Vite prints (e.g. http://localhost:5173).
+4. **API key:** In the app, open **Settings** and enter a Bearer token if needed (stored in localStorage).
+
+See [app/README.md](app/README.md) for routes, build, and troubleshooting.
+
+---
+
+## How to run the scraper
+
+The scraper captures app.letta.com (authenticated) as a **static reference**. You only need it if you want to refresh or inspect the scrape.
 
 ### Prerequisites
 
 - Node.js 18+
-- GitHub account (OAuth is the only supported auth method)
+- GitHub account (OAuth; 2FA not supported — use an account without 2FA or a PAT)
 
 ### Setup
 
 ```bash
-# Install dependencies
 npm install
 npx playwright install chromium
-
-# Linux: install browser dependencies (libglib, etc.)
-npx playwright install --with-deps chromium
+# Linux: npx playwright install --with-deps chromium
 ```
 
-### Running the Scrape
-
-**Option 1: Environment variables**
+### Run
 
 ```bash
+# Option 1: env vars
 GITHUB_EMAIL=your@email.com GITHUB_PASSWORD=yourpassword npm run scrape
-```
 
-**Option 2: .env file**
-
-Create `.env` (gitignored):
-
-```
-GITHUB_EMAIL=your@email.com
-GITHUB_PASSWORD=yourpassword
-```
-
-Then run:
-
-```bash
+# Option 2: .env file (create from .env.example)
 ./run-scrape.sh
 # or
 npm run scrape
-```
 
-**Option 3: Headed mode (visible browser)**
-
-```bash
+# Option 3: headed (visible browser)
 HEADLESS=false GITHUB_EMAIL=... GITHUB_PASSWORD=... npm run scrape:headed
 ```
 
-### What the Scraper Does
+The scraper logs in via GitHub OAuth, saves cookies to `.cookies.json`, visits dashboard/projects/chat/agents/settings, and writes HTML to `scraped/pages/` and assets to `scraped/_next/`.
 
-1. Navigates to Letta GitHub OAuth init (`/auth/github/init`)
-2. Logs in to GitHub with your credentials
-3. Authorizes the Letta app (first time only)
-4. Saves session cookies to `.cookies.json` (gitignored) for reuse
-5. Visits all authenticated routes: dashboard, projects, chat, agents/new, settings/*
-6. Saves HTML to `scraped/pages/`
-7. Downloads JS, CSS, and assets to `scraped/_next/`
+### De-minify (optional)
 
-### GitHub 2FA
+To beautify scraped JS and build a chunk/source index (for reading the code):
 
-The scraper does **not** support GitHub 2FA. If your account has 2FA enabled, use a personal access token or a secondary account without 2FA.
+```bash
+npm run decode
+```
+
+Output goes to `scraped-beautified/` (gitignored). See [DECODE.md](DECODE.md).
 
 ---
 
-## What Each Page Contains
+## What was scraped
 
-- **Projects** (`projects.html`): Project list, create project, project cards
-- **Chat** (`chat.html`): Chat UI, message input, agent selection
-- **Agents/New** (`agents_new.html`): Agent creation form, model selection, instructions
-- **Settings hub** (`settings.html`): Navigation to profile, account, organization
-- **Profile** (`settings_profile.html`): Name, avatar, preferences
-- **Account** (`settings_account.html`): Email, password, connected accounts
-- **Organization** (all `settings_organization_*.html`): Team management, billing, usage, API logs, integrations, rate limits, invite rules
+- **Source:** app.letta.com (Letta Agent Development Environment).  
+- **Date:** March 17, 2025.  
+- **Auth:** GitHub OAuth; 17 HTML pages + 77+ static assets (JS, CSS, fonts).
 
-All pages are Next.js React apps. The HTML is the initial shell; most content is rendered client-side via the JS chunks.
+Main routes captured: `/` (dashboard), `/projects`, `/chat`, `/agents/new`, `/settings`, `/settings/profile`, `/settings/account`, `/settings/organization/*` (settings, members, billing, usage, api-logs, integrations, rate-limits). See [MANIFEST.md](MANIFEST.md) for the full list.
+
+The scrape is **reference only**: static HTML + minified JS; no API data. The local ADEs in `ade-simple/` and `app/` are separate implementations that talk to your own API.
 
 ---
 
-## Limitations & Notes
+## Limitations & notes
 
-1. **Static snapshot only:** HTML captures the DOM at scrape time. Dynamic content (API responses, real-time data) is not captured. The pages require the JS bundles to hydrate and function.
-
-2. **Asset URLs:** HTML references `web-cdn.letta.com` for assets. For fully offline use, you would need to rewrite paths to local `scraped/_next/`.
-
-3. **No API data:** Chat history, agent configs, project data come from `api.letta.com`. These are not in the scrape.
-
-4. **OAuth only:** Letta signup/login is OAuth-only (Google/GitHub). Email/password requires an existing account.
-
-5. **Agent detail pages:** Individual agent pages (`/agents/{id}`) are only scraped if links were discovered during the run (up to 10). Your org may have different agents.
-
-6. **Session expiry:** Cookies in `.cookies.json` expire. Re-run the scraper when sessions expire.
+1. **Scrape:** Static snapshot only; no API data. Asset URLs in HTML point to web-cdn.letta.com; for offline use you’d rewrite to local paths.
+2. **Scraper:** No GitHub 2FA; cookies expire — re-run when needed.
+3. **Local ADEs:** They only work with a backend that implements the expected endpoints (see [API compatibility](#api-compatibility)). CORS must allow requests from the origin where you serve the frontend.
 
 ---
 
-## Source
+## Troubleshooting
 
-- **App:** https://app.letta.com
-- **CDN:** https://web-cdn.letta.com
-- **API:** https://api.letta.com (not scraped)
+| Issue | What to try |
+|-------|-------------|
+| **Dashboard shows “API: Unreachable”** | Backend not running or wrong URL. Check base URL in Settings or `config.js` / `VITE_API_BASE`. Ensure no trailing slash in base. |
+| **CORS errors in browser** | Backend must allow the origin of the ADE (e.g. `file://`, or the domain where you serve the HTML). Configure CORS on the API server. |
+| **401 / 403 on API calls** | Backend may require a Bearer token. Set API key in Settings (or in `config.js` / `VITE_API_KEY`). |
+| **Simple ADE: “config.js 404” or blank page** | Copy `config.example.js` to `config.js` in `ade-simple/`. Or use Settings so the app uses localStorage instead. |
+| **Full ADE: build or dev fails** | Run from `app/`: `npm install` then `npm run dev`. Node 18+ required. |
+| **Scraper: “Expected redirect to GitHub”** | Check credentials; disable 2FA or use a different GitHub account. |
 
 ---
 
-## Repository
+## Source & repository
 
-https://github.com/sanctumos/ade
+- **Letta app (scraped):** https://app.letta.com  
+- **Letta API (reference):** https://api.letta.com (not scraped; see [SCRAPE_NOTES.md](SCRAPE_NOTES.md) for patterns.)  
+- **This repo:** https://github.com/sanctumos/ade  

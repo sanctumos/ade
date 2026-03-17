@@ -1,17 +1,63 @@
 # ADE Simple — no Node, no build
 
-Plain HTML, CSS, and JS. Point at your Letta (or compatible) API and go.
+Plain HTML, CSS, and JS. Point at your Letta (or compatible) API and go. No install beyond editing one config file (or using the in-app Settings).
+
+---
+
+## Prerequisites
+
+- A **running API** that implements the endpoints the ADE expects (see [API compatibility](#api-compatibility) in the root [README](../README.md)).
+- A browser. Optional: Python 3 if you use the `.env` → `config.js` generator.
+
+---
 
 ## Setup
 
-1. **Copy config:** `cp config.example.js config.js`
-2. **Edit config.js:** set `base` to your API URL (e.g. `http://localhost:8283`), and `key` if your backend needs a Bearer token.
-3. **Or use Settings:** open `settings.html` in the app and enter base URL + key; they’re saved in this browser (localStorage) and override `config.js`.
+### Option A: config.js (recommended)
+
+1. Copy the example:  
+   `cp config.example.js config.js`
+2. Edit `config.js`: set `base` to your API URL (e.g. `http://localhost:8283`) and `key` if your backend requires a Bearer token.
+
+```javascript
+window.ADE_CONFIG = {
+  base: 'http://localhost:8283',
+  key: ''
+};
+```
+
+### Option B: Settings (no file edit)
+
+Open `settings.html` in the app, enter the API base URL and optional API key, and click **Save in this browser**. Values are stored in localStorage and override `config.js` for that browser.
+
+### Option C: .env + generator
+
+If you prefer a `.env` file:
+
+1. Create `ade-simple/.env`:
+
+```bash
+ADE_BASE=http://localhost:8283
+ADE_KEY=
+```
+
+2. Run once:
+
+```bash
+cd ade-simple
+python3 genconfig.py
+```
+
+This writes `config.js`. No Node required.
+
+---
 
 ## Run
 
-- **From disk:** Open `index.html` in a browser. (If your API is on another origin, CORS must allow it.)
-- **From a server:** Put this folder in your web root (nginx, Apache, PHP, anything). No Node required.
+- **From disk:** Open `index.html` in a browser. If your API is on another origin (e.g. different host or port), the API must send CORS headers allowing your origin (or `file://` if you open the file directly).
+- **From a server:** Put this folder in your web root (nginx, Apache, PHP, etc.). No Node required. Then open e.g. `http://localhost/ade-simple/` (or whatever path you use).
+
+---
 
 ## Files
 
@@ -19,19 +65,47 @@ Plain HTML, CSS, and JS. Point at your Letta (or compatible) API and go.
 |------|--------|
 | `config.example.js` | Template; copy to `config.js` and edit. |
 | `config.js` | Your base URL + key (gitignored). |
-| `app.js` | API helpers; reads config or localStorage. |
-| `index.html` | Dashboard. |
-| `agents.html` | List and create agents. |
-| `agent.html` | One agent: memory (persona), link to Chat. |
-| `chat.html` | Pick agent, send messages. `?agent=id` preselects. |
-| `settings.html` | Set base URL and key in this browser. |
+| `app.js` | API helpers; reads `window.ADE_CONFIG` or localStorage (from Settings). |
+| `index.html` | Dashboard: API status, links to Agents and Chat. |
+| `agents.html` | List agents, create new. |
+| `agent.html` | One agent: memory (persona) block, link to Chat. Query: `?id=<agent_id>`. |
+| `chat.html` | Pick agent, send messages. Query: `?agent=<agent_id>` preselects. |
+| `settings.html` | Set base URL and API key in this browser. |
+| `styles.css` | Shared styles. |
+| `genconfig.py` | Optional: reads `.env`, writes `config.js`. |
+
+---
+
+## API compatibility
+
+The app calls:
+
+- `GET /v1/agents`, `POST /v1/agents`, `GET /v1/agents/:id`
+- `POST /v1/agents/:id/messages` (send message), optionally `GET /v1/agents/:id/messages`
+- `GET /v1/agents/:id/core-memory/blocks/persona`, `PATCH ...` (memory)
+
+See the root [README — API compatibility](../README.md#api-compatibility) for the full list and response shapes.
+
+---
+
+## Troubleshooting
+
+| Issue | What to try |
+|-------|-------------|
+| **Blank page or “config.js 404”** | Create `config.js` from `config.example.js`, or open Settings and save base URL + key so the app uses localStorage. |
+| **“API: Unreachable” on dashboard** | Backend not running or wrong URL. Check Settings (or `config.js`). No trailing slash in base URL. |
+| **CORS errors in console** | The API must allow requests from the origin of the page (your server or `file://`). Configure CORS on the backend. |
+| **401 / 403 on requests** | Set the API key in Settings or in `config.js` (`key`). |
+| **genconfig.py: “No such file”** | Run `python3 genconfig.py` from inside the `ade-simple/` directory (where `.env` and `config.example.js` live). |
+
+---
 
 ## Optional: config from .env
 
-If you prefer a `.env` file, run once:
+If you use Option C (`.env` + `genconfig.py`), run:
 
 ```bash
 python3 genconfig.py
 ```
 
-This reads `.env` (e.g. `ADE_BASE=http://localhost:8283`, `ADE_KEY=optional`) and writes `config.js`. No Node required.
+after changing `.env`. This overwrites `config.js`. No Node required.
