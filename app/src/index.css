@@ -1,0 +1,18 @@
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #0f0f0f;
+  color: #e0e0e0;
+}
+a {
+  color: #7eb8da;
+}
+a:hover {
+  text-decoration: underline;
+}
+#root {
+  min-height: 100vh;
+}

@@ -86,6 +86,12 @@ The goal is to **run an ADE entirely locally** that **primarily interfaces with 
 ├── SCRAPE_NOTES.md       # Technical notes, API patterns, issues
 ├── scrape.js             # Playwright scraper (GitHub OAuth)
 ├── decode.js             # Beautify scraped JS + build chunk index
+├── app/                  # Local ADE frontend (Vite + React)
+│   ├── src/
+│   │   ├── api/client.js # Single API client (VITE_API_BASE)
+│   │   ├── pages/       # Dashboard, Projects, Agents, Chat
+│   │   └── components/
+│   └── package.json
 ├── run-scrape.sh       # Helper to run scraper with .env
 ├── package.json
 ├── index.html          # Login page HTML (unauthenticated)
