@@ -6,7 +6,8 @@
   "scripts": {
     "scrape": "node scrape.js",
     "scrape:headed": "HEADLESS=false node scrape.js",
-    "decode": "node decode.js"
+    "decode": "node decode.js",
+    "dev": "cd app && npm run dev"
   },
   "dependencies": {
     "playwright": "^1.49.0"

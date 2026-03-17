@@ -4,6 +4,7 @@
  */
 
 const base = import.meta.env.VITE_API_BASE ?? 'http://localhost:8283';
+const apiKey = import.meta.env.VITE_API_KEY ?? '';
 
 export function apiBase() {
   return base.replace(/\/$/, '');
@@ -11,12 +12,14 @@ export function apiBase() {
 
 export async function apiFetch(path, options = {}) {
   const url = path.startsWith('http') ? path : `${apiBase()}${path.startsWith('/') ? '' : '/'}${path}`;
+  const headers = {
+    'Content-Type': 'application/json',
+    ...options.headers,
+  };
+  if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
   const res = await fetch(url, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+    headers,
   });
   if (!res.ok) {
     const text = await res.text();

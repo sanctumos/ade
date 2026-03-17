@@ -72,6 +72,7 @@ The goal is to **run an ADE entirely locally** that **primarily interfaces with 
 - **Architecture:** [LOCAL_ARCHITECTURE.md](LOCAL_ARCHITECTURE.md) — primary = local API, options (rebuild vs proxy), and `API_BASE_URL` defaulting to local.
 - **Config:** `.env.example` documents scraper credentials (`GITHUB_EMAIL`, `GITHUB_PASSWORD`) and the future `API_BASE_URL` for the local client (default: local backend).
 - **De-minify first:** [DECODE.md](DECODE.md) — run `npm run decode` to beautify scraped JS and build a chunk/source index in `scraped-beautified/` (gitignored). Use that to read the code and find API/config references before rebuilding.
+- **Run the local ADE:** `cd app && npm install && npm run dev`. Set `VITE_API_BASE` in `app/.env` (default `http://localhost:8283`) to point at your local backend.
 
 ---
 
