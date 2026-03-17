@@ -104,8 +104,24 @@ export function listModels() {
 }
 
 /** GET /v1/tools */
-export function listTools() {
-  return apiFetch('/v1/tools');
+export function listTools(params = {}) {
+  const q = new URLSearchParams(params).toString();
+  return apiFetch('/v1/tools' + (q ? '?' + q : ''));
+}
+
+/** GET /v1/mcp-servers */
+export function listMcpServers() {
+  return apiFetch('/v1/mcp-servers');
+}
+
+/** POST /v1/mcp-servers */
+export function createMcpServer(body) {
+  return apiFetch('/v1/mcp-servers', { method: 'POST', body: JSON.stringify(body) });
+}
+
+/** GET /v1/mcp-servers/:id/tools */
+export function listMcpServerTools(serverId) {
+  return apiFetch(`/v1/mcp-servers/${serverId}/tools`);
 }
 
 /** GET /v1/projects (optional; some backends) */

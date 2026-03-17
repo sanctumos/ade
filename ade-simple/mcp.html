@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MCP — ADE</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h2>ADE (Local)</h2>
+      <nav>
+        <a href="index.html">Dashboard</a>
+        <a href="agents.html">Agents</a>
+        <a href="tools.html">Tools</a>
+        <a href="mcp.html" class="active">MCP</a>
+        <a href="chat.html">Chat</a>
+        <a href="settings.html">Settings</a>
+      </nav>
+      <p class="api-badge">API: <span id="api-base-display">…</span></p>
+    </aside>
+    <main class="main">
+      <h1>MCP servers</h1>
+      <p class="muted">Register MCP servers. Their tools become available to attach to agents.</p>
+      <div id="error"></div>
+      <form id="create-form" style="margin-bottom:24px;padding:20px;background:#1a1a1a;border-radius:8px;max-width:560px">
+        <h2 style="font-size:16px;margin-top:0">Add MCP server (Streamable HTTP)</h2>
+        <p><label>Server name <input type="text" id="server-name" placeholder="e.g. github" style="width:100%;margin-top:4px" /></label></p>
+        <p><label>Server URL <input type="url" id="server-url" placeholder="https://mcp.example.com/endpoint" style="width:100%;margin-top:4px" /></label></p>
+        <p><label>Auth token (optional) <input type="password" id="auth-token" placeholder="Bearer …" style="width:100%;margin-top:4px" autocomplete="off" /></label></p>
+        <button type="submit" class="btn" id="create-btn">Add MCP server</button>
+      </form>
+      <ul id="list" style="list-style:none;padding:0"></ul>
+    </main>
+  </div>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+  <script>
+    document.getElementById('api-base-display').textContent = window.ADE.apiBase();
+    var listEl = document.getElementById('list');
+    var errorEl = document.getElementById('error');
+    function norm(d) { return Array.isArray(d) ? d : (d && d.data) ? d.data : (d && d.mcp_servers) ? d.mcp_servers : []; }
+    function render(servers) {
+      listEl.innerHTML = servers.length ? servers.map(function(s) {
+        var sid = s.id != null ? s.id : s.mcp_server_id;
+        var sname = s.server_name != null ? s.server_name : s.name || sid;
+        return '<li style="margin-bottom:8px"><div class="card" style="padding:16px"><strong>' + sname + '</strong> <span style="color:#888">' + sid + '</span></div></li>';
+      }).join('') : '<li class="muted">No MCP servers. Add one above.</li>';
+    }
+    window.ADE.listMcpServers().then(function(d) { render(norm(d)); }).catch(function(e) { errorEl.innerHTML = '<div class="error">' + e.message + '</div>'; });
+    document.getElementById('create-form').onsubmit = function(e) {
+      e.preventDefault();
+      var name = document.getElementById('server-name').value.trim();
+      var url = document.getElementById('server-url').value.trim();
+      var token = document.getElementById('auth-token').value.trim();
+      if (!name || !url) return;
+      document.getElementById('create-btn').disabled = true;
+      errorEl.innerHTML = '';
+      var config = { mcp_server_type: 'streamable_http', server_url: url };
+      if (token) { config.auth_header = 'Authorization'; config.auth_token = token; }
+      window.ADE.createMcpServer({ server_name: name, config: config }).then(function() {
+        document.getElementById('server-name').value = '';
+        document.getElementById('server-url').value = '';
+        document.getElementById('auth-token').value = '';
+        return window.ADE.listMcpServers();
+      }).then(function(d) { render(norm(d)); }).catch(function(err) { errorEl.innerHTML = '<div class="error">' + err.message + '</div>'; }).finally(function() { document.getElementById('create-btn').disabled = false; });
+    };
+  </script>
+</body>
+</html>

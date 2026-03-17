@@ -5,6 +5,8 @@ const nav = [
   { to: '/', label: 'Dashboard' },
   { to: '/projects', label: 'Projects' },
   { to: '/agents', label: 'Agents' },
+  { to: '/tools', label: 'Tools' },
+  { to: '/mcp', label: 'MCP' },
   { to: '/chat', label: 'Chat' },
   { to: '/settings', label: 'Settings' },
 ];

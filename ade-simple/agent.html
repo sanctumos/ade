@@ -13,6 +13,8 @@
       <nav>
         <a href="index.html">Dashboard</a>
         <a href="agents.html">Agents</a>
+        <a href="tools.html">Tools</a>
+        <a href="mcp.html">MCP</a>
         <a href="chat.html">Chat</a>
         <a href="settings.html">Settings</a>
       </nav>
@@ -23,6 +25,13 @@
       <h1 id="title">…</h1>
       <div id="error"></div>
       <p><a href="#" id="chat-link" class="card" style="display:inline-block">Open in Chat →</a></p>
+      <h2 style="font-size:16px">Model, system prompt & tools</h2>
+      <div id="config-form" style="margin-bottom:24px">
+        <p id="model-row" style="display:none"><label>Model <select id="model" style="width:100%;max-width:400px;margin-top:4px"></select></label></p>
+        <p><label>System prompt <textarea id="system" rows="4" style="width:100%;max-width:560px;margin-top:4px"></textarea></label></p>
+        <p id="tools-row" style="display:none"><span style="display:block;margin-bottom:4px">Tools</span><div id="tools-checkboxes"></div></p>
+        <button type="button" class="btn" id="save-config">Save config</button>
+      </div>
       <h2 style="font-size:16px">Memory (persona)</h2>
       <textarea id="memory" rows="6" style="width:100%;max-width:560px;margin-bottom:8px"></textarea>
       <button class="btn" id="save-memory">Save memory</button>
@@ -34,19 +43,56 @@
     document.getElementById('api-base-display').textContent = window.ADE.apiBase();
     var params = new URLSearchParams(location.search);
     var id = params.get('id');
+    var errorEl = document.getElementById('error');
     if (!id) { document.getElementById('title').textContent = 'No agent'; return; }
     document.getElementById('chat-link').href = 'chat.html?agent=' + encodeURIComponent(id);
+    function normList(d) { return Array.isArray(d) ? d : (d && d.data) ? d.data : []; }
+    function modelId(m) { return m.handle != null ? m.handle : m.id || m.model || m.name; }
+    function modelLabel(m) { return m.display_name != null ? m.display_name : m.handle || m.model || m.name || modelId(m); }
+    function toolId(t) { return t.id != null ? t.id : t.tool_id || t.name; }
+    function toolName(t) { return t.name != null ? t.name : t.tool_id || t.id; }
     window.ADE.getAgent(id).then(function(a) {
       document.getElementById('title').textContent = a.name || a.agent_name || id;
-    }).catch(function(e) { document.getElementById('error').innerHTML = '<div class="error">' + e.message + '</div>'; });
+      document.getElementById('system').value = a.system || '';
+    }).catch(function(e) { errorEl.innerHTML = '<div class="error">' + e.message + '</div>'; });
     window.ADE.getAgentMemory(id).then(function(m) {
       var content = (m && m.content) || (m && m.block && m.block.content) || (typeof m === 'string' ? m : '');
       document.getElementById('memory').value = content;
     }).catch(function() {});
+    Promise.all([window.ADE.listModels().catch(function() { return []; }), window.ADE.listTools().catch(function() { return []; })]).then(function(arr) {
+      var models = normList(arr[0]), tools = normList(arr[1]);
+      window.ADE.getAgent(id).then(function(a) {
+        if (models.length) {
+          document.getElementById('model-row').style.display = 'block';
+          var modelSelect = document.getElementById('model');
+          modelSelect.innerHTML = '<option value="">—</option>' + models.map(function(m) { return '<option value="' + modelId(m) + '">' + modelLabel(m) + '</option>'; }).join('');
+          modelSelect.value = a.model || a.handle || '';
+        }
+        if (tools.length) {
+          document.getElementById('tools-row').style.display = 'block';
+          var agentToolIds = a.tool_ids || a.tools || [];
+          if (!Array.isArray(agentToolIds)) agentToolIds = [];
+          document.getElementById('tools-checkboxes').innerHTML = tools.map(function(t) {
+            var tid = toolId(t); var checked = agentToolIds.indexOf(tid) !== -1;
+            return '<label style="display:inline-block;margin-right:12px;cursor:pointer"><input type="checkbox" name="tool" value="' + tid + '"' + (checked ? ' checked' : '') + '> ' + toolName(t) + '</label>';
+          }).join('');
+        }
+      });
+    });
+    document.getElementById('save-config').onclick = function() {
+      var body = {};
+      var modelVal = document.getElementById('model').value;
+      if (document.getElementById('model-row').style.display !== 'none') body.model = modelVal || undefined;
+      body.system = document.getElementById('system').value;
+      var checked = [].map.call(document.querySelectorAll('input[name=tool]:checked'), function(c) { return c.value; });
+      body.tool_ids = checked;
+      document.getElementById('save-config').disabled = true;
+      window.ADE.updateAgent(id, body).then(function() { document.getElementById('save-config').disabled = false; }).catch(function(e) { errorEl.innerHTML = '<div class="error">' + e.message + '</div>'; document.getElementById('save-config').disabled = false; });
+    };
     document.getElementById('save-memory').onclick = function() {
       var content = document.getElementById('memory').value;
       document.getElementById('save-memory').disabled = true;
-      window.ADE.updateAgentMemory(id, 'persona', { content: content }).then(function() { document.getElementById('save-memory').disabled = false; }).catch(function(e) { document.getElementById('error').innerHTML = '<div class="error">' + e.message + '</div>'; document.getElementById('save-memory').disabled = false; });
+      window.ADE.updateAgentMemory(id, 'persona', { content: content }).then(function() { document.getElementById('save-memory').disabled = false; }).catch(function(e) { errorEl.innerHTML = '<div class="error">' + e.message + '</div>'; document.getElementById('save-memory').disabled = false; });
     };
   </script>
 </body>

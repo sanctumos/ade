@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { listAgents, createAgent } from '../api/client';
+import { listAgents, createAgent, listModels, listTools } from '../api/client';
 import Loading from '../components/Loading';
 import ErrorBanner from '../components/ErrorBanner';
 
@@ -10,26 +10,44 @@ function normalizeAgents(data) {
   if (data?.agents && Array.isArray(data.agents)) return data.agents;
   return [];
 }
+function normalizeList(data) {
+  if (Array.isArray(data)) return data;
+  if (data?.data && Array.isArray(data.data)) return data.data;
+  return [];
+}
+function modelId(m) {
+  return m.handle ?? m.id ?? m.model ?? m.name;
+}
+function modelLabel(m) {
+  return m.display_name ?? m.handle ?? m.model ?? m.name ?? modelId(m);
+}
+function toolId(t) {
+  return t.id ?? t.tool_id ?? t.name;
+}
+function toolName(t) {
+  return t.name ?? t.tool_id ?? t.id;
+}
 
 export default function Agents() {
   const [agents, setAgents] = useState([]);
+  const [models, setModels] = useState([]);
+  const [tools, setTools] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
+  const [model, setModel] = useState('');
+  const [system, setSystem] = useState('');
+  const [toolIds, setToolIds] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
-    listAgents()
-      .then((data) => {
-        if (!cancelled) setAgents(normalizeAgents(data));
-      })
-      .catch((e) => {
-        if (!cancelled) setError(e.message);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    Promise.all([listAgents(), listModels().catch(() => []), listTools().catch(() => [])]).then(([agentsData, modelsData, toolsData]) => {
+      if (cancelled) return;
+      setAgents(normalizeAgents(agentsData));
+      setModels(normalizeList(modelsData));
+      setTools(normalizeList(toolsData));
+    }).catch((e) => !cancelled && setError(e.message)).finally(() => !cancelled && setLoading(false));
     return () => { cancelled = true; };
   }, []);
 
@@ -38,13 +56,25 @@ export default function Agents() {
     if (!name.trim()) return;
     setCreating(true);
     setError(null);
-    createAgent({ name: name.trim() })
-      .then((agent) => {
-        setAgents((prev) => [...prev, agent].filter(Boolean));
+    const body = { name: name.trim() };
+    if (model) body.model = model;
+    if (system.trim()) body.system = system.trim();
+    if (toolIds.length) body.tool_ids = toolIds;
+    createAgent(body)
+      .then(() => {
         setName('');
+        setModel('');
+        setSystem('');
+        setToolIds([]);
+        return listAgents();
       })
+      .then((data) => setAgents(normalizeAgents(data)))
       .catch((e) => setError(e.message))
       .finally(() => setCreating(false));
+  };
+
+  const toggleTool = (id) => {
+    setToolIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
   if (loading) return <Loading message="Loading agents…" />;
@@ -52,18 +82,46 @@ export default function Agents() {
   return (
     <div>
       <h1>Agents</h1>
-      <p style={{ color: '#888', marginBottom: 24 }}>Create and manage agents. Open one to edit memory or chat.</p>
+      <p style={{ color: '#888', marginBottom: 24 }}>Create and manage agents. Set model, system prompt, and tools.</p>
       <ErrorBanner error={error} onDismiss={() => setError(null)} />
 
-      <form onSubmit={handleCreate} style={{ marginBottom: 24, display: 'flex', gap: 8, alignItems: 'center' }}>
-        <input
-          type="text"
-          placeholder="Agent name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          style={{ width: 240 }}
-        />
-        <button type="submit" disabled={creating}>Create agent</button>
+      <form onSubmit={handleCreate} style={{ marginBottom: 24, padding: 20, background: '#1a1a1a', borderRadius: 8, maxWidth: 560 }}>
+        <h2 style={{ fontSize: 16, marginTop: 0 }}>Create agent</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <label>
+            <span style={{ display: 'block', marginBottom: 4 }}>Name *</span>
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Agent name" style={{ width: '100%' }} />
+          </label>
+          {models.length > 0 && (
+            <label>
+              <span style={{ display: 'block', marginBottom: 4 }}>Model</span>
+              <select value={model} onChange={(e) => setModel(e.target.value)} style={{ width: '100%' }}>
+                <option value="">—</option>
+                {models.map((m) => (
+                  <option key={modelId(m)} value={modelId(m)}>{modelLabel(m)}</option>
+                ))}
+              </select>
+            </label>
+          )}
+          <label>
+            <span style={{ display: 'block', marginBottom: 4 }}>System prompt</span>
+            <textarea value={system} onChange={(e) => setSystem(e.target.value)} placeholder="Instructions for the agent…" rows={4} style={{ width: '100%' }} />
+          </label>
+          {tools.length > 0 && (
+            <label>
+              <span style={{ display: 'block', marginBottom: 4 }}>Tools</span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {tools.map((t) => (
+                  <label key={toolId(t)} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                    <input type="checkbox" checked={toolIds.includes(toolId(t))} onChange={() => toggleTool(toolId(t))} />
+                    <span>{toolName(t)}</span>
+                  </label>
+                ))}
+              </div>
+            </label>
+          )}
+          <button type="submit" disabled={creating}>Create agent</button>
+        </div>
       </form>
 
       <ul style={{ listStyle: 'none', padding: 0 }}>

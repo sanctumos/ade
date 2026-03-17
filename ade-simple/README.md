@@ -68,7 +68,9 @@ This writes `config.js`. No Node required.
 | `app.js` | API helpers; reads `window.ADE_CONFIG` or localStorage (from Settings). |
 | `index.html` | Dashboard: API status, links to Agents and Chat. |
 | `agents.html` | List agents, create new. |
-| `agent.html` | One agent: memory (persona) block, link to Chat. Query: `?id=<agent_id>`. |
+| `agent.html` | One agent: model, system prompt, tools, memory (persona). Query: `?id=<agent_id>`. |
+| `tools.html` | List all tools. Attach when creating or editing agents. |
+| `mcp.html` | Register MCP servers (Streamable HTTP). Their tools appear in Tools. |
 | `chat.html` | Pick agent, send messages. Query: `?agent=<agent_id>` preselects. |
 | `settings.html` | Set base URL and API key in this browser. |
 | `styles.css` | Shared styles. |

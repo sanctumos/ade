@@ -13,6 +13,8 @@
       <nav>
         <a href="index.html">Dashboard</a>
         <a href="agents.html" class="active">Agents</a>
+        <a href="tools.html">Tools</a>
+        <a href="mcp.html">MCP</a>
         <a href="chat.html">Chat</a>
         <a href="settings.html">Settings</a>
       </nav>
@@ -20,11 +22,15 @@
     </aside>
     <main class="main">
       <h1>Agents</h1>
-      <p class="muted">Create and open agents.</p>
+      <p class="muted">Create and open agents. Set model, system prompt, and tools.</p>
       <div id="error"></div>
-      <form id="create-form" style="margin-bottom:24px;display:flex;gap:8px;align-items:center">
-        <input type="text" id="name" placeholder="Agent name" style="width:220px" />
-        <button type="submit" class="btn" id="create-btn">Create</button>
+      <form id="create-form" style="margin-bottom:24px;padding:20px;background:#1a1a1a;border-radius:8px;max-width:560px">
+        <h2 style="font-size:16px;margin-top:0">Create agent</h2>
+        <p><label>Name * <input type="text" id="name" placeholder="Agent name" style="width:100%;margin-top:4px" /></label></p>
+        <p id="model-row" style="display:none"><label>Model <select id="model" style="width:100%;margin-top:4px"></select></label></p>
+        <p><label>System prompt <textarea id="system" placeholder="Instructions for the agent…" rows="4" style="width:100%;margin-top:4px"></textarea></label></p>
+        <p id="tools-row" style="display:none"><span style="display:block;margin-bottom:4px">Tools</span><div id="tools-checkboxes"></div></p>
+        <button type="submit" class="btn" id="create-btn">Create agent</button>
       </form>
       <ul id="list" style="list-style:none;padding:0"></ul>
     </main>
@@ -35,21 +41,50 @@
     document.getElementById('api-base-display').textContent = window.ADE.apiBase();
     var listEl = document.getElementById('list');
     var errorEl = document.getElementById('error');
+    var models = [], tools = [];
     function norm(d) { return Array.isArray(d) ? d : (d && d.data) ? d.data : (d && d.agents) ? d.agents : []; }
+    function normList(d) { return Array.isArray(d) ? d : (d && d.data) ? d.data : []; }
     function id(a) { return a.id != null ? a.id : a.agent_id; }
     function name(a) { return a.name != null ? a.name : a.agent_name || id(a); }
+    function modelId(m) { return m.handle != null ? m.handle : m.id || m.model || m.name; }
+    function modelLabel(m) { return m.display_name != null ? m.display_name : m.handle || m.model || m.name || modelId(m); }
+    function toolId(t) { return t.id != null ? t.id : t.tool_id || t.name; }
+    function toolName(t) { return t.name != null ? t.name : t.tool_id || t.id; }
     function render(agents) {
       listEl.innerHTML = agents.length ? agents.map(function(a) { return '<li><a class="card" href="agent.html?id=' + encodeURIComponent(id(a)) + '">' + name(a) + '</a></li>'; }).join('') : '<li class="muted">No agents yet.</li>';
     }
-    window.ADE.listAgents().then(function(d) { render(norm(d)); }).catch(function(e) { errorEl.innerHTML = '<div class="error">' + e.message + '</div>'; });
+    Promise.all([window.ADE.listAgents(), window.ADE.listModels().catch(function() { return []; }), window.ADE.listTools().catch(function() { return []; })]).then(function(arr) {
+      var agentsData = arr[0], modelsData = arr[1], toolsData = arr[2];
+      render(norm(agentsData));
+      models = normList(modelsData);
+      tools = normList(toolsData);
+      if (models.length) {
+        document.getElementById('model-row').style.display = 'block';
+        document.getElementById('model').innerHTML = '<option value="">—</option>' + models.map(function(m) { return '<option value="' + modelId(m) + '">' + modelLabel(m) + '</option>'; }).join('');
+      }
+      if (tools.length) {
+        document.getElementById('tools-row').style.display = 'block';
+        document.getElementById('tools-checkboxes').innerHTML = tools.map(function(t) { return '<label style="display:inline-block;margin-right:12px;cursor:pointer"><input type="checkbox" name="tool" value="' + toolId(t) + '"> ' + toolName(t) + '</label>'; }).join('');
+      }
+    }).catch(function(e) { errorEl.innerHTML = '<div class="error">' + e.message + '</div>'; });
     document.getElementById('create-form').onsubmit = function(e) {
       e.preventDefault();
       var n = document.getElementById('name').value.trim();
       if (!n) return;
       document.getElementById('create-btn').disabled = true;
       errorEl.innerHTML = '';
-      window.ADE.createAgent({ name: n }).then(function() {
+      var body = { name: n };
+      var modelVal = document.getElementById('model').value;
+      if (modelVal) body.model = modelVal;
+      var systemVal = document.getElementById('system').value.trim();
+      if (systemVal) body.system = systemVal;
+      var checked = [].map.call(document.querySelectorAll('input[name=tool]:checked'), function(c) { return c.value; });
+      if (checked.length) body.tool_ids = checked;
+      window.ADE.createAgent(body).then(function() {
         document.getElementById('name').value = '';
+        document.getElementById('model').value = '';
+        document.getElementById('system').value = '';
+        document.querySelectorAll('input[name=tool]').forEach(function(c) { c.checked = false; });
         return window.ADE.listAgents();
       }).then(function(d) { render(norm(d)); }).catch(function(err) { errorEl.innerHTML = '<div class="error">' + err.message + '</div>'; }).finally(function() { document.getElementById('create-btn').disabled = false; });
     };

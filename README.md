@@ -57,6 +57,10 @@ Both local ADEs call a **single base URL** with optional **Bearer token** (`Auth
 | `POST /v1/agents/:id/messages` | Send message. Body: e.g. `{ "message": "..." }`. Response: assistant message (e.g. `message` or `content`). |
 | `GET /v1/agents/:id/core-memory/blocks/:label` | Get memory block (e.g. `persona`). |
 | `PATCH /v1/agents/:id/core-memory/blocks/:label` | Update memory. Body: e.g. `{ "content": "..." }`. |
+| `GET /v1/models` | List models (for agent create/edit). |
+| `GET /v1/tools` | List tools (server + MCP). Attach via `tool_ids` on agent. |
+| `GET /v1/mcp-servers`, `POST /v1/mcp-servers` | List and register MCP servers. |
+| `GET /v1/mcp-servers/:id/tools` | List tools from an MCP server. |
 | `GET /v1/projects`, `POST /v1/projects`, `GET /v1/projects/:id` | Optional; full app uses for Projects. Simple ADE does not. |
 
 If your backend uses different paths or field names, adapt the API layer in `app/src/api/client.js` or `ade-simple/app.js`.

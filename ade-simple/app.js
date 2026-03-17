@@ -50,9 +50,15 @@
     listAgents: function () { return apiFetch('/v1/agents'); },
     getAgent: function (id) { return apiFetch('/v1/agents/' + id); },
     createAgent: function (body) { return apiFetch('/v1/agents', { method: 'POST', body: JSON.stringify(body) }); },
+    updateAgent: function (id, body) { return apiFetch('/v1/agents/' + id, { method: 'PATCH', body: JSON.stringify(body) }); },
     sendMessage: function (agentId, body) { return apiFetch('/v1/agents/' + agentId + '/messages', { method: 'POST', body: JSON.stringify(body) }); },
     getAgentMessages: function (agentId) { return apiFetch('/v1/agents/' + agentId + '/messages'); },
     getAgentMemory: function (agentId, label) { return apiFetch('/v1/agents/' + agentId + '/core-memory/blocks/' + (label || 'persona')); },
-    updateAgentMemory: function (agentId, label, body) { return apiFetch('/v1/agents/' + agentId + '/core-memory/blocks/' + (label || 'persona'), { method: 'PATCH', body: JSON.stringify(body) }); }
+    updateAgentMemory: function (agentId, label, body) { return apiFetch('/v1/agents/' + agentId + '/core-memory/blocks/' + (label || 'persona'), { method: 'PATCH', body: JSON.stringify(body) }); },
+    listModels: function () { return apiFetch('/v1/models'); },
+    listTools: function () { return apiFetch('/v1/tools'); },
+    listMcpServers: function () { return apiFetch('/v1/mcp-servers'); },
+    createMcpServer: function (body) { return apiFetch('/v1/mcp-servers', { method: 'POST', body: JSON.stringify(body) }); },
+    listMcpServerTools: function (serverId) { return apiFetch('/v1/mcp-servers/' + serverId + '/tools'); }
   };
 })();

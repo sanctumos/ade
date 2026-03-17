@@ -5,6 +5,8 @@ import Projects from './pages/Projects';
 import ProjectDetail from './pages/ProjectDetail';
 import Agents from './pages/Agents';
 import AgentDetail from './pages/AgentDetail';
+import Tools from './pages/Tools';
+import Mcp from './pages/Mcp';
 import Chat from './pages/Chat';
 import Settings from './pages/Settings';
 
@@ -17,6 +19,8 @@ export default function App() {
         <Route path="/projects/:id" element={<ProjectDetail />} />
         <Route path="/agents" element={<Agents />} />
         <Route path="/agents/:id" element={<AgentDetail />} />
+        <Route path="/tools" element={<Tools />} />
+        <Route path="/mcp" element={<Mcp />} />
         <Route path="/chat" element={<Chat />} />
         <Route path="/settings" element={<Settings />} />
       </Routes>

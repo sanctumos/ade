@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tools — ADE</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h2>ADE (Local)</h2>
+      <nav>
+        <a href="index.html">Dashboard</a>
+        <a href="agents.html">Agents</a>
+        <a href="tools.html" class="active">Tools</a>
+        <a href="mcp.html">MCP</a>
+        <a href="chat.html">Chat</a>
+        <a href="settings.html">Settings</a>
+      </nav>
+      <p class="api-badge">API: <span id="api-base-display">…</span></p>
+    </aside>
+    <main class="main">
+      <h1>Tools</h1>
+      <p class="muted">All tools available to agents. Attach them when creating or editing an agent.</p>
+      <div id="error"></div>
+      <ul id="list" style="list-style:none;padding:0"></ul>
+    </main>
+  </div>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+  <script>
+    document.getElementById('api-base-display').textContent = window.ADE.apiBase();
+    var listEl = document.getElementById('list');
+    var errorEl = document.getElementById('error');
+    function norm(d) { return Array.isArray(d) ? d : (d && d.data) ? d.data : (d && d.tools) ? d.tools : []; }
+    function tid(t) { return t.id != null ? t.id : t.tool_id || t.name; }
+    function tname(t) { return t.name != null ? t.name : t.tool_id || t.id; }
+    function ttype(t) { return t.tool_type != null ? t.tool_type : t.type || '—'; }
+    window.ADE.listTools().then(function(d) {
+      var tools = norm(d);
+      listEl.innerHTML = tools.length ? tools.map(function(t) {
+        return '<li style="margin-bottom:8px"><div class="card" style="padding:16px"><div style="font-weight:600">' + tname(t) + '</div><div style="font-size:13px;color:#888">ID: ' + tid(t) + ' · Type: ' + ttype(t) + '</div>' + (t.description ? '<div style="font-size:13px;color:#aaa;margin-top:4px">' + t.description + '</div>' : '') + '</div></li>';
+      }).join('') : '<li class="muted">No tools yet. Add MCP servers or create server tools.</li>';
+    }).catch(function(e) { errorEl.innerHTML = '<div class="error">' + e.message + '</div>'; });
+  </script>
+</body>
+</html>
