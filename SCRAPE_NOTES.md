@@ -43,11 +43,21 @@ seo/            - Favicons, manifest, og-image
 index.html      - Main HTML shell (login page)
 ```
 
+## Authenticated Scraping (Playwright)
+
+A Playwright scraper (`scrape.js`) handles authenticated routes:
+
+- **Auth:** Email/password login; cookies saved to `.cookies.json` for reuse
+- **Routes:** `/`, `/dashboard`, `/agents`, `/agents/new`, `/settings/*`, agent detail pages
+- **Output:** `scraped/pages/*.html`, `scraped/_next/` (assets)
+- **Run:** `LETTA_EMAIL=... LETTA_PASSWORD=... npm run scrape`
+
 ## Issues Encountered
 
 1. **Login-only capture:** Only the login page was fetched. Authenticated routes (dashboard, agent list, chat) require session; those chunks would load on navigation.
 2. **Dynamic chunks:** Next.js loads route-specific chunks on demand. Full dashboard would need authenticated session + browser to capture.
 3. **API calls:** Network patterns require runtime inspection; not captured in static scrape.
+4. **Signup:** Letta signup is OAuth-only (Google/GitHub); email/password requires existing account.
 
 ## Usage
 
