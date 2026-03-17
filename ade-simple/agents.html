@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agents — ADE</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h2>ADE (Local)</h2>
+      <nav>
+        <a href="index.html">Dashboard</a>
+        <a href="agents.html" class="active">Agents</a>
+        <a href="chat.html">Chat</a>
+        <a href="settings.html">Settings</a>
+      </nav>
+      <p class="api-badge">API: <span id="api-base-display">…</span></p>
+    </aside>
+    <main class="main">
+      <h1>Agents</h1>
+      <p class="muted">Create and open agents.</p>
+      <div id="error"></div>
+      <form id="create-form" style="margin-bottom:24px;display:flex;gap:8px;align-items:center">
+        <input type="text" id="name" placeholder="Agent name" style="width:220px" />
+        <button type="submit" class="btn" id="create-btn">Create</button>
+      </form>
+      <ul id="list" style="list-style:none;padding:0"></ul>
+    </main>
+  </div>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+  <script>
+    document.getElementById('api-base-display').textContent = window.ADE.apiBase();
+    var listEl = document.getElementById('list');
+    var errorEl = document.getElementById('error');
+    function norm(d) { return Array.isArray(d) ? d : (d && d.data) ? d.data : (d && d.agents) ? d.agents : []; }
+    function id(a) { return a.id != null ? a.id : a.agent_id; }
+    function name(a) { return a.name != null ? a.name : a.agent_name || id(a); }
+    function render(agents) {
+      listEl.innerHTML = agents.length ? agents.map(function(a) { return '<li><a class="card" href="agent.html?id=' + encodeURIComponent(id(a)) + '">' + name(a) + '</a></li>'; }).join('') : '<li class="muted">No agents yet.</li>';
+    }
+    window.ADE.listAgents().then(function(d) { render(norm(d)); }).catch(function(e) { errorEl.innerHTML = '<div class="error">' + e.message + '</div>'; });
+    document.getElementById('create-form').onsubmit = function(e) {
+      e.preventDefault();
+      var n = document.getElementById('name').value.trim();
+      if (!n) return;
+      document.getElementById('create-btn').disabled = true;
+      errorEl.innerHTML = '';
+      window.ADE.createAgent({ name: n }).then(function() {
+        document.getElementById('name').value = '';
+        return window.ADE.listAgents();
+      }).then(function(d) { render(norm(d)); }).catch(function(err) { errorEl.innerHTML = '<div class="error">' + err.message + '</div>'; }).finally(function() { document.getElementById('create-btn').disabled = false; });
+    };
+  </script>
+</body>
+</html>

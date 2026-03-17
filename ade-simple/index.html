@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ADE (Local)</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h2>ADE (Local)</h2>
+      <nav>
+        <a href="index.html" class="active">Dashboard</a>
+        <a href="agents.html">Agents</a>
+        <a href="chat.html">Chat</a>
+        <a href="settings.html">Settings</a>
+      </nav>
+      <p class="api-badge">API: <span id="api-base-display">…</span></p>
+    </aside>
+    <main class="main">
+      <h1>Dashboard</h1>
+      <p class="muted">Local ADE — agents and chat.</p>
+      <div id="status"></div>
+      <div id="cards">
+        <a href="agents.html" class="card">Agents — list and create</a>
+        <a href="chat.html" class="card">Chat — talk to an agent</a>
+      </div>
+    </main>
+  </div>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+  <script>
+    document.getElementById('api-base-display').textContent = window.ADE.apiBase();
+    var statusEl = document.getElementById('status');
+    fetch(window.ADE.apiBase() + '/health').then(function(r) { return r.ok ? { ok: true } : { ok: false }; }).catch(function() { return { ok: false }; })
+      .then(function(h) {
+        statusEl.innerHTML = '<div class="' + (h.ok ? 'card" style="border-color:#4a4;background:rgba(80,160,80,0.1)' : 'card" style="border-color:#844;background:rgba(160,80,80,0.1)') + '">API: ' + (h.ok ? 'Connected' : 'Unreachable') + '</div>';
+      });
+  </script>
+</body>
+</html>

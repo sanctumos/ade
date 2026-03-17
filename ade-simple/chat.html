@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chat — ADE</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h2>ADE (Local)</h2>
+      <nav>
+        <a href="index.html">Dashboard</a>
+        <a href="agents.html">Agents</a>
+        <a href="chat.html" class="active">Chat</a>
+        <a href="settings.html">Settings</a>
+      </nav>
+      <p class="api-badge">API: <span id="api-base-display">…</span></p>
+    </aside>
+    <main class="main">
+      <h1>Chat</h1>
+      <div id="error"></div>
+      <p class="muted">Agent: <select id="agent"></select></p>
+      <div id="messages" style="min-height:200px;padding:16px;background:#1a1a1a;border-radius:8px;margin-bottom:16px"></div>
+      <form id="send-form" style="display:flex;gap:8px">
+        <input type="text" id="input" placeholder="Message…" style="flex:1" />
+        <button type="submit" class="btn" id="send-btn">Send</button>
+      </form>
+    </main>
+  </div>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+  <script>
+    document.getElementById('api-base-display').textContent = window.ADE.apiBase();
+    var agentSelect = document.getElementById('agent');
+    var messagesEl = document.getElementById('messages');
+    var inputEl = document.getElementById('input');
+    var errorEl = document.getElementById('error');
+    var params = new URLSearchParams(location.search);
+    var preSelectId = params.get('agent');
+    function norm(d) { return Array.isArray(d) ? d : (d && d.data) ? d.data : (d && d.agents) ? d.agents : []; }
+    function id(a) { return a.id != null ? a.id : a.agent_id; }
+    function name(a) { return a.name != null ? a.name : a.agent_name || id(a); }
+    var agents = [];
+    window.ADE.listAgents().then(function(d) {
+      agents = norm(d);
+      agentSelect.innerHTML = agents.map(function(a) { return '<option value="' + id(a) + '">' + name(a) + '</option>'; }).join('');
+      if (preSelectId) agentSelect.value = preSelectId; else if (agents.length) agentSelect.value = id(agents[0]);
+    }).catch(function(e) { errorEl.innerHTML = '<div class="error">' + e.message + '</div>'; });
+    function addMsg(role, content) {
+      var div = document.createElement('div');
+      div.style.marginBottom = '8px';
+      div.innerHTML = '<strong>' + role + '</strong> ' + content;
+      messagesEl.appendChild(div);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+    document.getElementById('send-form').onsubmit = function(e) {
+      e.preventDefault();
+      var text = inputEl.value.trim();
+      var aid = agentSelect.value;
+      if (!text || !aid) return;
+      inputEl.value = '';
+      addMsg('user', text);
+      document.getElementById('send-btn').disabled = true;
+      errorEl.innerHTML = '';
+      window.ADE.sendMessage(aid, { message: text }).then(function(res) {
+        var content = (res && res.message) || (res && res.content) || (res && res.response) || (typeof res === 'string' ? res : '');
+        addMsg('assistant', content || '(no response)');
+      }).catch(function(err) { errorEl.innerHTML = '<div class="error">' + err.message + '</div>'; }).finally(function() { document.getElementById('send-btn').disabled = false; });
+    };
+  </script>
+</body>
+</html>
