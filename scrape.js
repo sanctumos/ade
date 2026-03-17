@@ -2,7 +2,7 @@
 /**
  * Letta ADE Authenticated Frontend Scraper
  * Uses Playwright to log in and scrape all authenticated routes.
- * Requires: LETTA_EMAIL, LETTA_PASSWORD environment variables
+ * Requires: LETTA_EMAIL, LETTA_PASSWORD (env vars or .env file)
  */
 
 import { chromium } from 'playwright';
@@ -11,6 +11,15 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// Load .env if present
+try {
+  const env = readFileSync(join(__dirname, '.env'), 'utf8');
+  for (const line of env.split('\n')) {
+    const m = line.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
+    if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
+  }
+} catch (_) {}
 const OUTPUT_DIR = join(__dirname, 'scraped');
 const COOKIES_FILE = join(__dirname, '.cookies.json');
 const BASE_URL = 'https://app.letta.com';

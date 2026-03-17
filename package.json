@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "scrape": "node scrape.js",
-    "scrape:headless": "HEADLESS=true node scrape.js"
+    "scrape:headed": "HEADLESS=false node scrape.js"
   },
   "dependencies": {
     "playwright": "^1.49.0"
