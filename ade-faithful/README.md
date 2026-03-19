@@ -16,6 +16,26 @@ Faithful **non-Node** port of the original Letta cloud ADE: same **architecture*
 1. `cp config.example.js config.js` and set `base` / `key`, **or** use **Settings** (localStorage overrides).
 2. Open `index.html` or serve this directory over HTTP.
 
+### Local Flask (same-origin API proxy)
+
+From this folder:
+
+```bash
+pip install flask requests   # once
+python3 temp_flask_server.py
+```
+
+- Serves the UI at **`http://127.0.0.1:5055/`**
+- Proxies **`/api/*`** to **`ADE_FLASK_UPSTREAM`** (default `https://sanctum.zero1.network:8443`)
+
+In **Settings** (or `config.js`), set API base to:
+
+`http://127.0.0.1:5055/api`
+
+so calls become same-origin (`/api/v1/...`) and avoid CORS. Override upstream with env `ADE_FLASK_UPSTREAM`; port with `ADE_FLASK_PORT`.
+
+> The old `ade-simple/temp_flask_server.py` is retired — use this file only.
+
 Optional: same as ade-simple, `python3 genconfig.py` from this folder with `ADE_BASE` / `ADE_KEY` in `.env`.
 
 ## Files
