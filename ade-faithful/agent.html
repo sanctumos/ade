@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agent — ADE</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous" />
+  <link rel="stylesheet" href="bootstrap-ade.css" />
+  <link rel="stylesheet" href="ade-base.css" />
+  <link rel="stylesheet" href="shell.css" />
+</head>
+<body>
+  <div class="af-layout" data-ade-nav="agents">
+    <span id="ade-nav-inject"></span>
+    <main class="af-main">
+      <button type="button" class="af-nav-toggle" id="nav-toggle" aria-label="Open menu">≡</button>
+      <p class="muted"><a href="agents.html">← Agents</a></p>
+      <h1 id="title">…</h1>
+      <div id="error"></div>
+      <p class="mb-0">
+        <a href="#" id="chat-link" class="btn btn-primary">Open in Chat →</a>
+      </p>
+
+      <p id="no-agent-hint" class="alert alert-secondary d-none" role="note">Open an agent from <a href="agents.html" class="alert-link">Agents</a> (URL must include <code>?id=…</code>).</p>
+
+      <div id="agent-editor" class="d-none" style="max-width:720px">
+        <ul class="nav nav-tabs flex-nowrap overflow-auto pb-1 mb-3" id="agent-config-tabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="tab-general-tab" data-bs-toggle="tab" data-bs-target="#tab-general-pane" type="button" role="tab" aria-controls="tab-general-pane" aria-selected="true">General</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-tools-tab" data-bs-toggle="tab" data-bs-target="#tab-tools-pane" type="button" role="tab" aria-controls="tab-tools-pane" aria-selected="false">Tools</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-memory-tab" data-bs-toggle="tab" data-bs-target="#tab-memory-pane" type="button" role="tab" aria-controls="tab-memory-pane" aria-selected="false">Memory</button>
+          </li>
+        </ul>
+        <div class="tab-content" id="agent-config-tab-panes">
+          <div class="tab-pane fade show active" id="tab-general-pane" role="tabpanel" aria-labelledby="tab-general-tab" tabindex="0">
+            <p class="text-secondary small mb-3">Model, <code>llm_config</code> (temperature, max tokens), and <code>system</code> prompt. <strong>Save</strong> also persists tool choices from the Tools tab.</p>
+            <div id="config-form">
+              <div class="mb-3" id="model-row" style="display:none">
+                <label class="form-label" for="model">Model</label>
+                <select class="form-select" id="model" style="max-width:400px"></select>
+              </div>
+              <div id="llm-advanced" class="row g-3 mb-2">
+                <div class="col-md-6">
+                  <label class="form-label" for="llm-temperature">Temperature</label>
+                  <input type="number" class="form-control" id="llm-temperature" step="0.05" min="0" max="2" placeholder="e.g. 0.7" />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label" for="llm-max-tokens">Max tokens</label>
+                  <input type="number" class="form-control" id="llm-max-tokens" min="1" step="1" placeholder="optional" />
+                </div>
+              </div>
+              <p class="muted small">Saved into <code>llm_config</code> with your server’s supported keys. Leave blank to omit a field.</p>
+              <div class="mb-3">
+                <label class="form-label" for="system">System prompt</label>
+                <textarea class="form-control" id="system" rows="5"></textarea>
+              </div>
+            </div>
+            <button type="button" class="btn btn-primary ade-save-config">Save configuration</button>
+          </div>
+
+          <div class="tab-pane fade" id="tab-tools-pane" role="tabpanel" aria-labelledby="tab-tools-tab" tabindex="0">
+            <p class="text-secondary small mb-3">Which registered tools this agent may call. Saved as <code>tool_ids</code> when you save (from here or General).</p>
+            <div id="tools-section" class="card border-secondary" style="display:none">
+              <div class="card-body">
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                  <div>
+                    <h3 class="h6 mb-1">Tools for this agent</h3>
+                    <p class="small text-secondary mb-0">Pick tools by group (built-in vs MCP). Use the directory links if you need to add more on the server first.</p>
+                  </div>
+                  <div class="d-flex flex-wrap gap-2">
+                    <a href="tools.html" class="btn btn-sm btn-outline-secondary">Tools directory</a>
+                    <a href="mcp.html" class="btn btn-sm btn-outline-secondary">MCP servers</a>
+                  </div>
+                </div>
+                <div id="tools-toolbar" class="d-flex flex-wrap align-items-center gap-2 mb-3 d-none">
+                  <span id="tools-count-badge" class="badge bg-primary bg-opacity-75">—</span>
+                  <input type="search" id="tools-filter" class="form-control form-control-sm" disabled placeholder="Filter by name, id, type…" autocomplete="off" aria-label="Filter tools" style="max-width:280px" />
+                  <div class="btn-group btn-group-sm" role="group" aria-label="Bulk toggle filtered tools">
+                    <button type="button" id="tools-enable-visible" class="btn btn-outline-secondary" disabled title="Enable all tools currently visible">Enable visible</button>
+                    <button type="button" id="tools-disable-visible" class="btn btn-outline-secondary" disabled title="Disable all tools currently visible">Disable visible</button>
+                  </div>
+                </div>
+                <div id="tools-list-mount" class="ade-tools-scroll"></div>
+              </div>
+            </div>
+            <button type="button" class="btn btn-primary ade-save-config mt-3">Save configuration</button>
+          </div>
+
+          <div class="tab-pane fade" id="tab-memory-pane" role="tabpanel" aria-labelledby="tab-memory-tab" tabindex="0">
+            <p class="text-secondary small mb-3">Core memory blocks (e.g. <code>persona</code>, <code>human</code>) from <code>GET …/core-memory/blocks</code>. Each block saves on its own button.</p>
+            <div id="memory-blocks">Loading blocks…</div>
+          </div>
+        </div>
+
+        <section class="card border-danger mt-5 ade-danger-zone" aria-labelledby="danger-zone-heading">
+          <div class="card-header bg-danger bg-opacity-10 border-danger d-flex flex-wrap align-items-center justify-content-between gap-2 py-3" id="danger-zone-heading">
+            <div class="text-danger fw-semibold small text-uppercase mb-0" style="letter-spacing:0.06em">Danger zone</div>
+            <button type="button" class="btn btn-sm btn-outline-danger" id="danger-zone-toggle" data-bs-toggle="collapse" data-bs-target="#danger-zone-body" aria-expanded="false" aria-controls="danger-zone-body">Show delete options</button>
+          </div>
+          <div id="danger-zone-body" class="collapse">
+            <div class="card-body">
+              <p class="small text-secondary mb-2">Removing an agent deletes it on the server (configuration, tools, and typically message history). <strong class="text-danger">This cannot be undone.</strong></p>
+              <p class="small mb-3">To prevent accidents, type the name <strong>exactly</strong> as shown in the title above, then confirm.</p>
+              <p class="mb-2 small text-muted">Name to match:</p>
+              <p class="mb-3"><code id="delete-agent-name-display" class="d-inline-block px-2 py-1 rounded user-select-all bg-dark border border-secondary">…</code></p>
+              <div class="mb-3" style="max-width:420px">
+                <label class="form-label small" for="delete-agent-confirm-input">Type the agent name to enable delete</label>
+                <input type="text" class="form-control font-monospace" id="delete-agent-confirm-input" autocomplete="off" spellcheck="false" />
+              </div>
+              <button type="button" class="btn btn-danger" id="delete-agent-confirm-btn" disabled>Permanently delete this agent</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+  <script>
+    var params = new URLSearchParams(location.search);
+    var id = params.get('id');
+    var errorEl = document.getElementById('error');
+    var currentAgent = null;
+
+    if (!id) {
+      document.getElementById('title').textContent = 'No agent';
+      document.getElementById('no-agent-hint').classList.remove('d-none');
+    } else {
+    document.getElementById('agent-editor').classList.remove('d-none');
+    window.ADE.setSelectedAgentId(id);
+    document.getElementById('chat-link').href = 'chat.html';
+
+    function normList(d) {
+      if (Array.isArray(d)) return d;
+      if (d && Array.isArray(d.data)) return d.data;
+      if (d && Array.isArray(d.tools)) return d.tools;
+      return [];
+    }
+    function normBlocks(d) {
+      if (Array.isArray(d)) return d;
+      if (d && Array.isArray(d.data)) return d.data;
+      if (d && Array.isArray(d.blocks)) return d.blocks;
+      if (d && Array.isArray(d.memory_blocks)) return d.memory_blocks;
+      if (d && Array.isArray(d.core_memory_blocks)) return d.core_memory_blocks;
+      if (d && Array.isArray(d.block_list)) return d.block_list;
+      if (d && Array.isArray(d.items)) return d.items;
+      if (d && Array.isArray(d.results)) return d.results;
+      if (d && (d.label || d.id != null) && (d.value !== undefined || d.content !== undefined || d.text !== undefined)) return [d];
+      return [];
+    }
+    function modelId(m) { return m.handle != null ? m.handle : m.id || m.model || m.name; }
+    function modelLabel(m) { return m.display_name != null ? m.display_name : m.handle || m.model || m.name || modelId(m); }
+    function toolId(t) { return t.id != null ? t.id : t.tool_id || t.name; }
+    function toolName(t) { return t.name != null ? t.name : t.tool_id || t.id; }
+
+    var ADE_TOOL_GROUPS = ['builtin', 'mcp', 'other'];
+    var ADE_TOOL_GROUP_LABEL = { builtin: 'Built-in & core', mcp: 'MCP & external', other: 'Other' };
+
+    function escHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+    function escAttr(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;');
+    }
+
+    function toolGroupKey(t) {
+      var raw = String((t && (t.tool_type != null ? t.tool_type : t.type)) || '').toLowerCase();
+      if (!raw) return 'other';
+      if (raw.indexOf('mcp') !== -1) return 'mcp';
+      if (raw.indexOf('letta') !== -1 || raw.indexOf('builtin') !== -1 || raw.indexOf('core') !== -1) return 'builtin';
+      return 'other';
+    }
+
+    function agentHasToolId(agentToolIds, tid) {
+      var s = String(tid);
+      for (var i = 0; i < agentToolIds.length; i++) {
+        if (String(agentToolIds[i]) === s) return true;
+      }
+      return false;
+    }
+
+    var lastRegisteredTools = [];
+    var toolsPanelWired = false;
+    function initToolsPanelWire() {
+      if (toolsPanelWired) return;
+      toolsPanelWired = true;
+      document.getElementById('tools-filter').addEventListener('input', applyToolsFilter);
+      document.getElementById('tools-enable-visible').addEventListener('click', function() {
+        document.querySelectorAll('.ade-tool-row:not(.d-none) input[name="tool"]').forEach(function(c) { c.checked = true; });
+        updateToolsCountBadge();
+      });
+      document.getElementById('tools-disable-visible').addEventListener('click', function() {
+        document.querySelectorAll('.ade-tool-row:not(.d-none) input[name="tool"]').forEach(function(c) { c.checked = false; });
+        updateToolsCountBadge();
+      });
+      document.getElementById('tools-list-mount').addEventListener('change', function(e) {
+        if (e.target && e.target.name === 'tool') updateToolsCountBadge();
+      });
+    }
+
+    function updateToolsCountBadge() {
+      var all = document.querySelectorAll('input[name="tool"]');
+      var sel = document.querySelectorAll('input[name="tool"]:checked');
+      var el = document.getElementById('tools-count-badge');
+      if (!el) return;
+      if (!all.length) {
+        el.textContent = '0 tools';
+        return;
+      }
+      el.textContent = sel.length + ' / ' + all.length + ' enabled';
+    }
+
+    function applyToolsFilter() {
+      var inp = document.getElementById('tools-filter');
+      var q = (inp && inp.value || '').trim().toLowerCase();
+      document.querySelectorAll('.ade-tool-row').forEach(function(row) {
+        var enc = row.getAttribute('data-ade-tool-search') || '';
+        var blob = '';
+        try { blob = decodeURIComponent(enc); } catch (e) { blob = ''; }
+        var show = !q || blob.indexOf(q) !== -1;
+        row.classList.toggle('d-none', !show);
+      });
+      document.querySelectorAll('[data-ade-tool-group]').forEach(function(g) {
+        var any = g.querySelector('.ade-tool-row:not(.d-none)');
+        g.classList.toggle('d-none', !any);
+      });
+    }
+
+    function mountAgentToolsList(tools, agentToolIds) {
+      lastRegisteredTools = Array.isArray(tools) ? tools : [];
+      var section = document.getElementById('tools-section');
+      var mount = document.getElementById('tools-list-mount');
+      var toolbar = document.getElementById('tools-toolbar');
+      var filter = document.getElementById('tools-filter');
+      var en = document.getElementById('tools-enable-visible');
+      var dis = document.getElementById('tools-disable-visible');
+      section.style.display = 'block';
+      initToolsPanelWire();
+
+      if (!tools.length) {
+        toolbar.classList.add('d-none');
+        filter.disabled = true;
+        en.disabled = true;
+        dis.disabled = true;
+        mount.innerHTML = '<p class="p-3 mb-0 small text-secondary">No tools are registered yet. Connect <a href="mcp.html">MCP servers</a> or add tools via the API, then refresh. Use <a href="tools.html">Tools</a> to see everything this server exposes.</p>';
+        updateToolsCountBadge();
+        return;
+      }
+
+      toolbar.classList.remove('d-none');
+      toolbar.classList.add('d-flex');
+      filter.disabled = false;
+      en.disabled = false;
+      dis.disabled = false;
+
+      var byGroup = { builtin: [], mcp: [], other: [] };
+      tools.forEach(function(t) {
+        var k = toolGroupKey(t);
+        if (!byGroup[k]) byGroup[k] = [];
+        byGroup[k].push(t);
+      });
+      ADE_TOOL_GROUPS.forEach(function(gk) {
+        (byGroup[gk] || []).sort(function(a, b) {
+          return String(toolName(a)).toLowerCase().localeCompare(String(toolName(b)).toLowerCase());
+        });
+      });
+
+      var idx = 0;
+      var html = '';
+      ADE_TOOL_GROUPS.forEach(function(gk) {
+        var list = byGroup[gk] || [];
+        if (!list.length) return;
+        var gh = ADE_TOOL_GROUP_LABEL[gk] || gk;
+        html += '<div data-ade-tool-group="' + escAttr(gk) + '">';
+        html += '<div class="ade-tool-group-header">' + escHtml(gh) + ' <span class="fw-normal text-muted">· ' + list.length + '</span></div>';
+        html += '<div class="list-group list-group-flush">';
+        list.forEach(function(t) {
+          var tid = toolId(t);
+          var nm = toolName(t);
+          var typ = (t.tool_type != null ? t.tool_type : t.type) || '—';
+          var desc = (t.description && String(t.description).trim()) ? String(t.description).trim() : '';
+          if (desc.length > 220) desc = desc.slice(0, 217) + '…';
+          var searchBlob = [nm, tid, typ, desc].join(' ').toLowerCase();
+          var cbId = 'ade-tool-cb-' + idx;
+          var checked = agentHasToolId(agentToolIds, tid) ? ' checked' : '';
+          html += '<div class="list-group-item ade-tool-row py-2 ps-2 pe-3" data-ade-tool-search="' + encodeURIComponent(searchBlob) + '">';
+          html += '<div class="d-flex align-items-start gap-2">';
+          html += '<div class="form-check form-switch mt-1 ms-1 flex-shrink-0">';
+          html += '<input class="form-check-input" type="checkbox" name="tool" id="' + cbId + '" value="' + escAttr(String(tid)) + '"' + checked + ' />';
+          html += '</div>';
+          html += '<div class="flex-grow-1 min-w-0">';
+          html += '<label class="d-block mb-0 fw-medium user-select-none" for="' + cbId + '">' + escHtml(String(nm)) + ' ';
+          html += '<span class="badge rounded-pill text-bg-dark border border-secondary fw-normal ms-1">' + escHtml(String(typ)) + '</span></label>';
+          if (desc) html += '<div class="small text-secondary mt-1" style="line-height:1.35">' + escHtml(desc) + '</div>';
+          html += '<code class="d-block small text-muted text-truncate mt-1 user-select-all" title="' + escAttr(String(tid)) + '">' + escHtml(String(tid)) + '</code>';
+          html += '</div></div></div>';
+          idx++;
+        });
+        html += '</div></div>';
+      });
+
+      mount.innerHTML = html;
+      applyToolsFilter();
+      updateToolsCountBadge();
+    }
+
+    function blockValue(b) {
+      if (!b) return '';
+      if (b.value != null && b.value !== '') return String(b.value);
+      if (b.content != null && b.content !== '') return String(b.content);
+      if (b.text != null && b.text !== '') return String(b.text);
+      return '';
+    }
+
+    function applyLlmFieldsFromAgent(a) {
+      var lc = (a && a.llm_config) || {};
+      var t = document.getElementById('llm-temperature');
+      var m = document.getElementById('llm-max-tokens');
+      if (lc.temperature != null && lc.temperature !== '') t.value = String(lc.temperature);
+      else t.value = '';
+      if (lc.max_tokens != null && lc.max_tokens !== '') m.value = String(lc.max_tokens);
+      else m.value = '';
+    }
+
+    function renderMemoryBlocks(blocks) {
+      var host = document.getElementById('memory-blocks');
+      host.innerHTML = '';
+      if (!blocks.length) {
+        host.innerHTML = '<p class="muted">No blocks from the API. You can still use the server’s default template blocks after first run, or check Letta version.</p>';
+        return;
+      }
+      blocks.forEach(function(b) {
+        var label = b.label || (b.id != null ? String(b.id) : '');
+        if (!label) return;
+        var wrap = document.createElement('div');
+        wrap.className = 'memory-block-card card border-secondary';
+        var body = document.createElement('div');
+        body.className = 'card-body';
+        wrap.appendChild(body);
+        var h = document.createElement('h3');
+        h.className = 'h6 mb-2';
+        h.textContent = label;
+        body.appendChild(h);
+        var meta = [];
+        if (b.description) meta.push(b.description);
+        if (b.limit != null) meta.push('limit ' + b.limit + ' chars');
+        if (meta.length) {
+          var p = document.createElement('p');
+          p.className = 'muted small mb-2';
+          p.textContent = meta.join(' · ');
+          body.appendChild(p);
+        }
+        var ta = document.createElement('textarea');
+        ta.className = 'form-control';
+        ta.rows = Math.min(14, Math.max(6, Math.ceil(blockValue(b).length / 80) + 2));
+        ta.value = blockValue(b);
+        body.appendChild(ta);
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-secondary btn-sm mt-2';
+        btn.textContent = 'Save “' + label + '”';
+        (function(blockLabel, textarea, button) {
+          button.onclick = function() {
+            button.disabled = true;
+            errorEl.innerHTML = '';
+            window.ADE.updateAgentMemory(id, blockLabel, { value: textarea.value }).then(function() {
+              button.disabled = false;
+            }).catch(function(e) {
+              errorEl.innerHTML = '<div class="alert alert-danger" role="alert">' + e.message + '</div>';
+              button.disabled = false;
+            });
+          };
+        })(label, ta, btn);
+        body.appendChild(btn);
+        host.appendChild(wrap);
+      });
+    }
+
+    function loadMemoryBlocks() {
+      var host = document.getElementById('memory-blocks');
+      host.textContent = 'Loading blocks…';
+      window.ADE.listAgentMemoryBlocks(id, { limit: '50' }).then(function(d) {
+        var blocks = normBlocks(d);
+        renderMemoryBlocks(blocks);
+      }).catch(function(e) {
+        var msg = (e && e.message) ? String(e.message) : 'Request failed';
+        host.innerHTML = '<div class="alert alert-warning" role="alert">Could not list memory blocks: ' +
+          msg.replace(/</g, '&lt;').replace(/"/g, '&quot;') +
+          '. If this is a 404, confirm the server exposes <code>GET /v1/agents/{id}/core-memory/blocks</code> (Letta).</div>';
+      });
+    }
+
+    function syncDangerZoneDeleteName(a) {
+      var disp = document.getElementById('delete-agent-name-display');
+      var input = document.getElementById('delete-agent-confirm-input');
+      var btn = document.getElementById('delete-agent-confirm-btn');
+      if (!disp || !input || !btn) return;
+      var nm = '';
+      if (a) {
+        if (a.name != null && String(a.name).trim() !== '') nm = String(a.name).trim();
+        else if (a.agent_name != null && String(a.agent_name).trim() !== '') nm = String(a.agent_name).trim();
+      }
+      if (!nm) nm = String(id || '').trim() || '—';
+      disp.textContent = nm;
+      input.value = '';
+      btn.disabled = true;
+    }
+
+    window.ADE.getAgent(id).then(function(a) {
+      currentAgent = a;
+      document.getElementById('title').textContent = a.name || a.agent_name || id;
+      document.getElementById('system').value = a.system || '';
+      applyLlmFieldsFromAgent(a);
+      syncDangerZoneDeleteName(a);
+    }).catch(function(e) { errorEl.innerHTML = '<div class="alert alert-danger" role="alert">' + e.message + '</div>'; });
+
+    Promise.all([window.ADE.listModels().catch(function() { return []; }), window.ADE.listTools().catch(function() { return []; })]).then(function(arr) {
+      var models = normList(arr[0]), tools = normList(arr[1]);
+      window.ADE.getAgent(id).then(function(a) {
+        currentAgent = a;
+        if (models.length) {
+          document.getElementById('model-row').style.display = 'block';
+          var modelSelect = document.getElementById('model');
+          modelSelect.innerHTML = '<option value="">—</option>' + models.map(function(m) {
+            return '<option value="' + String(modelId(m)).replace(/"/g, '&quot;') + '">' + String(modelLabel(m)).replace(/</g, '&lt;') + '</option>';
+          }).join('');
+          modelSelect.value = a.model || (a.llm_config && a.llm_config.model) || a.handle || '';
+        }
+        var agentToolIds = a.tool_ids || a.tools || [];
+        if (!Array.isArray(agentToolIds)) agentToolIds = [];
+        mountAgentToolsList(tools, agentToolIds);
+        applyLlmFieldsFromAgent(a);
+        syncDangerZoneDeleteName(a);
+      });
+    });
+
+    loadMemoryBlocks();
+
+    function setSaveConfigDisabled(disabled) {
+      document.querySelectorAll('.ade-save-config').forEach(function(b) { b.disabled = !!disabled; });
+    }
+
+    function saveAgentConfiguration() {
+      var body = {};
+      var modelVal = document.getElementById('model').value;
+      if (document.getElementById('model-row').style.display !== 'none' && modelVal) body.model = modelVal;
+      body.system = document.getElementById('system').value;
+      var checked = [].map.call(document.querySelectorAll('input[name=tool]:checked'), function(c) { return c.value; });
+      body.tool_ids = checked;
+
+      var llm = Object.assign({}, (currentAgent && currentAgent.llm_config) || {});
+      var tv = document.getElementById('llm-temperature').value.trim();
+      var mv = document.getElementById('llm-max-tokens').value.trim();
+      if (tv !== '') llm.temperature = parseFloat(tv, 10);
+      else delete llm.temperature;
+      if (mv !== '') llm.max_tokens = parseInt(mv, 10);
+      else delete llm.max_tokens;
+      if (Object.keys(llm).length) body.llm_config = llm;
+
+      setSaveConfigDisabled(true);
+      errorEl.innerHTML = '';
+      window.ADE.updateAgent(id, body).then(function(updated) {
+        currentAgent = Object.assign({}, currentAgent || {}, updated);
+        applyLlmFieldsFromAgent(currentAgent);
+        var synced = (updated && (updated.tool_ids || updated.tools)) || checked;
+        if (!Array.isArray(synced)) synced = checked;
+        if (lastRegisteredTools.length) {
+          mountAgentToolsList(lastRegisteredTools, synced);
+        }
+        setSaveConfigDisabled(false);
+      }).catch(function(e) {
+        errorEl.innerHTML = '<div class="alert alert-danger" role="alert">' + e.message + '</div>';
+        setSaveConfigDisabled(false);
+      });
+    }
+
+    document.querySelectorAll('.ade-save-config').forEach(function(btn) {
+      btn.addEventListener('click', saveAgentConfiguration);
+    });
+
+    if (location.hash === '#tools') {
+      var toolsTabBtn = document.getElementById('tab-tools-tab');
+      if (toolsTabBtn && window.bootstrap && bootstrap.Tab) {
+        bootstrap.Tab.getOrCreateInstance(toolsTabBtn).show();
+      }
+    }
+
+    (function setupDangerZoneDelete() {
+      var input = document.getElementById('delete-agent-confirm-input');
+      var btn = document.getElementById('delete-agent-confirm-btn');
+      var disp = document.getElementById('delete-agent-name-display');
+      var toggle = document.getElementById('danger-zone-toggle');
+      var body = document.getElementById('danger-zone-body');
+      if (!input || !btn || !disp) return;
+      function refreshDeleteBtn() {
+        var expected = disp.textContent.trim();
+        btn.disabled = !expected || input.value.trim() !== expected;
+      }
+      input.addEventListener('input', refreshDeleteBtn);
+      btn.addEventListener('click', function() {
+        var expected = disp.textContent.trim();
+        if (!expected || input.value.trim() !== expected) return;
+        if (!confirm('Final step: permanently delete agent "' + expected + '"? This cannot be undone.')) return;
+        btn.disabled = true;
+        errorEl.innerHTML = '';
+        window.ADE.deleteAgent(id).then(function() { location.href = 'agents.html'; }).catch(function(e) {
+          errorEl.innerHTML = '<div class="alert alert-danger" role="alert">' + e.message + '</div>';
+          refreshDeleteBtn();
+        });
+      });
+      if (body && toggle) {
+        body.addEventListener('hidden.bs.collapse', function() {
+          toggle.textContent = 'Show delete options';
+          toggle.setAttribute('aria-expanded', 'false');
+        });
+        body.addEventListener('shown.bs.collapse', function() {
+          toggle.textContent = 'Hide delete options';
+          toggle.setAttribute('aria-expanded', 'true');
+        });
+      }
+    })();
+    }
+  </script>
+</body>
+</html>

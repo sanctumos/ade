@@ -1,6 +1,6 @@
 # Letta API coverage — cloud vs local
 
-**Product:** [Simple ADE](README.md) — **`ade-simple/`** is the supported UI (`ade-simple/app.js`). The **`app/`** React tree is a **legacy mirror** of the API layer; see [docs/dev-react-shell.md](docs/dev-react-shell.md). Letta cloud static capture (not runtime): `reference_materials/`.
+**Product:** [Simple ADE](README.md) — **`ade-simple/`** and **`ade-faithful/`** are static UIs (`ade-simple/app.js`, `ade-faithful/app.js`; same API surface, separate localStorage keys). The **`app/`** React tree is a **legacy mirror** of the API layer; see [docs/dev-react-shell.md](docs/dev-react-shell.md). Letta cloud static capture (not runtime): `reference_materials/`.
 
 This document maps the [Letta API](https://docs.letta.com/api) to **cloud-only** vs **local/cross‑backend** features and records which endpoints **Simple ADE** (`ade-simple` + the shared function names in `app/src/api/client.js` until that tree is removed) targets.
 

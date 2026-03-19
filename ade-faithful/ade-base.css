@@ -1,0 +1,249 @@
+/* ADE Simple — higher-contrast dark theme (easier on low-gamma / office monitors) */
+:root {
+  --ade-bg: #121212;
+  --ade-bg-elevated: #1a1a1a;
+  --ade-bg-surface: #222222;
+  --ade-bg-input: #2a2a2a;
+  --ade-text: #f2f2f2;
+  --ade-text-muted: #c4c4c4;
+  --ade-text-dim: #a8a8a8;
+  --ade-border: #5a5a5a;
+  --ade-border-strong: #6e6e6e;
+  --ade-border-focus: #7cc4ff;
+  --ade-link: #9fd6ff;
+  --ade-link-hover: #d4eeff;
+  --ade-sidebar-bg: #1e1e1e;
+  --ade-nav: #d8d8d8;
+  --ade-nav-active-bg: #404040;
+  --ade-nav-hover-bg: #353535;
+  --ade-user-bubble: #244a6e;
+  --ade-user-border: #4a7daa;
+  --ade-danger-bg: #5c1e1e;
+  --ade-danger-border: #8a3030;
+  --ade-danger-text: #ffc8c8;
+  --ade-success-border: #3d8a55;
+  --ade-success-bg: rgba(50, 140, 80, 0.18);
+  --ade-error-border: #c44;
+  --ade-error-bg: rgba(200, 60, 60, 0.2);
+  --ade-error-text: #ffb4b4;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  background: var(--ade-bg);
+  color: var(--ade-text);
+}
+
+a {
+  color: var(--ade-link);
+}
+a:hover {
+  color: var(--ade-link-hover);
+  text-decoration: underline;
+}
+
+.layout { display: flex; min-height: 100vh; }
+
+.sidebar {
+  width: 180px;
+  padding: 16px;
+  border-right: 1px solid var(--ade-border);
+  background: var(--ade-sidebar-bg);
+  flex-shrink: 0;
+}
+.sidebar h2 {
+  margin: 0 0 16px;
+  font-size: 18px;
+  color: var(--ade-text);
+}
+.sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+/* Nav links styled in bootstrap-ade.css (.sidebar .nav-link) */
+
+.main {
+  flex: 1;
+  padding: 24px;
+  min-width: 0;
+}
+
+h1 { margin-top: 0; color: var(--ade-text); }
+
+/* Lists populated in JS (agents, tools, mcp) */
+#list {
+  padding-left: 0;
+  margin: 0;
+}
+
+.muted {
+  color: var(--ade-text-muted);
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+
+/* Panels (Bootstrap cards on agents/mcp can add .card) */
+.ade-panel {
+  margin-bottom: 24px;
+  max-width: 560px;
+}
+
+.ade-list-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  background: var(--ade-bg-surface);
+  border-radius: 8px;
+  border: 1px solid var(--ade-border);
+  margin-bottom: 8px;
+  list-style: none;
+}
+
+.meta-text {
+  color: var(--ade-text-dim);
+  font-size: 13px;
+}
+
+.subtle-text {
+  color: var(--ade-text-muted);
+  font-size: 13px;
+}
+
+/* Primary actions: use Bootstrap .btn (min tap target) */
+.layout .main .btn {
+  min-height: 44px;
+}
+.layout .main .btn-sm {
+  min-height: 38px;
+}
+
+/* Forms: use Bootstrap .form-control / .form-select on pages; focus ring in bootstrap-ade.css */
+
+.memory-block-card {
+  margin-bottom: 20px;
+}
+
+/* Agent page — tools picker (grouped list + filter) */
+.ade-tools-scroll {
+  max-height: min(440px, 58vh);
+  overflow-y: auto;
+  border: 1px solid var(--ade-border);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.15);
+}
+.ade-tool-group-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ade-text-dim);
+  background: var(--ade-bg-elevated);
+  border-bottom: 1px solid var(--ade-border);
+}
+.ade-tool-row {
+  border-bottom: 1px solid var(--ade-border);
+  background: var(--ade-bg-surface);
+}
+.ade-tool-row:last-child {
+  border-bottom: none;
+}
+.ade-tool-row .form-check-input {
+  cursor: pointer;
+}
+
+/* Agent page — danger zone (delete) */
+.ade-danger-zone .card-header {
+  border-radius: 0;
+}
+.ade-danger-zone {
+  scroll-margin-top: 1rem;
+}
+
+.sidebar-agent {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--ade-border);
+}
+.sidebar-agent-label {
+  display: block;
+  font-size: 11px;
+  color: var(--ade-text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+.sidebar-agent-select {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  font-size: 13px;
+  min-height: 44px;
+}
+.api-badge {
+  font-size: 12px;
+  color: var(--ade-text-dim);
+  margin-top: 24px;
+  word-break: break-all;
+}
+
+/* Nav toggle (hamburger) — pairs with Bootstrap .btn */
+.nav-toggle {
+  display: none;
+  margin: 0 0 16px 0;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 10px 14px;
+  font-size: 24px;
+  line-height: 1;
+}
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 98;
+  background: rgba(0, 0, 0, 0.65);
+  border: none;
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .nav-toggle { display: block; }
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 260px;
+    max-width: 85vw;
+    z-index: 100;
+    border-right: 1px solid var(--ade-border);
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    overflow-y: auto;
+  }
+  body.nav-open .sidebar { transform: translateX(0); }
+  body.nav-open .sidebar-backdrop { display: block; }
+  .main { padding: 16px; padding-top: 12px; width: 100%; }
+}
+
+@supports (padding: env(safe-area-inset-top)) {
+  .sidebar { padding-left: calc(16px + env(safe-area-inset-left)); }
+  .main {
+    padding-left: calc(16px + env(safe-area-inset-left));
+    padding-right: calc(16px + env(safe-area-inset-right));
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+  @media (max-width: 768px) {
+    .main { padding-top: calc(12px + env(safe-area-inset-top)); }
+  }
+}

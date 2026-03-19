@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Projects — Letta ADE (local)</title>
+  <link rel="stylesheet" href="shell.css" />
+</head>
+<body>
+  <div class="af-layout" data-ade-nav="projects">
+    <span id="ade-nav-inject"></span>
+    <main class="af-main">
+      <button type="button" class="af-nav-toggle" id="nav-toggle" aria-label="Open menu">≡</button>
+      <h1>Projects</h1>
+      <p class="af-muted">Maps to <code>GET/POST /v1/projects</code> when your backend exposes them.</p>
+      <div id="error"></div>
+      <form id="create-form" class="af-panel" style="max-width:32rem">
+        <h2>New project</h2>
+        <label class="af-label" for="name">Name</label>
+        <input type="text" class="af-input" id="name" placeholder="Project name" style="margin-bottom:12px" />
+        <button type="submit" class="af-btn af-btn-primary" id="create-btn">Create</button>
+      </form>
+      <ul id="list" class="af-list"></ul>
+    </main>
+  </div>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+  <script>
+    var listEl = document.getElementById('list');
+    var errorEl = document.getElementById('error');
+    function norm(d) {
+      if (Array.isArray(d)) return d;
+      if (d && Array.isArray(d.data)) return d.data;
+      if (d && Array.isArray(d.projects)) return d.projects;
+      return [];
+    }
+    function render(rows) {
+      if (!rows.length) {
+        listEl.innerHTML = '<li class="af-muted">No projects yet (or API does not implement projects).</li>';
+        return;
+      }
+      listEl.innerHTML = rows.map(function(p) {
+        var id = p.id != null ? p.id : p.project_id;
+        var name = p.name != null ? p.name : id;
+        return '<li class="af-row"><a class="af-btn af-btn-secondary" style="flex:1" href="project.html?id=' + encodeURIComponent(id) + '">' + name + '</a></li>';
+      }).join('');
+    }
+    window.ADE.listProjects().then(function(d) { render(norm(d)); }).catch(function(e) {
+      errorEl.innerHTML = '<div class="af-alert af-alert-danger">' + e.message + '</div>';
+      listEl.innerHTML = '<li class="af-muted">Projects unavailable on this API.</li>';
+    });
+    document.getElementById('create-form').onsubmit = function(e) {
+      e.preventDefault();
+      var n = document.getElementById('name').value.trim();
+      if (!n) return;
+      document.getElementById('create-btn').disabled = true;
+      errorEl.innerHTML = '';
+      window.ADE.createProject({ name: n }).then(function() {
+        document.getElementById('name').value = '';
+        return window.ADE.listProjects();
+      }).then(function(d) { render(norm(d)); }).catch(function(err) {
+        errorEl.innerHTML = '<div class="af-alert af-alert-danger">' + err.message + '</div>';
+      }).finally(function() { document.getElementById('create-btn').disabled = false; });
+    };
+  </script>
+</body>
+</html>
