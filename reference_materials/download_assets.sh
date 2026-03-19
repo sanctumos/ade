@@ -1,6 +1,7 @@
 #!/bin/bash
-# Download Letta ADE frontend assets from app.letta.com
+# Download Letta ADE frontend assets from app.letta.com (writes under reference_materials/)
 set -e
+cd "$(dirname "$0")"
 BASE="https://app.letta.com"
 CDN="https://web-cdn.letta.com"
 

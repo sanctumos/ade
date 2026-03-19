@@ -69,7 +69,7 @@ export default function Chat() {
     setMessages((prev) => [...prev, { role: 'user', content: userContent }]);
     setSending(true);
     setError(null);
-    sendMessage(selectedId, { message: userContent })
+    sendMessage(selectedId, { input: userContent })
       .then((res) => {
         const content = res?.message ?? res?.content ?? res?.response ?? extractMessageContent(res);
         setMessages((prev) => [...prev, { role: 'assistant', content: content || '(no response)' }]);
@@ -88,7 +88,7 @@ export default function Chat() {
       <h1>Chat</h1>
       <ErrorBanner error={error} onDismiss={() => setError(null)} />
       <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
-        <label style={{ color: '#888' }}>Agent:</label>
+        <label style={{ color: '#c4c4c4' }}>Agent:</label>
         <select
           value={selectedId}
           onChange={(e) => setSelectedId(e.target.value)}
@@ -109,7 +109,7 @@ export default function Chat() {
         flex: 1,
         overflow: 'auto',
         padding: 16,
-        background: '#1a1a1a',
+        background: '#222222',
         borderRadius: 8,
         marginBottom: 16,
         display: 'flex',
@@ -117,7 +117,7 @@ export default function Chat() {
         gap: 12,
       }}>
         {messages.length === 0 && (
-          <span style={{ color: '#666' }}>Send a message below. History may load if the API supports it.</span>
+          <span style={{ color: '#a8a8a8' }}>Send a message below. History may load if the API supports it.</span>
         )}
         {messages.map((m, i) => (
           <div
@@ -128,15 +128,15 @@ export default function Chat() {
               padding: '10px 14px',
               borderRadius: 12,
               background: m.role === 'user' ? '#2a4a6a' : '#252525',
-              border: '1px solid #333',
+              border: '1px solid #5a5a5a',
             }}
           >
-            <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>{m.role}</div>
+            <div style={{ fontSize: 11, color: '#c4c4c4', marginBottom: 4 }}>{m.role}</div>
             <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{m.content}</div>
           </div>
         ))}
         {sending && (
-          <div style={{ alignSelf: 'flex-start', padding: '10px 14px', color: '#888' }}>…</div>
+          <div style={{ alignSelf: 'flex-start', padding: '10px 14px', color: '#c4c4c4' }}>…</div>
         )}
       </div>
 

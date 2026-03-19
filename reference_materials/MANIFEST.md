@@ -2,6 +2,8 @@
 
 All files fetched from app.letta.com and web-cdn.letta.com on 2025-03-17.
 
+**Repository path:** Everything in this manifest lives under **`reference_materials/`** (e.g. `reference_materials/scraped/pages/`).
+
 **Authentication:** GitHub OAuth (authenticated session)
 
 ---

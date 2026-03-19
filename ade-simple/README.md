@@ -1,6 +1,6 @@
 # ADE Simple — no Node, no build
 
-Plain HTML, CSS, and JS. Point at your Letta (or compatible) API and go. No install beyond editing one config file (or using the in-app Settings). **Responsive and PWA-ready**: mobile breakpoint at 768px with hamburger nav, touch-friendly tap targets, and safe-area insets for notched devices.
+Plain HTML, CSS, and JS. Point at your Letta (or compatible) API and go. No install beyond editing one config file (or using the in-app Settings). **UI:** [Bootstrap 5.3](https://getbootstrap.com/) is loaded from **jsDelivr** (CSS + bundle JS) for layout, forms, buttons, alerts, and cards; `bootstrap-ade.css` maps the dark theme to the existing high-contrast ADE palette. **Offline:** cache or vendor Bootstrap locally if you need the UI without CDN access. **Responsive and PWA-ready**: mobile breakpoint at 768px with hamburger nav, touch-friendly tap targets, and safe-area insets for notched devices.
 
 ---
 
@@ -77,12 +77,13 @@ This writes `config.js`. No Node required.
 | `app.js` | API helpers; reads `window.ADE_CONFIG` or localStorage (from Settings). **Sidebar + backdrop** live here as `ADE_NAV_SHELL_HTML` (single source of truth); each page uses `<div class="layout" data-ade-nav="…">` + `<span id="ade-nav-inject"></span>` before `<main>`. **Active agent** dropdown in the sidebar is shared app-wide; choice is stored in `localStorage` (`ade_simple_agent_id`). Chat uses that agent; opening `agent.html?id=…` syncs the sidebar to that agent. `?agent=` on `chat.html` still overrides once and is then saved. |
 | `index.html` | Dashboard: API status, links to Agents and Chat. |
 | `agents.html` | List agents, create new. |
-| `agent.html` | One agent: model, system prompt, tools, memory (persona). Query: `?id=<agent_id>`. |
+| `agent.html` | One agent in **tabs**: General (model, LLM, system), Tools (grouped picker), Memory (core blocks). **Delete** is only in a collapsed **Danger zone** at the bottom (type agent name + confirm). Query `?id=<agent_id>`, or `…#tools` for the Tools tab. |
 | `tools.html` | List all tools. Attach when creating or editing agents. |
-| `mcp.html` | Register MCP servers (Streamable HTTP). Their tools appear in Tools. |
+| `mcp.html` | Register MCP servers: **Streamable HTTP**, **SSE**, or **stdio** (per Letta `config.mcp_server_type`). Their tools appear in Tools. |
 | `chat.html` | Chat with the **sidebar** active agent. Query: `?agent=<agent_id>` preselects once (saved to localStorage). Loads **marked** + **DOMPurify** from jsDelivr for markdown; see `chat.css` / `chat-markdown.js`. |
 | `settings.html` | Set base URL and API key in this browser. |
-| `styles.css` | Shared styles. |
+| `styles.css` | Shared styles (sidebar, layout, tokens). |
+| `bootstrap-ade.css` | Bootstrap dark-theme bridge + nav / link tweaks (load after Bootstrap, before overrides). |
 | `chat.css` | Chat-only: markdown prose, reasoning / tool-call / tool-return lanes (aligned with Letta `message_type`s). |
 | `chat-markdown.js` | Safe markdown HTML (`ADE_CHAT.parseMarkdown`) and JSON pretty-print for tool arguments. |
 | `genconfig.py` | Optional: reads `.env`, writes `config.js`. |
@@ -97,11 +98,11 @@ History is rendered by `message_type`, similar to [Letta message types](https://
 |------|-----|
 | `user_message` | Right-aligned bubble; markdown. Internal JSON (`login`, `system_alert`) is hidden. |
 | `assistant_message` | Assistant bubble; markdown. |
-| `reasoning_message` | Purple-accent lane; `reasoning` text as markdown; optional `source` badge. |
-| `hidden_reasoning_message` | Muted lane; `state` or optional `hidden_reasoning`. |
-| `tool_call_message` | Green-accent monospace lane; tool name, `tool_call_id`, pretty-printed `arguments` JSON. |
-| `tool_return_message` | Blue-accent lane; `status`, return body (JSON → `pre`, else markdown); optional stdout/stderr. |
-| `approval_request_message` / `approval_response_message` | Amber “human in the loop” styling. |
+| `reasoning_message` | Purple-accent lane; **collapsed `<details>`** by default — expand to read `reasoning` (markdown); optional `source` badge in summary. |
+| `hidden_reasoning_message` | Same collapse pattern; `state` or optional `hidden_reasoning`. |
+| `tool_call_message` | Green-accent; **collapsed** summary (tool name / call count); expand for args JSON. |
+| `tool_return_message` | Blue-accent; **collapsed** summary (`status`, short `tool_call_id`); expand for return body / stdout / stderr. |
+| `approval_request_message` | Amber; **collapsed** like tool calls. `approval_response_message` stays expanded (short). |
 
 If the CDN scripts fail (offline), chat falls back to escaped plaintext with line breaks.
 

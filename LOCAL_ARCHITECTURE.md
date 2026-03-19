@@ -14,7 +14,7 @@
 
 ## Current State (Scraped Frontend)
 
-- The contents of `scraped/` are a **static snapshot** of app.letta.com: HTML shells + minified Next.js bundles.
+- The contents of `reference_materials/scraped/` are a **static snapshot** of app.letta.com: HTML shells + minified Next.js bundles.
 - Those bundles contain **hardcoded references** to:
   - **App host:** e.g. `https://app.letta.com`, `NEXT_PUBLIC_CURRENT_HOST`
   - **API:** Likely baked into shared chunks (base URL for agents, chat, memory, etc.)

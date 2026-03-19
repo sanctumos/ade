@@ -13,6 +13,7 @@ function normalizeAgents(data) {
 function normalizeList(data) {
   if (Array.isArray(data)) return data;
   if (data?.data && Array.isArray(data.data)) return data.data;
+  if (data?.tools && Array.isArray(data.tools)) return data.tools;
   return [];
 }
 function modelId(m) {
@@ -26,6 +27,10 @@ function toolId(t) {
 }
 function toolName(t) {
   return t.name ?? t.tool_id ?? t.id;
+}
+function toolIdsIncludes(list, tid) {
+  const s = String(tid);
+  return list.some((x) => String(x) === s);
 }
 
 export default function Agents() {
@@ -74,7 +79,8 @@ export default function Agents() {
   };
 
   const toggleTool = (id) => {
-    setToolIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    const s = String(id);
+    setToolIds((prev) => (toolIdsIncludes(prev, s) ? prev.filter((x) => String(x) !== s) : [...prev, s]));
   };
 
   if (loading) return <Loading message="Loading agents…" />;
@@ -82,10 +88,10 @@ export default function Agents() {
   return (
     <div>
       <h1>Agents</h1>
-      <p style={{ color: '#888', marginBottom: 24 }}>Create and manage agents. Set model, system prompt, and tools.</p>
+      <p style={{ color: '#c4c4c4', marginBottom: 24 }}>Create and manage agents. Set model, system prompt, and tools.</p>
       <ErrorBanner error={error} onDismiss={() => setError(null)} />
 
-      <form onSubmit={handleCreate} style={{ marginBottom: 24, padding: 20, background: '#1a1a1a', borderRadius: 8, maxWidth: 560 }}>
+      <form onSubmit={handleCreate} style={{ marginBottom: 24, padding: 20, background: '#222222', borderRadius: 8, maxWidth: 560 }}>
         <h2 style={{ fontSize: 16, marginTop: 0 }}>Create agent</h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <label>
@@ -113,7 +119,7 @@ export default function Agents() {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {tools.map((t) => (
                   <label key={toolId(t)} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                    <input type="checkbox" checked={toolIds.includes(toolId(t))} onChange={() => toggleTool(toolId(t))} />
+                    <input type="checkbox" checked={toolIdsIncludes(toolIds, toolId(t))} onChange={() => toggleTool(toolId(t))} />
                     <span>{toolName(t)}</span>
                   </label>
                 ))}
@@ -125,12 +131,12 @@ export default function Agents() {
       </form>
 
       <ul style={{ listStyle: 'none', padding: 0 }}>
-        {agents.length === 0 && <li style={{ color: '#888', padding: 16, background: '#1a1a1a', borderRadius: 8 }}>No agents yet.</li>}
+        {agents.length === 0 && <li style={{ color: '#c4c4c4', padding: 16, background: '#222222', borderRadius: 8 }}>No agents yet.</li>}
         {agents.map((a) => {
           const aid = a.id ?? a.agent_id;
           return (
             <li key={aid} style={{ marginBottom: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 16, background: '#1a1a1a', border: '1px solid #333', borderRadius: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 16, background: '#222222', border: '1px solid #5a5a5a', borderRadius: 8 }}>
                 <Link to={`/agents/${aid}`} style={{ flex: 1, textDecoration: 'none', color: '#e0e0e0' }}>
                   {a.name ?? a.agent_name ?? aid}
                 </Link>

@@ -1,12 +1,12 @@
 {
-  "name": "letta-ade-scraper",
-  "version": "1.1.0",
-  "description": "Playwright-based scraper for Letta ADE authenticated frontend",
+  "name": "simple-ade",
+  "version": "2.0.0",
+  "description": "Simple ADE — local Agent Development Environment (static + React) for Letta-compatible APIs; optional Letta cloud scrape lives under reference_materials/",
   "type": "module",
   "scripts": {
-    "scrape": "node scrape.js",
-    "scrape:headed": "HEADLESS=false node scrape.js",
-    "decode": "node decode.js",
+    "scrape": "node reference_materials/scrape.js",
+    "scrape:headed": "HEADLESS=false node reference_materials/scrape.js",
+    "decode": "node reference_materials/decode.js",
     "dev": "cd app && npm run dev"
   },
   "dependencies": {

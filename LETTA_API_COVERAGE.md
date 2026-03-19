@@ -1,5 +1,7 @@
 # Letta API coverage — cloud vs local
 
+**Product:** [Simple ADE](README.md) — `ade-simple/` (static) and `app/` (React). Letta cloud static capture (not runtime): `reference_materials/`.
+
 This document maps the [Letta API](https://docs.letta.com/api) to **cloud-only** vs **local/cross‑backend** features and records which endpoints the local ADE (React app + ade-simple) supports.
 
 **References:** [Agents](https://docs.letta.com/api/resources/agents), [Tools](https://docs.letta.com/api/resources/tools), [MCP Servers](https://docs.letta.com/api/resources/mcp_servers/), [Models](https://docs.letta.com/api/resources/models/), [Runs](https://docs.letta.com/api/resources/runs/).
@@ -44,15 +46,16 @@ This document maps the [Letta API](https://docs.letta.com/api) to **cloud-only**
 | Method | Path | Purpose | In client | Notes |
 |--------|------|---------|-----------|--------|
 | GET | `/v1/agents/:id/messages` | List messages (history) | ✅ `getAgentMessages(agentId)` | Optional for chat; query: limit, order, before, after, conversation_id |
-| POST | `/v1/agents/:id/messages` | Send message | ✅ `sendMessage(agentId, body)` | body: message / input / messages[], streaming |
+| POST | `/v1/agents/:id/messages` | Send message | ✅ `sendMessage(agentId, body)` | body: **`input`** (string) and/or **`messages`**[] per [API](https://docs.letta.com/api-reference/agents/messages/create/); clients map legacy **`message`** → `input`; optional `streaming`, etc. |
 | POST | `/v1/agents/:id/messages/cancel` | Cancel runs | ✅ `cancelAgentMessages(agentId, body?)` | body: { run_ids?: string[] }; needs Redis on server |
 
 ### Agent core memory
 
 | Method | Path | Purpose | In client | Notes |
 |--------|------|---------|-----------|--------|
+| GET | `/v1/agents/:id/core-memory/blocks` | List blocks | ✅ `listAgentMemoryBlocks(agentId, params?)` (404 → tries `/blocks/` fallback) | `persona`, `human`, etc. |
 | GET | `/v1/agents/:id/core-memory/blocks/:label` | Get block | ✅ `getAgentMemory(agentId, label)` | label e.g. `persona` |
-| PATCH | `/v1/agents/:id/core-memory/blocks/:label` | Update block | ✅ `updateAgentMemory(agentId, label, body)` | |
+| PATCH | `/v1/agents/:id/core-memory/blocks/:label` | Update block | ✅ `updateAgentMemory(agentId, label, body)` | body: `value` (Letta) / `content` (some servers) |
 
 ### Tools
 

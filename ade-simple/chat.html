@@ -1,9 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Chat — ADE</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous" />
+  <link rel="stylesheet" href="bootstrap-ade.css" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="chat.css" />
 </head>
@@ -11,18 +13,20 @@
   <div class="layout" data-ade-nav="chat">
     <span id="ade-nav-inject"></span>
     <main class="main">
-      <button type="button" class="nav-toggle" id="nav-toggle" aria-label="Open menu">≡</button>
+      <button type="button" class="nav-toggle btn btn-outline-secondary" id="nav-toggle" aria-label="Open menu">≡</button>
       <h1>Chat</h1>
       <div id="error"></div>
       <p class="muted">Messages for the <strong>active agent</strong> (sidebar). Same selection is kept as you move between pages. Conversation uses markdown; reasoning and tool steps are shown in separate lanes (Letta-style).</p>
-      <div id="messages" class="chat-thread" style="min-height:200px;max-height:min(60vh,520px);overflow-y:auto;padding:16px;background:#1a1a1a;border-radius:8px;margin-bottom:16px"></div>
+      <p class="muted" id="agent-setup-line" style="font-size:14px;margin-bottom:16px"><a href="agent.html" id="config-agent-link">Agent setup →</a> — model, temperature / max tokens, tools, and every core memory block (persona, human, …).</p>
+      <div id="messages" class="chat-thread chat-messages-scroll"></div>
       <p id="history-hint" class="muted" style="margin-top:-8px;margin-bottom:12px;font-size:12px;display:none"></p>
-      <form id="send-form" style="display:flex;gap:8px">
-        <input type="text" id="input" placeholder="Message…" style="flex:1" />
-        <button type="submit" class="btn" id="send-btn">Send</button>
+      <form id="send-form" class="input-group mb-3" style="max-width: 56rem">
+        <input type="text" class="form-control" id="input" placeholder="Message…" autocomplete="off" />
+        <button type="submit" class="btn btn-primary" id="send-btn">Send</button>
       </form>
     </main>
   </div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.9/dist/purify.min.js"></script>
   <script src="config.js"></script>
@@ -132,6 +136,33 @@
       }
     }
 
+    function shortToolCallId(id) {
+      if (id == null || id === '') return '';
+      var s = String(id);
+      return s.length > 14 ? s.slice(0, 10) + '…' : s;
+    }
+
+    /** Opens a <details> block; tagsHtml is pre-built badge HTML (escaped). */
+    function chatCollapsibleSummary(titleText, tagsHtml) {
+      return '<summary class="chat-collapsible-summary">' +
+        '<div class="chat-summary-row">' +
+        '<span class="chat-summary-chevron" aria-hidden="true"></span>' +
+        '<span class="chat-summary-title">' + AC.escHtml(titleText) + '</span>' + (tagsHtml || '') +
+        '</div></summary>';
+    }
+
+    function toolCallSummaryTags(calls) {
+      var names = calls.map(function(tc) { return (tc && tc.name) || 'tool'; });
+      if (!names.length) return '';
+      if (names.length <= 3) {
+        return names.map(function(nm) {
+          return '<span class="chat-turn__label-tag">' + AC.escHtml(nm) + '</span>';
+        }).join('');
+      }
+      return '<span class="chat-turn__label-tag">' + AC.escHtml(names[0]) + '</span>' +
+        '<span class="chat-turn__label-tag">+' + (names.length - 1) + ' more</span>';
+    }
+
     /**
      * One DOM node per API message — matches Letta message_type lanes.
      */
@@ -150,23 +181,29 @@
         wrap.className = 'chat-turn chat-turn--reasoning';
         var src = m.source ? String(m.source).replace(/_/g, ' ') : '';
         var reasoning = m.reasoning != null ? String(m.reasoning) : '';
+        var srcTag = src ? '<span class="chat-turn__label-tag">' + AC.escHtml(src) + '</span>' : '';
         wrap.innerHTML =
-          '<div class="chat-turn__label">Reasoning' +
-          (src ? '<span class="chat-turn__label-tag">' + AC.escHtml(src) + '</span>' : '') +
-          '</div><div class="chat-md chat-reasoning-body">' + AC.parseMarkdown(reasoning) + '</div>';
+          '<details class="chat-details">' +
+          chatCollapsibleSummary('Reasoning', srcTag) +
+          '<div class="chat-details-body"><div class="chat-md chat-reasoning-body">' + AC.parseMarkdown(reasoning) + '</div></div>' +
+          '</details>';
         return wrap;
       }
 
       if (mt === 'hidden_reasoning_message') {
         wrap.className = 'chat-turn chat-turn--hidden-reasoning';
         var state = m.state ? String(m.state) : 'omitted';
+        var stateTag = '<span class="chat-turn__label-tag">' + AC.escHtml(state) + '</span>';
         var inner;
         if (m.hidden_reasoning) {
           inner = '<div class="chat-md">' + AC.parseMarkdown(String(m.hidden_reasoning)) + '</div>';
         } else {
           inner = '<p class="muted" style="margin:0">Reasoning not shown (<code>' + AC.escHtml(state) + '</code>).</p>';
         }
-        wrap.innerHTML = '<div class="chat-turn__label">Hidden reasoning</div>' + inner;
+        wrap.innerHTML =
+          '<details class="chat-details">' +
+          chatCollapsibleSummary('Hidden reasoning', stateTag) +
+          '<div class="chat-details-body">' + inner + '</div></details>';
         return wrap;
       }
 
@@ -177,7 +214,7 @@
           wrap.innerHTML = '<div class="chat-turn__label">Tool call</div><p class="muted">(no tool_call payload)</p>';
           return wrap;
         }
-        wrap.innerHTML = '<div class="chat-turn__label">Tool call</div>' + callsTc.map(function(tc) {
+        var bodyTc = callsTc.map(function(tc) {
           var nm = (tc && tc.name) || 'tool';
           var args = (tc && tc.arguments) != null ? tc.arguments : '';
           var tid = (tc && tc.tool_call_id) ? String(tc.tool_call_id) : '';
@@ -185,6 +222,10 @@
             (tid ? ' · <code>' + AC.escHtml(tid) + '</code>' : '') +
             '</div><pre class="chat-json">' + AC.formatJsonMaybe(args) + '</pre>';
         }).join('');
+        wrap.innerHTML =
+          '<details class="chat-details">' +
+          chatCollapsibleSummary('Tool call', toolCallSummaryTags(callsTc)) +
+          '<div class="chat-details-body">' + bodyTc + '</div></details>';
         return wrap;
       }
 
@@ -195,7 +236,7 @@
           wrap.innerHTML = '<div class="chat-turn__label">Approval required</div><p class="muted">(no tool_call payload)</p>';
           return wrap;
         }
-        wrap.innerHTML = '<div class="chat-turn__label">Approval required</div>' + callsAp.map(function(tc) {
+        var bodyAp = callsAp.map(function(tc) {
           var nm = (tc && tc.name) || 'tool';
           var args = (tc && tc.arguments) != null ? tc.arguments : '';
           var tid = (tc && tc.tool_call_id) ? String(tc.tool_call_id) : '';
@@ -203,6 +244,10 @@
             (tid ? ' · <code>' + AC.escHtml(tid) + '</code>' : '') +
             '</div><pre class="chat-json">' + AC.formatJsonMaybe(args) + '</pre>';
         }).join('');
+        wrap.innerHTML =
+          '<details class="chat-details">' +
+          chatCollapsibleSummary('Approval required', toolCallSummaryTags(callsAp)) +
+          '<div class="chat-details-body">' + bodyAp + '</div></details>';
         return wrap;
       }
 
@@ -211,6 +256,12 @@
         wrap.className = 'chat-turn chat-turn--tool-return' + (err ? ' chat-turn--error' : '');
         var tid = m.tool_call_id ? String(m.tool_call_id) : '';
         var st = m.status ? String(m.status) : '—';
+        var tidShort = tid ? shortToolCallId(tid) : '';
+        var tagsTr = '';
+        if (tidShort) {
+          tagsTr += '<span class="chat-turn__label-tag" title="' + AC.escHtml(tid) + '">' + AC.escHtml(tidShort) + '</span>';
+        }
+        tagsTr += '<span class="chat-turn__label-tag">' + AC.escHtml(st) + '</span>';
         var body = toolReturnBodyHtml(m.tool_return);
         var extra = '';
         if (Array.isArray(m.stdout) && m.stdout.length) {
@@ -220,9 +271,9 @@
           extra += '<div class="chat-tool-meta" style="margin-top:10px">stderr</div><pre class="chat-json">' + AC.escHtml(m.stderr.join('\n')) + '</pre>';
         }
         wrap.innerHTML =
-          '<div class="chat-turn__label">Tool result' +
-          (tid ? '<span class="chat-turn__label-tag">' + AC.escHtml(tid) + '</span>' : '') +
-          '<span class="chat-turn__label-tag">' + AC.escHtml(st) + '</span></div>' + body + extra;
+          '<details class="chat-details">' +
+          chatCollapsibleSummary('Tool result', tagsTr) +
+          '<div class="chat-details-body">' + body + extra + '</div></details>';
         return wrap;
       }
 
@@ -304,13 +355,23 @@
       var id = ev && ev.detail && ev.detail.id != null ? ev.detail.id : currentAgentId();
       errorEl.innerHTML = '';
       if (ev && ev.detail && ev.detail.error) {
-        errorEl.innerHTML = '<div class="error">Could not load agents for the sidebar.</div>';
+        errorEl.innerHTML = '<div class="alert alert-danger" role="alert">Could not load agents for the sidebar.</div>';
         return;
       }
       loadHistory(id);
     }
     document.addEventListener('ade-agentselectready', onAgentContext);
     document.addEventListener('ade-agentchange', onAgentContext);
+
+    function updateAgentSetupLink() {
+      var link = document.getElementById('config-agent-link');
+      if (!link) return;
+      var aid = window.ADE.getSelectedAgentId();
+      link.href = aid ? ('agent.html?id=' + encodeURIComponent(aid)) : 'agent.html';
+    }
+    updateAgentSetupLink();
+    document.addEventListener('ade-agentchange', updateAgentSetupLink);
+    document.addEventListener('ade-agentselectready', updateAgentSetupLink);
 
     function addMsg(role, content) {
       var synthetic = role === 'user'
@@ -361,7 +422,7 @@
           if (!ok && fallback) addMsg('assistant', fallback);
           if (!ok && !fallback) addMsg('assistant', '(no response)');
         });
-      }).catch(function(err) { errorEl.innerHTML = '<div class="error">' + err.message + '</div>'; }).finally(function() { document.getElementById('send-btn').disabled = false; });
+      }).catch(function(err) { errorEl.innerHTML = '<div class="alert alert-danger" role="alert">' + err.message + '</div>'; }).finally(function() { document.getElementById('send-btn').disabled = false; });
     };
   </script>
 </body>

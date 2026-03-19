@@ -11,8 +11,8 @@ function Card({ to, title, description }) {
       style={{
         display: 'block',
         padding: 20,
-        background: '#1a1a1a',
-        border: '1px solid #333',
+        background: '#222222',
+        border: '1px solid #5a5a5a',
         borderRadius: 12,
         textDecoration: 'none',
         color: '#e0e0e0',
@@ -23,12 +23,12 @@ function Card({ to, title, description }) {
         e.currentTarget.style.background = '#222';
       }}
       onMouseOut={(e) => {
-        e.currentTarget.style.borderColor = '#333';
-        e.currentTarget.style.background = '#1a1a1a';
+        e.currentTarget.style.borderColor = '#5a5a5a';
+        e.currentTarget.style.background = '#222222';
       }}
     >
       <h3 style={{ margin: '0 0 8px', fontSize: 18 }}>{title}</h3>
-      <p style={{ margin: 0, color: '#888', fontSize: 14 }}>{description}</p>
+      <p style={{ margin: 0, color: '#c4c4c4', fontSize: 14 }}>{description}</p>
     </Link>
   );
 }
@@ -54,7 +54,7 @@ export default function Dashboard() {
   return (
     <div>
       <h1>Dashboard</h1>
-      <p style={{ color: '#888', marginBottom: 24 }}>Local ADE — agents, projects, and chat.</p>
+      <p style={{ color: '#c4c4c4', marginBottom: 24 }}>Local ADE — agents, projects, and chat.</p>
       <ErrorBanner error={error} onDismiss={() => setError(null)} />
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
@@ -65,18 +65,18 @@ export default function Dashboard() {
           borderRadius: 8,
           minWidth: 140,
         }}>
-          <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>API</div>
+          <div style={{ fontSize: 12, color: '#c4c4c4', marginBottom: 4 }}>API</div>
           <div style={{ fontWeight: 600 }}>{health === null ? '…' : health.ok ? 'Connected' : 'Unreachable'}</div>
-          <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>{apiBase()}</div>
+          <div style={{ fontSize: 12, color: '#a8a8a8', marginTop: 4 }}>{apiBase()}</div>
         </div>
         <div style={{
           padding: 16,
-          background: '#1a1a1a',
-          border: '1px solid #333',
+          background: '#222222',
+          border: '1px solid #5a5a5a',
           borderRadius: 8,
           minWidth: 140,
         }}>
-          <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>Agents</div>
+          <div style={{ fontSize: 12, color: '#c4c4c4', marginBottom: 4 }}>Agents</div>
           <div style={{ fontWeight: 600 }}>{agentCount === null ? '…' : agentCount}</div>
         </div>
       </div>

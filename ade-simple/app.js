@@ -5,18 +5,18 @@
   var ADE_NAV_SHELL_HTML =
     '<button type="button" class="sidebar-backdrop" id="nav-backdrop" aria-label="Close menu"></button>' +
     '<aside class="sidebar">' +
-    '<h2>ADE (Local)</h2>' +
-    '<nav>' +
-    '<a href="index.html">Dashboard</a>' +
-    '<a href="agents.html">Agents</a>' +
-    '<a href="tools.html">Tools</a>' +
-    '<a href="mcp.html">MCP</a>' +
-    '<a href="chat.html">Chat</a>' +
-    '<a href="settings.html">Settings</a>' +
+    '<h2 class="h6 text-uppercase text-secondary fw-bold mb-3" style="letter-spacing:0.04em">ADE (Local)</h2>' +
+    '<nav class="nav flex-column gap-1">' +
+    '<a class="nav-link rounded" href="index.html">Dashboard</a>' +
+    '<a class="nav-link rounded" href="agents.html">Agents</a>' +
+    '<a class="nav-link rounded" href="tools.html">Tools</a>' +
+    '<a class="nav-link rounded" href="mcp.html">MCP</a>' +
+    '<a class="nav-link rounded" href="chat.html">Chat</a>' +
+    '<a class="nav-link rounded" href="settings.html">Settings</a>' +
     '</nav>' +
     '<div class="sidebar-agent">' +
     '<label class="sidebar-agent-label" for="ade-agent-select">Active agent</label>' +
-    '<select id="ade-agent-select" class="sidebar-agent-select" aria-label="Active agent">' +
+    '<select id="ade-agent-select" class="form-select form-select-sm sidebar-agent-select" aria-label="Active agent">' +
     '<option value="">Loading…</option>' +
     '</select>' +
     '</div>' +
@@ -41,7 +41,7 @@
     var active = (layout.getAttribute('data-ade-nav') || '').trim();
     var href = ADE_ACTIVE_NAV_HREF[active];
     if (href) {
-      var link = layout.querySelector('.sidebar nav a[href="' + href + '"]');
+      var link = layout.querySelector('.sidebar nav .nav-link[href="' + href + '"]');
       if (link) link.classList.add('active');
     }
   }
@@ -199,6 +199,27 @@
     });
   }
 
+  /**
+   * Letta POST /messages requires `input` (string shortcut) and/or `messages` ([]).
+   * Legacy `message` is mapped to `input` so older callers keep working.
+   */
+  function normalizeAgentSendBody(body) {
+    if (body == null || typeof body !== 'object') body = {};
+    var out = Object.assign({}, body);
+    var hasMessages = Array.isArray(out.messages);
+    var hasInput = Object.prototype.hasOwnProperty.call(out, 'input');
+    if (hasMessages || hasInput) {
+      if (out.message !== undefined) delete out.message;
+      return out;
+    }
+    if (out.message !== undefined) {
+      out.input = out.message;
+      delete out.message;
+      return out;
+    }
+    return out;
+  }
+
   function apiFetch(path, options) {
     options = options || {};
     var url = path.indexOf('http') === 0 ? path : apiBase() + (path.indexOf('/') === 0 ? '' : '/') + path;
@@ -229,14 +250,26 @@
     updateAgent: function (id, body) { return apiFetch('/v1/agents/' + id, { method: 'PATCH', body: JSON.stringify(body) }); },
     deleteAgent: function (id) { return apiFetch('/v1/agents/' + id, { method: 'DELETE' }); },
     cancelAgentMessages: function (agentId, body) { return apiFetch('/v1/agents/' + agentId + '/messages/cancel', { method: 'POST', body: JSON.stringify(body || {}) }); },
-    sendMessage: function (agentId, body) { return apiFetch('/v1/agents/' + agentId + '/messages', { method: 'POST', body: JSON.stringify(body) }); },
+    sendMessage: function (agentId, body) { return apiFetch('/v1/agents/' + agentId + '/messages', { method: 'POST', body: JSON.stringify(normalizeAgentSendBody(body)) }); },
     getAgentMessages: function (agentId, params) {
       var q = '';
       if (params && Object.keys(params).length) q = '?' + new URLSearchParams(params).toString();
       return apiFetch('/v1/agents/' + agentId + '/messages' + q);
     },
-    getAgentMemory: function (agentId, label) { return apiFetch('/v1/agents/' + agentId + '/core-memory/blocks/' + (label || 'persona')); },
-    updateAgentMemory: function (agentId, label, body) { return apiFetch('/v1/agents/' + agentId + '/core-memory/blocks/' + (label || 'persona'), { method: 'PATCH', body: JSON.stringify(body) }); },
+    getAgentMemory: function (agentId, label) { return apiFetch('/v1/agents/' + agentId + '/core-memory/blocks/' + encodeURIComponent(label || 'persona')); },
+    updateAgentMemory: function (agentId, label, body) { return apiFetch('/v1/agents/' + agentId + '/core-memory/blocks/' + encodeURIComponent(label || 'persona'), { method: 'PATCH', body: JSON.stringify(body) }); },
+    /** GET /v1/agents/:id/core-memory/blocks — all memory blocks (persona, human, …) */
+    listAgentMemoryBlocks: function (agentId, params) {
+      var q = '';
+      if (params && Object.keys(params).length) q = '?' + new URLSearchParams(params).toString();
+      var primary = '/v1/agents/' + agentId + '/core-memory/blocks' + q;
+      var fallback = '/v1/agents/' + agentId + '/core-memory/blocks/' + q;
+      return apiFetch(primary).catch(function (e) {
+        var m = (e && e.message) ? String(e.message) : '';
+        if (m.indexOf('API 404') !== -1) return apiFetch(fallback);
+        throw e;
+      });
+    },
     listModels: function () { return apiFetch('/v1/models/'); },
     listTools: function () { return apiFetch('/v1/tools/'); },
     getTool: function (id) { return apiFetch('/v1/tools/' + id); },

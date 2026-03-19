@@ -39,25 +39,25 @@ export default function Tools() {
   return (
     <div>
       <h1>Tools</h1>
-      <p style={{ color: '#888', marginBottom: 24 }}>
+      <p style={{ color: '#c4c4c4', marginBottom: 24 }}>
         All tools available to agents (server tools, MCP tools, etc.). Attach them when creating or editing an agent.
       </p>
       <ErrorBanner error={error} onDismiss={() => setError(null)} />
       <ul style={{ listStyle: 'none', padding: 0 }}>
         {tools.length === 0 && (
-          <li style={{ color: '#888', padding: 16, background: '#1a1a1a', borderRadius: 8 }}>No tools yet. Add MCP servers or create server tools.</li>
+          <li style={{ color: '#c4c4c4', padding: 16, background: '#222222', borderRadius: 8 }}>No tools yet. Add MCP servers or create server tools.</li>
         )}
         {tools.map((t) => (
           <li key={toolId(t)} style={{ marginBottom: 8 }}>
             <div style={{
               padding: 16,
-              background: '#1a1a1a',
-              border: '1px solid #333',
+              background: '#222222',
+              border: '1px solid #5a5a5a',
               borderRadius: 8,
             }}>
               <div style={{ fontWeight: 600 }}>{toolName(t)}</div>
-              <div style={{ fontSize: 13, color: '#888' }}>ID: {toolId(t)} · Type: {toolType(t)}</div>
-              {t.description && <div style={{ fontSize: 13, color: '#aaa', marginTop: 4 }}>{t.description}</div>}
+              <div style={{ fontSize: 13, color: '#c4c4c4' }}>ID: {toolId(t)} · Type: {toolType(t)}</div>
+              {t.description && <div style={{ fontSize: 13, color: '#bdbdbd', marginTop: 4 }}>{t.description}</div>}
             </div>
           </li>
         ))}

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * De-minify scraped JS and build a chunk/source index.
- * Reads from scraped/ (and root _next/), writes to scraped-beautified/.
+ * Reads from reference_materials/scraped (and _next/), writes to repo-root scraped-beautified/.
  * Never modifies the original scrape.
  */
 
@@ -11,9 +11,10 @@ import { fileURLToPath } from 'url';
 import beautify from 'js-beautify';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = __dirname;
-const SCRAPED = join(ROOT, 'scraped');
-const BEAUTIFIED = join(ROOT, 'scraped-beautified');
+const REF_DIR = __dirname;
+const REPO_ROOT = join(REF_DIR, '..');
+const SCRAPED = join(REF_DIR, 'scraped');
+const BEAUTIFIED = join(REPO_ROOT, 'scraped-beautified');
 
 // Patterns to extract for the index (regex source; we'll use global match)
 const SENTRY_SOURCE = /data-sentry-source-file["\s]*:["\s]*["']([^"']+\.tsx?)["']/g;
@@ -90,10 +91,10 @@ for (const { full, rel } of walkJs(join(SCRAPED, '_next'), SCRAPED)) {
   process.stdout.write('.');
 }
 
-// 2) Root _next if present
-const rootNext = join(ROOT, '_next');
+// 2) Login-page _next next to this folder (reference_materials/_next)
+const rootNext = join(REF_DIR, '_next');
 if (existsSync(rootNext)) {
-  for (const { full, rel } of walkJs(rootNext, ROOT)) {
+  for (const { full, rel } of walkJs(rootNext, REF_DIR)) {
     const outRel = rel.replace(/^_next\/?/, '_next-root/');
     const outPath = join(BEAUTIFIED, outRel);
     ensureDir(dirname(outPath));
@@ -151,4 +152,4 @@ writeFileSync(
 );
 
 console.log(`\nDone. Beautified ${index.length} JS chunks → ${BEAUTIFIED}`);
-console.log('Index: scraped-beautified/DECODE_INDEX.md');
+console.log('Index: <repo-root>/scraped-beautified/DECODE_INDEX.md');

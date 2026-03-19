@@ -19,21 +19,21 @@ export default function Settings() {
   return (
     <div>
       <h1>Settings</h1>
-      <p style={{ color: '#888', marginBottom: 24 }}>Configure your local API connection.</p>
+      <p style={{ color: '#c4c4c4', marginBottom: 24 }}>Configure your local API connection.</p>
 
       <section style={{ marginBottom: 32, maxWidth: 560 }}>
         <h2 style={{ fontSize: 16, marginBottom: 8 }}>API base URL</h2>
-        <p style={{ color: '#aaa', fontSize: 14, marginBottom: 8 }}>
+        <p style={{ color: '#bdbdbd', fontSize: 14, marginBottom: 8 }}>
           Set in <code style={{ background: '#222', padding: '2px 6px', borderRadius: 4 }}>app/.env</code> as <code style={{ background: '#222', padding: '2px 6px', borderRadius: 4 }}>VITE_API_BASE</code>. Default: <code style={{ background: '#222', padding: '2px 6px', borderRadius: 4 }}>http://localhost:8283</code>.
         </p>
-        <div style={{ padding: 12, background: '#1a1a1a', borderRadius: 8, fontFamily: 'monospace', fontSize: 14 }}>
+        <div style={{ padding: 12, background: '#222222', borderRadius: 8, fontFamily: 'monospace', fontSize: 14 }}>
           {apiBase()}
         </div>
       </section>
 
       <section style={{ marginBottom: 32, maxWidth: 560 }}>
         <h2 style={{ fontSize: 16, marginBottom: 8 }}>API key (optional)</h2>
-        <p style={{ color: '#aaa', fontSize: 14, marginBottom: 12 }}>
+        <p style={{ color: '#bdbdbd', fontSize: 14, marginBottom: 12 }}>
           If your backend requires a Bearer token, enter it below. Stored in this browser only (localStorage).
         </p>
         <form onSubmit={handleSave} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>

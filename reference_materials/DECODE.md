@@ -1,5 +1,7 @@
 # De-minify & De-obfuscate Strategy
 
+> **Location:** This doc lives in `reference_materials/` beside the scrape. Run `npm run decode` from the **repo root**; output goes to repo-root `scraped-beautified/` (gitignored).
+
 **Goal:** Make the scraped JS readable and navigable so we can use it as a reference for rebuilding the local ADE. Focus on **de-minify first**, then **light de-obfuscation** (indexing, not full name restoration).
 
 ---
@@ -19,7 +21,7 @@ The scraped chunks are **minified** (single-letter vars, no newlines) and **bund
 ## What We Don’t Do
 
 - **Full de-obfuscation** — Restoring original identifiers would require source maps or manual reverse engineering; out of scope.
-- **Run the beautified code** — Beautify is for reading only. The original `scraped/` stays the canonical copy for any proxy/serve; beautified output is in a separate dir.
+- **Run the beautified code** — Beautify is for reading only. The original `reference_materials/scraped/` stays the canonical copy for any proxy/serve; beautified output is in a separate dir.
 
 ---
 
@@ -30,12 +32,12 @@ scraped-beautified/          # Created by npm run decode
 ├── _next/
 │   └── static/
 │       ├── css/             # unchanged copy
-│       └── chunks/          # beautified .js (mirror of scraped/)
+│       └── chunks/          # beautified .js (mirror of reference scrape)
 ├── DECODE_INDEX.md          # Chunk → route + source files + notable strings
 └── (optional) decode-index.json
 ```
 
-Original `scraped/` is **never modified**. All beautified JS and the index live under `scraped-beautified/`.
+Original `reference_materials/scraped/` is **never modified**. All beautified JS and the index live under `scraped-beautified/`.
 
 ---
 
@@ -45,7 +47,7 @@ Original `scraped/` is **never modified**. All beautified JS and the index live 
 npm run decode
 ```
 
-- Reads from `scraped/` (and root `_next/` if present).
+- Reads from `reference_materials/scraped/` and `reference_materials/_next/` (if present).
 - Writes beautified JS and CSS (passthrough) to `scraped-beautified/`.
 - Writes `DECODE_INDEX.md` (and optionally `decode-index.json`) with chunk → route, source-file hints, and API/env strings.
 

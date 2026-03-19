@@ -93,19 +93,52 @@ export function getAgentMessages(agentId) {
   return apiFetch(`/v1/agents/${agentId}/messages`);
 }
 
-/** POST /v1/agents/:id/messages (chat) */
+/** Letta expects `input` and/or `messages`; legacy `message` is rewritten to `input`. */
+function normalizeAgentSendBody(body) {
+  if (body == null || typeof body !== 'object') body = {};
+  const out = { ...body };
+  const hasMessages = Array.isArray(out.messages);
+  const hasInput = Object.prototype.hasOwnProperty.call(out, 'input');
+  if (hasMessages || hasInput) {
+    if (out.message !== undefined) delete out.message;
+    return out;
+  }
+  if (out.message !== undefined) {
+    out.input = out.message;
+    delete out.message;
+    return out;
+  }
+  return out;
+}
+
+/** POST /v1/agents/:id/messages (chat) — pass `{ input: string }` or `{ messages: [...] }` */
 export function sendMessage(agentId, body) {
-  return apiFetch(`/v1/agents/${agentId}/messages`, { method: 'POST', body: JSON.stringify(body) });
+  return apiFetch(`/v1/agents/${agentId}/messages`, { method: 'POST', body: JSON.stringify(normalizeAgentSendBody(body)) });
 }
 
 /** GET /v1/agents/:id/core-memory/blocks/:label */
 export function getAgentMemory(agentId, label = 'persona') {
-  return apiFetch(`/v1/agents/${agentId}/core-memory/blocks/${label}`);
+  return apiFetch(`/v1/agents/${agentId}/core-memory/blocks/${encodeURIComponent(label)}`);
 }
 
 /** PATCH /v1/agents/:id/core-memory/blocks/:label */
 export function updateAgentMemory(agentId, label, body) {
-  return apiFetch(`/v1/agents/${agentId}/core-memory/blocks/${label}`, { method: 'PATCH', body: JSON.stringify(body) });
+  return apiFetch(`/v1/agents/${agentId}/core-memory/blocks/${encodeURIComponent(label)}`, { method: 'PATCH', body: JSON.stringify(body) });
+}
+
+/** GET /v1/agents/:id/core-memory/blocks — list blocks (Letta: no trailing slash; fallback for older mounts) */
+export async function listAgentMemoryBlocks(agentId, params = {}) {
+  const q = Object.keys(params).length ? `?${new URLSearchParams(params)}` : '';
+  const primary = `/v1/agents/${agentId}/core-memory/blocks${q}`;
+  try {
+    return await apiFetch(primary);
+  } catch (e) {
+    const msg = e?.message ?? '';
+    if (String(msg).includes('API 404')) {
+      return apiFetch(`/v1/agents/${agentId}/core-memory/blocks/${q}`);
+    }
+    throw e;
+  }
 }
 
 /** GET /v1/models */

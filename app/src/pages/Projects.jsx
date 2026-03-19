@@ -54,7 +54,7 @@ export default function Projects() {
   return (
     <div>
       <h1>Projects</h1>
-      <p style={{ color: '#888', marginBottom: 24 }}>Group agents and work by project.</p>
+      <p style={{ color: '#c4c4c4', marginBottom: 24 }}>Group agents and work by project.</p>
       <ErrorBanner error={error} onDismiss={() => setError(null)} />
 
       {projectsSupported ? (
@@ -69,14 +69,14 @@ export default function Projects() {
           <button type="submit" disabled={creating}>Create project</button>
         </form>
       ) : (
-        <p style={{ color: '#888', marginBottom: 24 }}>
+        <p style={{ color: '#c4c4c4', marginBottom: 24 }}>
           This backend does not expose <code>/v1/projects</code>. Projects are optional; you can use Agents and Chat directly.
         </p>
       )}
 
       <ul style={{ listStyle: 'none', padding: 0 }}>
         {projects.length === 0 && (
-          <li style={{ color: '#888', padding: 16, background: '#1a1a1a', borderRadius: 8 }}>
+          <li style={{ color: '#c4c4c4', padding: 16, background: '#222222', borderRadius: 8 }}>
             {projectsSupported ? 'No projects yet. Create one above.' : 'No projects API available.'}
           </li>
         )}
@@ -87,8 +87,8 @@ export default function Projects() {
               style={{
                 display: 'block',
                 padding: 16,
-                background: '#1a1a1a',
-                border: '1px solid #333',
+                background: '#222222',
+                border: '1px solid #5a5a5a',
                 borderRadius: 8,
                 textDecoration: 'none',
                 color: '#e0e0e0',

@@ -11,17 +11,24 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+/** Monorepo root (parent of reference_materials/). */
+const REPO_ROOT = join(__dirname, '..');
 
-// Load .env if present
-try {
-  const env = readFileSync(join(__dirname, '.env'), 'utf8');
-  for (const line of env.split('\n')) {
-    const m = line.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
-    if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
-  }
-} catch (_) {}
+function loadEnvFrom(path) {
+  try {
+    const env = readFileSync(path, 'utf8');
+    for (const line of env.split('\n')) {
+      const m = line.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
+      if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
+    }
+  } catch (_) {}
+}
+// Prefer repo-root .env (npm run scrape from root); allow reference_materials/.env
+loadEnvFrom(join(REPO_ROOT, '.env'));
+loadEnvFrom(join(__dirname, '.env'));
+
 const OUTPUT_DIR = join(__dirname, 'scraped');
-const COOKIES_FILE = join(__dirname, '.cookies.json');
+const COOKIES_FILE = join(REPO_ROOT, '.cookies.json');
 const BASE_URL = 'https://app.letta.com';
 const CDN_URL = 'https://web-cdn.letta.com';
 const GITHUB_LOGIN_URL = 'https://github.com/login';

@@ -39,9 +39,9 @@ export default function ProjectDetail() {
         <Link to="/projects" style={{ color: '#7eb8da' }}>← Projects</Link>
       </p>
       <h1>{project?.name ?? project?.project_name ?? id}</h1>
-      <p style={{ color: '#888', marginBottom: 24 }}>Project detail. Agents in this project (or all agents if backend does not link them):</p>
+      <p style={{ color: '#c4c4c4', marginBottom: 24 }}>Project detail. Agents in this project (or all agents if backend does not link them):</p>
       <ul style={{ listStyle: 'none', padding: 0 }}>
-        {projectAgents.length === 0 && <li style={{ color: '#888' }}>No agents.</li>}
+        {projectAgents.length === 0 && <li style={{ color: '#c4c4c4' }}>No agents.</li>}
         {projectAgents.map((a) => (
           <li key={a.id ?? a.agent_id} style={{ marginBottom: 8 }}>
             <Link
@@ -49,8 +49,8 @@ export default function ProjectDetail() {
               style={{
                 display: 'block',
                 padding: 12,
-                background: '#1a1a1a',
-                border: '1px solid #333',
+                background: '#222222',
+                border: '1px solid #5a5a5a',
                 borderRadius: 8,
                 textDecoration: 'none',
                 color: '#e0e0e0',
