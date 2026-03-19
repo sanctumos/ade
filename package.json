@@ -1,7 +1,7 @@
 {
   "name": "simple-ade",
   "version": "2.0.0",
-  "description": "Simple ADE — local Agent Development Environment (static + React) for Letta-compatible APIs; optional Letta cloud scrape lives under reference_materials/",
+  "description": "Simple ADE — local Agent Development Environment (ade-simple/); legacy app/ + optional Letta scrape under reference_materials/",
   "type": "module",
   "scripts": {
     "scrape": "node reference_materials/scrape.js",

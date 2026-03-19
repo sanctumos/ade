@@ -1,8 +1,8 @@
 # Letta API coverage — cloud vs local
 
-**Product:** [Simple ADE](README.md) — `ade-simple/` (static) and `app/` (React). Letta cloud static capture (not runtime): `reference_materials/`.
+**Product:** [Simple ADE](README.md) — **`ade-simple/`** is the supported UI (`ade-simple/app.js`). The **`app/`** React tree is a **legacy mirror** of the API layer; see [docs/dev-react-shell.md](docs/dev-react-shell.md). Letta cloud static capture (not runtime): `reference_materials/`.
 
-This document maps the [Letta API](https://docs.letta.com/api) to **cloud-only** vs **local/cross‑backend** features and records which endpoints the local ADE (React app + ade-simple) supports.
+This document maps the [Letta API](https://docs.letta.com/api) to **cloud-only** vs **local/cross‑backend** features and records which endpoints **Simple ADE** (`ade-simple` + the shared function names in `app/src/api/client.js` until that tree is removed) targets.
 
 **References:** [Agents](https://docs.letta.com/api/resources/agents), [Tools](https://docs.letta.com/api/resources/tools), [MCP Servers](https://docs.letta.com/api/resources/mcp_servers/), [Models](https://docs.letta.com/api/resources/models/), [Runs](https://docs.letta.com/api/resources/runs/).
 
@@ -19,7 +19,7 @@ This document maps the [Letta API](https://docs.letta.com/api) to **cloud-only**
 | **MCP** | — | List, get, create, update, delete, refresh, list tools |
 | **Models** | `tier`, `provider_category: "byok"` | List LLMs (and optionally embeddings) |
 | **Projects** | Org-scoped, billing | Optional list/create/get/update/delete |
-| **Org / billing** | Billing, members, usage, rate limits, API logs, integrations | **Not used** by local ADE |
+| **Org / billing** | Billing, members, usage, rate limits, API logs, integrations | **Not used** by Simple ADE |
 
 ---
 
@@ -123,7 +123,7 @@ Many backends expose messages via **agents** rather than **runs**. Runs are firs
 
 ## 3. Summary
 
-- **Fully covered for local use:** Agents (CRUD + memory), agent messages (list, send, cancel), tools (list, get, create, update, delete, upsert, search), MCP (full CRUD + refresh + list tools), models (+ embedding list), projects (full CRUD), runs (list, get, messages, usage, steps).
+- **Fully covered for local use (client helpers):** Agents (CRUD + memory), agent messages (list, send, cancel), tools (list, get, create, update, delete, upsert, search), MCP (full CRUD + refresh + list tools), models (+ embedding list), projects (full CRUD), runs (list, get, messages, usage, steps).
 - **Cloud-only (we don’t rely on):** Org, billing, members, usage dashboards, rate limits, API logs, BYOK provider_category, tool embedding search (optional in client).
 - **Optional / backend-dependent:** Runs (some backends only expose agent messages), streaming (POST messages with `streaming: true`), run stream endpoint, agent-specific tools list.
 
@@ -136,4 +136,4 @@ Backends may return:
 - **Arrays:** `[...]` or `{ data: [...] }` or `{ agents: [...] }`, `{ tools: [...] }`, `{ mcp_servers: [...] }`, etc.
 - **Single resource:** `{ id, name, ... }` or wrapped.
 
-The ADE normalizes in the API layer or in the UI (e.g. `Array.isArray(d) ? d : d?.data ?? d?.agents ?? []`).
+Clients normalize in the API helpers or UI (e.g. `Array.isArray(d) ? d : d?.data ?? d?.agents ?? []`). Keep **`ade-simple/app.js`** and **`app/src/api/client.js`** aligned when changing request/response handling.

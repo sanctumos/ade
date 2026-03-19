@@ -26,11 +26,10 @@
 
 ## Paths to a Local, API-Agnostic ADE
 
-### Option A: Rebuild a thin local client (recommended)
+### Option A: Thin local client (**ade-simple** today; future SPA optional)
 
-- Build a **new minimal frontend** (e.g. React/Vite or Next) that:
-  - Recreates the key flows: **dashboard → projects → agents → chat** (and optionally settings).
-  - Uses a **single API client** that reads its base URL from **build-time or runtime config** (e.g. `VITE_API_BASE` / `NEXT_PUBLIC_API_BASE` or a small runtime config endpoint).
+- **`ade-simple/`** is the current minimal frontend: static HTML/JS, **runtime config** (`config.js` + Settings / localStorage), single API base in `ade-simple/app.js`.
+- A **future** replacement (e.g. React/Vite or Next) should keep the same **API contract** and config idea (one base URL + optional Bearer). The transitional **`app/`** React package is **not** the long-term product; see [docs/dev-react-shell.md](docs/dev-react-shell.md).
 - **API base URL** is the only place that knows “cloud vs OSS vs Sanctum”. All requests go through this base.
 - Benefits: Full control, works offline/local, easy to adapt when OSS/cloud APIs diverge; no dependency on scraped minified code.
 
@@ -67,7 +66,7 @@ As the local/OSS API evolves (or we switch to a Sanctum backend), we adapt the A
 
 ## What “Run Entirely Locally” Means
 
-- **Frontend:** Served from localhost (e.g. `npm run dev` or static server). No dependency on app.letta.com for HTML/JS.
+- **Frontend:** Serve **`ade-simple/`** from disk or any static host (or a dev server if you add one). No dependency on app.letta.com for HTML/JS.
 - **Backend:** **Primary:** Letta OSS or Sanctum (or equivalent) running locally (Docker / native). `API_BASE_URL` points at it by default. The Cloud ADE (app.letta.com) stays the interface for Letta Cloud; we don’t replicate that here.
 - **Auth:** Whatever the local API expects (e.g. API key, local session).
 
@@ -75,6 +74,6 @@ As the local/OSS API evolves (or we switch to a Sanctum backend), we adapt the A
 
 ## Next Steps
 
-1. **Short-term:** Use the scrape as **reference only** (layout, routes, copy). Optionally run an **API proxy** (Option B) to point the scraped app at a local backend for quick validation.
-2. **Medium-term:** Implement **Option A** — minimal local ADE that talks **primarily to the local API** (default `API_BASE_URL` = local backend), matching the key flows from the scrape (dashboard, projects, agents, chat).
-3. **When OSS (or our backend) evolves:** Adapt the API client layer here. We don’t track Cloud; the Cloud ADE handles Cloud.
+1. **Short-term:** Treat **`ade-simple/`** as the ship target; use the scrape as **reference only** (layout, routes, copy). Optionally run an **API proxy** (Option B) against `reference_materials/` for experiments.
+2. **Medium-term:** Extend or replace the UI while keeping the **OSS API** as source of truth; retire **`app/`** when a new shell or richer `ade-simple` subsumes it (see [docs/dev-react-shell.md](docs/dev-react-shell.md)).
+3. **When OSS (or our backend) evolves:** Adapt **`ade-simple/app.js`** (and temporarily `app/src/api/client.js` if it still exists). We don’t track Cloud; the Cloud ADE handles Cloud.

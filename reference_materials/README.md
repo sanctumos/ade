@@ -29,4 +29,4 @@ npm run decode
 
 Output: `../scraped-beautified/` at repo root (gitignored). How it works: [DECODE.md](./DECODE.md).
 
-The **product** in this repository is **`ade-simple/`** (no build) and **`app/`** (Vite + React). See the root [README.md](../README.md).
+The **product** in this repository is **`ade-simple/`** (no build). The **`app/`** React tree is legacy—see [docs/dev-react-shell.md](../docs/dev-react-shell.md). Overview: root [README.md](../README.md).
