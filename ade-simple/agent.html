@@ -7,20 +7,8 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="layout">
-    <button type="button" class="sidebar-backdrop" id="nav-backdrop" aria-label="Close menu"></button>
-    <aside class="sidebar">
-      <h2>ADE (Local)</h2>
-      <nav>
-        <a href="index.html">Dashboard</a>
-        <a href="agents.html">Agents</a>
-        <a href="tools.html">Tools</a>
-        <a href="mcp.html">MCP</a>
-        <a href="chat.html">Chat</a>
-        <a href="settings.html">Settings</a>
-      </nav>
-      <p class="api-badge">API: <span id="api-base-display">…</span></p>
-    </aside>
+  <div class="layout" data-ade-nav="agents">
+    <span id="ade-nav-inject"></span>
     <main class="main">
       <button type="button" class="nav-toggle" id="nav-toggle" aria-label="Open menu">≡</button>
       <p class="muted"><a href="agents.html">← Agents</a></p>
@@ -42,12 +30,12 @@
   <script src="config.js"></script>
   <script src="app.js"></script>
   <script>
-    document.getElementById('api-base-display').textContent = window.ADE.apiBase();
     var params = new URLSearchParams(location.search);
     var id = params.get('id');
     var errorEl = document.getElementById('error');
     if (!id) { document.getElementById('title').textContent = 'No agent'; return; }
-    document.getElementById('chat-link').href = 'chat.html?agent=' + encodeURIComponent(id);
+    window.ADE.setSelectedAgentId(id);
+    document.getElementById('chat-link').href = 'chat.html';
     function normList(d) { return Array.isArray(d) ? d : (d && d.data) ? d.data : []; }
     function modelId(m) { return m.handle != null ? m.handle : m.id || m.model || m.name; }
     function modelLabel(m) { return m.display_name != null ? m.display_name : m.handle || m.model || m.name || modelId(m); }

@@ -1,6 +1,6 @@
 {
   "name": "letta-ade-scraper",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Playwright-based scraper for Letta ADE authenticated frontend",
   "type": "module",
   "scripts": {

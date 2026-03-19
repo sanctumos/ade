@@ -7,20 +7,8 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="layout">
-    <button type="button" class="sidebar-backdrop" id="nav-backdrop" aria-label="Close menu"></button>
-    <aside class="sidebar">
-      <h2>ADE (Local)</h2>
-      <nav>
-        <a href="index.html" class="active">Dashboard</a>
-        <a href="agents.html">Agents</a>
-        <a href="tools.html">Tools</a>
-        <a href="mcp.html">MCP</a>
-        <a href="chat.html">Chat</a>
-        <a href="settings.html">Settings</a>
-      </nav>
-      <p class="api-badge">API: <span id="api-base-display">…</span></p>
-    </aside>
+  <div class="layout" data-ade-nav="dashboard">
+    <span id="ade-nav-inject"></span>
     <main class="main">
       <button type="button" class="nav-toggle" id="nav-toggle" aria-label="Open menu">≡</button>
       <h1>Dashboard</h1>
@@ -37,9 +25,10 @@
   <script src="config.js"></script>
   <script src="app.js"></script>
   <script>
-    document.getElementById('api-base-display').textContent = window.ADE.apiBase();
     var statusEl = document.getElementById('status');
-    fetch(window.ADE.apiBase() + '/health').then(function(r) { return r.ok ? { ok: true } : { ok: false }; }).catch(function() { return { ok: false }; })
+    // Health endpoints are often auth-protected in local/proxied setups.
+    // Use an authenticated API call as the connectivity check.
+    window.ADE.listAgents().then(function() { return { ok: true }; }).catch(function() { return { ok: false }; })
       .then(function(h) {
         statusEl.innerHTML = '<div class="' + (h.ok ? 'card" style="border-color:#4a4;background:rgba(80,160,80,0.1)' : 'card" style="border-color:#844;background:rgba(160,80,80,0.1)') + '">API: ' + (h.ok ? 'Connected' : 'Unreachable') + '</div>';
       });

@@ -7,20 +7,8 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="layout">
-    <button type="button" class="sidebar-backdrop" id="nav-backdrop" aria-label="Close menu"></button>
-    <aside class="sidebar">
-      <h2>ADE (Local)</h2>
-      <nav>
-        <a href="index.html">Dashboard</a>
-        <a href="agents.html">Agents</a>
-        <a href="tools.html">Tools</a>
-        <a href="mcp.html" class="active">MCP</a>
-        <a href="chat.html">Chat</a>
-        <a href="settings.html">Settings</a>
-      </nav>
-      <p class="api-badge">API: <span id="api-base-display">…</span></p>
-    </aside>
+  <div class="layout" data-ade-nav="mcp">
+    <span id="ade-nav-inject"></span>
     <main class="main">
       <button type="button" class="nav-toggle" id="nav-toggle" aria-label="Open menu">≡</button>
       <h1>MCP servers</h1>
@@ -39,7 +27,6 @@
   <script src="config.js"></script>
   <script src="app.js"></script>
   <script>
-    document.getElementById('api-base-display').textContent = window.ADE.apiBase();
     var listEl = document.getElementById('list');
     var errorEl = document.getElementById('error');
     function norm(d) { return Array.isArray(d) ? d : (d && d.data) ? d.data : (d && d.mcp_servers) ? d.mcp_servers : []; }

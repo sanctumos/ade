@@ -60,7 +60,7 @@ export async function apiHealth() {
 
 /** GET /v1/agents */
 export function listAgents() {
-  return apiFetch('/v1/agents');
+  return apiFetch('/v1/agents/');
 }
 
 /** GET /v1/agents/:id */
@@ -70,7 +70,7 @@ export function getAgent(id) {
 
 /** POST /v1/agents */
 export function createAgent(body) {
-  return apiFetch('/v1/agents', { method: 'POST', body: JSON.stringify(body) });
+  return apiFetch('/v1/agents/', { method: 'POST', body: JSON.stringify(body) });
 }
 
 /** PATCH /v1/agents/:id */
@@ -110,13 +110,13 @@ export function updateAgentMemory(agentId, label, body) {
 
 /** GET /v1/models */
 export function listModels() {
-  return apiFetch('/v1/models');
+  return apiFetch('/v1/models/');
 }
 
 /** GET /v1/tools */
 export function listTools(params = {}) {
   const q = new URLSearchParams(params).toString();
-  return apiFetch('/v1/tools' + (q ? '?' + q : ''));
+  return apiFetch('/v1/tools/' + (q ? '?' + q : ''));
 }
 
 /** GET /v1/tools/:id */
@@ -126,7 +126,7 @@ export function getTool(id) {
 
 /** POST /v1/tools */
 export function createTool(body) {
-  return apiFetch('/v1/tools', { method: 'POST', body: JSON.stringify(body) });
+  return apiFetch('/v1/tools/', { method: 'POST', body: JSON.stringify(body) });
 }
 
 /** PATCH /v1/tools/:id */
@@ -141,7 +141,7 @@ export function deleteTool(id) {
 
 /** PUT /v1/tools (upsert) */
 export function upsertTool(body) {
-  return apiFetch('/v1/tools', { method: 'PUT', body: JSON.stringify(body) });
+  return apiFetch('/v1/tools/', { method: 'PUT', body: JSON.stringify(body) });
 }
 
 /** POST /v1/tools/search (semantic search; cloud / embed_tools) */
@@ -151,12 +151,12 @@ export function searchTools(body = {}) {
 
 /** GET /v1/mcp-servers */
 export function listMcpServers() {
-  return apiFetch('/v1/mcp-servers');
+  return apiFetch('/v1/mcp-servers/');
 }
 
 /** POST /v1/mcp-servers */
 export function createMcpServer(body) {
-  return apiFetch('/v1/mcp-servers', { method: 'POST', body: JSON.stringify(body) });
+  return apiFetch('/v1/mcp-servers/', { method: 'POST', body: JSON.stringify(body) });
 }
 
 /** GET /v1/mcp-servers/:id */
@@ -197,13 +197,13 @@ export function runMcpTool(serverId, toolId, body = {}) {
 
 /** GET /v1/models/embedding */
 export function listEmbeddingModels() {
-  return apiFetch('/v1/models/embedding');
+  return apiFetch('/v1/models/embedding/');
 }
 
 /** GET /v1/runs */
 export function listRuns(params = {}) {
   const q = new URLSearchParams(params).toString();
-  return apiFetch('/v1/runs' + (q ? '?' + q : ''));
+  return apiFetch('/v1/runs/' + (q ? '?' + q : ''));
 }
 
 /** GET /v1/runs/:id */
@@ -235,12 +235,12 @@ export function listAgentTools(agentId) {
 
 /** GET /v1/projects (optional; some backends) */
 export function listProjects() {
-  return apiFetch('/v1/projects');
+  return apiFetch('/v1/projects/');
 }
 
 /** POST /v1/projects */
 export function createProject(body) {
-  return apiFetch('/v1/projects', { method: 'POST', body: JSON.stringify(body) });
+  return apiFetch('/v1/projects/', { method: 'POST', body: JSON.stringify(body) });
 }
 
 /** GET /v1/projects/:id */

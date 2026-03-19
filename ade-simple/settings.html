@@ -7,27 +7,15 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="layout">
-    <button type="button" class="sidebar-backdrop" id="nav-backdrop" aria-label="Close menu"></button>
-    <aside class="sidebar">
-      <h2>ADE (Local)</h2>
-      <nav>
-        <a href="index.html">Dashboard</a>
-        <a href="agents.html">Agents</a>
-        <a href="tools.html">Tools</a>
-        <a href="mcp.html">MCP</a>
-        <a href="chat.html">Chat</a>
-        <a href="settings.html" class="active">Settings</a>
-      </nav>
-      <p class="api-badge">API: <span id="api-base-display">…</span></p>
-    </aside>
+  <div class="layout" data-ade-nav="settings">
+    <span id="ade-nav-inject"></span>
     <main class="main">
       <button type="button" class="nav-toggle" id="nav-toggle" aria-label="Open menu">≡</button>
       <h1>Settings</h1>
       <p class="muted">Base URL and API key are read from <code>config.js</code> (copy from config.example.js) or from this page (saved in this browser).</p>
       <form id="form" style="max-width:480px">
         <p><label>API base URL<br><input type="text" id="base" style="width:100%" /></label></p>
-        <p><label>API key (optional)<br><input type="password" id="key" style="width:100%" placeholder="Bearer token" autocomplete="off" /></label></p>
+        <p><label>API key (optional)<br><input type="text" id="key" style="width:100%" placeholder="Bearer token" autocomplete="off" /></label></p>
         <button type="submit" class="btn">Save in this browser</button>
       </form>
       <p class="muted" style="margin-top:24px">Saved values override config.js for this browser only.</p>
@@ -37,13 +25,13 @@
   <script src="app.js"></script>
   <script>
     var c = window.ADE.getConfig();
-    document.getElementById('api-base-display').textContent = c.base;
     document.getElementById('base').value = c.base;
     document.getElementById('key').value = c.key;
     document.getElementById('form').onsubmit = function(e) {
       e.preventDefault();
       window.ADE.setStoredBase(document.getElementById('base').value.trim());
       window.ADE.setStoredKey(document.getElementById('key').value.trim());
+      window.ADE.fillApiBaseDisplay();
       alert('Saved. Reload any page to use the new values.');
     };
   </script>

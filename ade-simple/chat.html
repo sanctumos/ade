@@ -5,72 +5,362 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Chat — ADE</title>
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="chat.css" />
 </head>
 <body>
-  <div class="layout">
-    <button type="button" class="sidebar-backdrop" id="nav-backdrop" aria-label="Close menu"></button>
-    <aside class="sidebar">
-      <h2>ADE (Local)</h2>
-      <nav>
-        <a href="index.html">Dashboard</a>
-        <a href="agents.html">Agents</a>
-        <a href="tools.html">Tools</a>
-        <a href="mcp.html">MCP</a>
-        <a href="chat.html" class="active">Chat</a>
-        <a href="settings.html">Settings</a>
-      </nav>
-      <p class="api-badge">API: <span id="api-base-display">…</span></p>
-    </aside>
+  <div class="layout" data-ade-nav="chat">
+    <span id="ade-nav-inject"></span>
     <main class="main">
       <button type="button" class="nav-toggle" id="nav-toggle" aria-label="Open menu">≡</button>
       <h1>Chat</h1>
       <div id="error"></div>
-      <p class="muted">Agent: <select id="agent"></select></p>
-      <div id="messages" style="min-height:200px;padding:16px;background:#1a1a1a;border-radius:8px;margin-bottom:16px"></div>
+      <p class="muted">Messages for the <strong>active agent</strong> (sidebar). Same selection is kept as you move between pages. Conversation uses markdown; reasoning and tool steps are shown in separate lanes (Letta-style).</p>
+      <div id="messages" class="chat-thread" style="min-height:200px;max-height:min(60vh,520px);overflow-y:auto;padding:16px;background:#1a1a1a;border-radius:8px;margin-bottom:16px"></div>
+      <p id="history-hint" class="muted" style="margin-top:-8px;margin-bottom:12px;font-size:12px;display:none"></p>
       <form id="send-form" style="display:flex;gap:8px">
         <input type="text" id="input" placeholder="Message…" style="flex:1" />
         <button type="submit" class="btn" id="send-btn">Send</button>
       </form>
     </main>
   </div>
+  <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.9/dist/purify.min.js"></script>
   <script src="config.js"></script>
   <script src="app.js"></script>
+  <script src="chat-markdown.js"></script>
   <script>
-    document.getElementById('api-base-display').textContent = window.ADE.apiBase();
-    var agentSelect = document.getElementById('agent');
+    var AC = window.ADE_CHAT;
     var messagesEl = document.getElementById('messages');
     var inputEl = document.getElementById('input');
     var errorEl = document.getElementById('error');
-    var params = new URLSearchParams(location.search);
-    var preSelectId = params.get('agent');
-    function norm(d) { return Array.isArray(d) ? d : (d && d.data) ? d.data : (d && d.agents) ? d.agents : []; }
-    function id(a) { return a.id != null ? a.id : a.agent_id; }
-    function name(a) { return a.name != null ? a.name : a.agent_name || id(a); }
-    var agents = [];
-    window.ADE.listAgents().then(function(d) {
-      agents = norm(d);
-      agentSelect.innerHTML = agents.map(function(a) { return '<option value="' + id(a) + '">' + name(a) + '</option>'; }).join('');
-      if (preSelectId) agentSelect.value = preSelectId; else if (agents.length) agentSelect.value = id(agents[0]);
-    }).catch(function(e) { errorEl.innerHTML = '<div class="error">' + e.message + '</div>'; });
-    function addMsg(role, content) {
-      var div = document.createElement('div');
-      div.style.marginBottom = '8px';
-      div.innerHTML = '<strong>' + role + '</strong> ' + content;
-      messagesEl.appendChild(div);
+    function currentAgentId() { return window.ADE.getSelectedAgentId(); }
+    var historyHint = document.getElementById('history-hint');
+
+    function normalizeMessages(d) {
+      if (Array.isArray(d)) return d;
+      if (d && Array.isArray(d.messages)) return d.messages;
+      if (d && Array.isArray(d.data)) return d.data;
+      return [];
+    }
+
+    function messageTypeOf(m) {
+      return String(m.message_type || m.type || '').toLowerCase();
+    }
+
+    function contentPartsToText(parts) {
+      if (!Array.isArray(parts)) return '';
+      return parts.map(function(p) {
+        if (typeof p === 'string') return p;
+        if (p && typeof p.text === 'string') return p.text;
+        if (p && typeof p.content === 'string') return p.content;
+        return '';
+      }).join(' ').trim();
+    }
+
+    /** Letta: skip internal user events (login, system_alert JSON). */
+    function isInternalUserMessage(m) {
+      if (messageTypeOf(m) !== 'user_message') return false;
+      var c = m.content;
+      if (typeof c !== 'string') return false;
+      try {
+        var p = JSON.parse(c);
+        return p && (p.type === 'login' || p.type === 'system_alert');
+      } catch (e) { return false; }
+    }
+
+    function userFacingContent(m) {
+      var c = m.content;
+      if (typeof c === 'string') {
+        try {
+          var p = JSON.parse(c);
+          if (p && p.type === 'user_message' && typeof p.message === 'string') return p.message;
+        } catch (e) {}
+        return c;
+      }
+      if (Array.isArray(c)) return contentPartsToText(c);
+      return '';
+    }
+
+    function assistantFacingContent(m) {
+      if (typeof m.content === 'string') return m.content;
+      if (Array.isArray(m.content)) return contentPartsToText(m.content);
+      return '';
+    }
+
+    function legacyFlatContent(m) {
+      if (!m) return '';
+      if (typeof m.content === 'string' && m.content) return m.content;
+      if (Array.isArray(m.content)) {
+        var t = contentPartsToText(m.content);
+        if (t) return t;
+      }
+      if (m.reasoning) return String(m.reasoning);
+      if (m.tool_call) {
+        var tc = m.tool_call;
+        return (tc.name || 'tool') + (tc.arguments ? '\n' + tc.arguments : '');
+      }
+      if (Array.isArray(m.tool_calls) && m.tool_calls.length) {
+        return m.tool_calls.map(function(tc) { return (tc && tc.name) || 'call'; }).join(', ');
+      }
+      if (m.tool_return != null) return String(m.tool_return);
+      return '';
+    }
+
+    function collectToolCalls(m) {
+      var out = [];
+      if (m.tool_call) out.push(m.tool_call);
+      if (Array.isArray(m.tool_calls)) out = out.concat(m.tool_calls);
+      return out;
+    }
+
+    function toolReturnBodyHtml(val) {
+      if (val == null || val === '') return '<p class="muted" style="margin:0">(empty)</p>';
+      if (typeof val === 'object') {
+        try {
+          return '<pre class="chat-json">' + AC.escHtml(JSON.stringify(val, null, 2)) + '</pre>';
+        } catch (e) {
+          return '<pre class="chat-json">' + AC.escHtml(String(val)) + '</pre>';
+        }
+      }
+      var s = String(val);
+      if (!s.trim()) return '<p class="muted" style="margin:0">(empty)</p>';
+      try {
+        JSON.parse(s);
+        return '<pre class="chat-json">' + AC.formatJsonMaybe(s) + '</pre>';
+      } catch (e) {
+        return '<div class="chat-md">' + AC.parseMarkdown(s) + '</div>';
+      }
+    }
+
+    /**
+     * One DOM node per API message — matches Letta message_type lanes.
+     */
+    function createMessageElement(m) {
+      var mt = messageTypeOf(m);
+      if (!mt) {
+        var r = String(m.role || '').toLowerCase();
+        if (r === 'user') mt = 'user_message';
+        else if (r === 'system') mt = 'system_message';
+        else mt = 'assistant_message';
+      }
+
+      var wrap = document.createElement('div');
+
+      if (mt === 'reasoning_message') {
+        wrap.className = 'chat-turn chat-turn--reasoning';
+        var src = m.source ? String(m.source).replace(/_/g, ' ') : '';
+        var reasoning = m.reasoning != null ? String(m.reasoning) : '';
+        wrap.innerHTML =
+          '<div class="chat-turn__label">Reasoning' +
+          (src ? '<span class="chat-turn__label-tag">' + AC.escHtml(src) + '</span>' : '') +
+          '</div><div class="chat-md chat-reasoning-body">' + AC.parseMarkdown(reasoning) + '</div>';
+        return wrap;
+      }
+
+      if (mt === 'hidden_reasoning_message') {
+        wrap.className = 'chat-turn chat-turn--hidden-reasoning';
+        var state = m.state ? String(m.state) : 'omitted';
+        var inner;
+        if (m.hidden_reasoning) {
+          inner = '<div class="chat-md">' + AC.parseMarkdown(String(m.hidden_reasoning)) + '</div>';
+        } else {
+          inner = '<p class="muted" style="margin:0">Reasoning not shown (<code>' + AC.escHtml(state) + '</code>).</p>';
+        }
+        wrap.innerHTML = '<div class="chat-turn__label">Hidden reasoning</div>' + inner;
+        return wrap;
+      }
+
+      if (mt === 'tool_call_message') {
+        wrap.className = 'chat-turn chat-turn--tool-call';
+        var callsTc = collectToolCalls(m);
+        if (!callsTc.length) {
+          wrap.innerHTML = '<div class="chat-turn__label">Tool call</div><p class="muted">(no tool_call payload)</p>';
+          return wrap;
+        }
+        wrap.innerHTML = '<div class="chat-turn__label">Tool call</div>' + callsTc.map(function(tc) {
+          var nm = (tc && tc.name) || 'tool';
+          var args = (tc && tc.arguments) != null ? tc.arguments : '';
+          var tid = (tc && tc.tool_call_id) ? String(tc.tool_call_id) : '';
+          return '<div class="chat-tool-meta"><strong>' + AC.escHtml(nm) + '</strong>' +
+            (tid ? ' · <code>' + AC.escHtml(tid) + '</code>' : '') +
+            '</div><pre class="chat-json">' + AC.formatJsonMaybe(args) + '</pre>';
+        }).join('');
+        return wrap;
+      }
+
+      if (mt === 'approval_request_message') {
+        wrap.className = 'chat-turn chat-turn--approval';
+        var callsAp = collectToolCalls(m);
+        if (!callsAp.length) {
+          wrap.innerHTML = '<div class="chat-turn__label">Approval required</div><p class="muted">(no tool_call payload)</p>';
+          return wrap;
+        }
+        wrap.innerHTML = '<div class="chat-turn__label">Approval required</div>' + callsAp.map(function(tc) {
+          var nm = (tc && tc.name) || 'tool';
+          var args = (tc && tc.arguments) != null ? tc.arguments : '';
+          var tid = (tc && tc.tool_call_id) ? String(tc.tool_call_id) : '';
+          return '<div class="chat-tool-meta"><strong>' + AC.escHtml(nm) + '</strong>' +
+            (tid ? ' · <code>' + AC.escHtml(tid) + '</code>' : '') +
+            '</div><pre class="chat-json">' + AC.formatJsonMaybe(args) + '</pre>';
+        }).join('');
+        return wrap;
+      }
+
+      if (mt === 'tool_return_message') {
+        var err = String(m.status || '').toLowerCase() === 'error';
+        wrap.className = 'chat-turn chat-turn--tool-return' + (err ? ' chat-turn--error' : '');
+        var tid = m.tool_call_id ? String(m.tool_call_id) : '';
+        var st = m.status ? String(m.status) : '—';
+        var body = toolReturnBodyHtml(m.tool_return);
+        var extra = '';
+        if (Array.isArray(m.stdout) && m.stdout.length) {
+          extra += '<div class="chat-tool-meta" style="margin-top:10px">stdout</div><pre class="chat-json">' + AC.escHtml(m.stdout.join('\n')) + '</pre>';
+        }
+        if (Array.isArray(m.stderr) && m.stderr.length) {
+          extra += '<div class="chat-tool-meta" style="margin-top:10px">stderr</div><pre class="chat-json">' + AC.escHtml(m.stderr.join('\n')) + '</pre>';
+        }
+        wrap.innerHTML =
+          '<div class="chat-turn__label">Tool result' +
+          (tid ? '<span class="chat-turn__label-tag">' + AC.escHtml(tid) + '</span>' : '') +
+          '<span class="chat-turn__label-tag">' + AC.escHtml(st) + '</span></div>' + body + extra;
+        return wrap;
+      }
+
+      if (mt === 'approval_response_message') {
+        wrap.className = 'chat-turn chat-turn--approval';
+        var ok = m.approve === true;
+        var reason = m.reason ? '<div class="chat-md" style="margin-top:8px">' + AC.parseMarkdown(String(m.reason)) + '</div>' : '';
+        wrap.innerHTML =
+          '<div class="chat-turn__label">Approval response</div>' +
+          '<p style="margin:0;font-weight:600;color:' + (ok ? '#6ee7b7' : '#f87171') + '">' +
+          (ok ? 'Approved' : 'Denied') + '</p>' + reason;
+        return wrap;
+      }
+
+      if (mt === 'user_message') {
+        wrap.className = 'chat-turn chat-turn--user';
+        var ut = userFacingContent(m);
+        wrap.innerHTML = '<div class="chat-turn__label">You</div><div class="chat-md">' + AC.parseMarkdown(ut) + '</div>';
+        return wrap;
+      }
+
+      if (mt === 'assistant_message') {
+        wrap.className = 'chat-turn chat-turn--assistant';
+        var at = assistantFacingContent(m);
+        wrap.innerHTML = '<div class="chat-turn__label">Assistant</div><div class="chat-md">' + AC.parseMarkdown(at) + '</div>';
+        return wrap;
+      }
+
+      if (mt === 'system_message') {
+        var sc = typeof m.content === 'string' ? m.content : '';
+        if (!sc.trim()) return null;
+        wrap.className = 'chat-turn chat-turn--system';
+        wrap.innerHTML = '<div class="chat-turn__label">System</div><div class="chat-md">' + AC.parseMarkdown(sc) + '</div>';
+        return wrap;
+      }
+
+      /* Unknown type: best-effort single block */
+      var flat = legacyFlatContent(m);
+      if (!flat.trim()) return null;
+      wrap.className = 'chat-turn chat-turn--system';
+      wrap.innerHTML =
+        '<div class="chat-turn__label">' + AC.escHtml(mt.replace(/_/g, ' ')) + '</div><div class="chat-md">' + AC.parseMarkdown(flat) + '</div>';
+      return wrap;
+    }
+
+    function renderHistory(msgs) {
+      messagesEl.innerHTML = '';
+      if (!msgs.length) {
+        messagesEl.innerHTML = '<p class="muted" style="margin:0">No messages yet — say hello below, or history may be unavailable from this API.</p>';
+        return;
+      }
+      msgs.forEach(function(m) {
+        if (isInternalUserMessage(m)) return;
+        var el = createMessageElement(m);
+        if (el) messagesEl.appendChild(el);
+      });
       messagesEl.scrollTop = messagesEl.scrollHeight;
     }
+
+    function loadHistory(aid, opts) {
+      opts = opts || {};
+      if (!aid) return Promise.resolve(false);
+      historyHint.style.display = 'block';
+      historyHint.textContent = 'Loading conversation…';
+      return window.ADE.getAgentMessages(aid, { limit: '200' }).then(function(d) {
+        historyHint.textContent = 'History from API (up to 200 messages).';
+        renderHistory(normalizeMessages(d));
+        return true;
+      }).catch(function() {
+        historyHint.textContent = 'Could not load history — chat still works for new messages.';
+        if (!opts.softFail) {
+          messagesEl.innerHTML = '<p class="muted" style="margin:0">History not available. Send a message to start.</p>';
+        }
+        return false;
+      });
+    }
+
+    function onAgentContext(ev) {
+      var id = ev && ev.detail && ev.detail.id != null ? ev.detail.id : currentAgentId();
+      errorEl.innerHTML = '';
+      if (ev && ev.detail && ev.detail.error) {
+        errorEl.innerHTML = '<div class="error">Could not load agents for the sidebar.</div>';
+        return;
+      }
+      loadHistory(id);
+    }
+    document.addEventListener('ade-agentselectready', onAgentContext);
+    document.addEventListener('ade-agentchange', onAgentContext);
+
+    function addMsg(role, content) {
+      var synthetic = role === 'user'
+        ? { message_type: 'user_message', content: content }
+        : { message_type: 'assistant_message', content: content };
+      messagesEl.appendChild(createMessageElement(synthetic));
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function extractAssistant(res) {
+      if (!res) return '';
+      if (typeof res === 'string') return res;
+      if (res.message) return res.message;
+      if (res.content) return res.content;
+      if (res.response) return res.response;
+      var msgs = Array.isArray(res.messages) ? res.messages : [];
+      for (var i = msgs.length - 1; i >= 0; i--) {
+        var m = msgs[i] || {};
+        var mt = String(m.message_type || m.type || '').toLowerCase();
+        var r = String(m.role || '').toLowerCase();
+        if (mt !== 'assistant_message' && r !== 'assistant') continue;
+        if (typeof m.content === 'string') return m.content;
+        if (Array.isArray(m.content)) {
+          var txt = m.content.map(function(p) {
+            if (typeof p === 'string') return p;
+            if (p && typeof p.text === 'string') return p.text;
+            if (p && typeof p.content === 'string') return p.content;
+            return '';
+          }).join(' ').trim();
+          if (txt) return txt;
+        }
+      }
+      return '';
+    }
+
     document.getElementById('send-form').onsubmit = function(e) {
       e.preventDefault();
       var text = inputEl.value.trim();
-      var aid = agentSelect.value;
+      var aid = currentAgentId();
       if (!text || !aid) return;
       inputEl.value = '';
       addMsg('user', text);
       document.getElementById('send-btn').disabled = true;
       errorEl.innerHTML = '';
       window.ADE.sendMessage(aid, { message: text }).then(function(res) {
-        var content = (res && res.message) || (res && res.content) || (res && res.response) || (typeof res === 'string' ? res : '');
-        addMsg('assistant', content || '(no response)');
+        var fallback = extractAssistant(res);
+        return loadHistory(aid, { softFail: true }).then(function(ok) {
+          if (!ok && fallback) addMsg('assistant', fallback);
+          if (!ok && !fallback) addMsg('assistant', '(no response)');
+        });
       }).catch(function(err) { errorEl.innerHTML = '<div class="error">' + err.message + '</div>'; }).finally(function() { document.getElementById('send-btn').disabled = false; });
     };
   </script>

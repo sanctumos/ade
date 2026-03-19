@@ -7,20 +7,8 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="layout">
-    <button type="button" class="sidebar-backdrop" id="nav-backdrop" aria-label="Close menu"></button>
-    <aside class="sidebar">
-      <h2>ADE (Local)</h2>
-      <nav>
-        <a href="index.html">Dashboard</a>
-        <a href="agents.html" class="active">Agents</a>
-        <a href="tools.html">Tools</a>
-        <a href="mcp.html">MCP</a>
-        <a href="chat.html">Chat</a>
-        <a href="settings.html">Settings</a>
-      </nav>
-      <p class="api-badge">API: <span id="api-base-display">…</span></p>
-    </aside>
+  <div class="layout" data-ade-nav="agents">
+    <span id="ade-nav-inject"></span>
     <main class="main">
       <button type="button" class="nav-toggle" id="nav-toggle" aria-label="Open menu">≡</button>
       <h1>Agents</h1>
@@ -40,7 +28,6 @@
   <script src="config.js"></script>
   <script src="app.js"></script>
   <script>
-    document.getElementById('api-base-display').textContent = window.ADE.apiBase();
     var listEl = document.getElementById('list');
     var errorEl = document.getElementById('error');
     var models = [], tools = [];
@@ -62,7 +49,7 @@
         btn.onclick = function() {
           if (!confirm('Delete this agent?')) return;
           var aid = btn.getAttribute('data-id');
-          window.ADE.deleteAgent(aid).then(function() { return window.ADE.listAgents(); }).then(function(d) { render(norm(d)); }).catch(function(err) { errorEl.innerHTML = '<div class="error">' + err.message + '</div>'; });
+          window.ADE.deleteAgent(aid).then(function() { return window.ADE.listAgents(); }).then(function(d) { render(norm(d)); return window.ADE.refreshAgentSelect(); }).catch(function(err) { errorEl.innerHTML = '<div class="error">' + err.message + '</div>'; });
         };
       });
     }
@@ -93,13 +80,18 @@
       if (systemVal) body.system = systemVal;
       var checked = [].map.call(document.querySelectorAll('input[name=tool]:checked'), function(c) { return c.value; });
       if (checked.length) body.tool_ids = checked;
-      window.ADE.createAgent(body).then(function() {
+      var newIdFromCreate = null;
+      window.ADE.createAgent(body).then(function(created) {
+        newIdFromCreate = created && (created.id != null ? created.id : created.agent_id);
         document.getElementById('name').value = '';
         document.getElementById('model').value = '';
         document.getElementById('system').value = '';
         document.querySelectorAll('input[name=tool]').forEach(function(c) { c.checked = false; });
         return window.ADE.listAgents();
-      }).then(function(d) { render(norm(d)); }).catch(function(err) { errorEl.innerHTML = '<div class="error">' + err.message + '</div>'; }).finally(function() { document.getElementById('create-btn').disabled = false; });
+      }).then(function(d) {
+        render(norm(d));
+        return window.ADE.refreshAgentSelect({ preferId: newIdFromCreate != null ? String(newIdFromCreate) : null });
+      }).catch(function(err) { errorEl.innerHTML = '<div class="error">' + err.message + '</div>'; }).finally(function() { document.getElementById('create-btn').disabled = false; });
     };
   </script>
 </body>
