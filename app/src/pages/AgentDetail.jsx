@@ -52,6 +52,12 @@ function normalizeMemoryBlocksResponse(d) {
   return [];
 }
 
+/** Letta uses `llm_config.handle` for the active model; top-level `model` / `handle` are often absent. */
+function agentModelHandle(a) {
+  if (!a || typeof a !== 'object') return '';
+  return a.llm_config?.handle ?? a.model ?? a.handle ?? '';
+}
+
 export default function AgentDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -84,7 +90,7 @@ export default function AgentDetail() {
       .then(([a, modelsData, toolsData]) => {
         if (cancelled) return;
         setAgent(a);
-        setModelEditing(a?.model ?? a?.handle ?? '');
+        setModelEditing(agentModelHandle(a));
         setSystemEditing(a?.system ?? '');
         const ids = a?.tool_ids ?? a?.tools ?? [];
         setToolIdsEditing(normalizeAgentToolIds(ids));
@@ -133,7 +139,7 @@ export default function AgentDetail() {
     e.preventDefault();
     setSaving(true);
     const body = {};
-    if (modelEditing !== (agent?.model ?? agent?.handle)) body.model = modelEditing || undefined;
+    if (modelEditing !== agentModelHandle(agent)) body.model = modelEditing || undefined;
     if (systemEditing !== (agent?.system ?? '')) body.system = systemEditing;
     const prevTools = normalizeAgentToolIds(agent?.tool_ids ?? agent?.tools ?? []);
     const nextTools = [...toolIdsEditing].map(String).sort();
@@ -155,6 +161,7 @@ export default function AgentDetail() {
     updateAgent(id, body)
       .then((updated) => {
         setAgent((prev) => ({ ...prev, ...updated }));
+        setModelEditing(agentModelHandle({ ...agent, ...updated }));
         const ut = updated?.tool_ids ?? updated?.tools;
         if (Array.isArray(ut)) setToolIdsEditing(normalizeAgentToolIds(ut));
         const lc = updated?.llm_config ?? llm;
