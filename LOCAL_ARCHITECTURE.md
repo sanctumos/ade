@@ -1,79 +1,42 @@
-# Local-First ADE Architecture
+# Sanctum ADE — local-first architecture
 
-**Goal:** Rebuild an Agent Development Environment that runs **entirely locally** and talks **primarily to the local API** (Letta OSS, Sanctum, or equivalent). This ADE is for the self-hosted / OSS stack. Letta Cloud has its own ADE at app.letta.com; as Cloud drifts from OSS, that’s fine—the Cloud ADE serves Cloud. This one serves the local API.
+**Goal:** Sanctum ADE v1 runs **entirely on your stack** and talks to a **local / self-hosted Letta-compatible API**. This is Sanctum’s product. Letta Cloud has (or had) its own ADE; we do not ship or track that.
 
 ---
 
 ## Principles
 
-1. **Primary backend: local API** — This client is built to interface with a local or self-hosted backend (e.g. Letta OSS on localhost, or a Sanctum API). That is the default and main target.
-2. **Run entirely locally** — Frontend (and typically the backend) run on the user’s machine or private host. No requirement to use app.letta.com for the UI.
-3. **Cloud drift is expected** — Letta Cloud and OSS will diverge. We don’t chase Cloud here. The Cloud ADE remains at app.letta.com for Cloud users. This codebase follows the **local/OSS API**; if we ever add optional Cloud support, it’s secondary (e.g. for dev/testing), not the primary path.
+1. **Primary backend: local API** — Default target is Sanctum / self-hosted Letta OSS (or equivalent) on your host.
+2. **Run entirely locally** — Frontend and typically the backend run on your machine or private VPS. No dependency on `app.letta.com`.
+3. **Cloud drift is expected** — We follow the **local `/v1` contract**. We do not chase Letta Cloud UI or Cloud-only endpoints.
 
 ---
 
-## Current State (Scraped Frontend)
+## Product layout (v1)
 
-- The contents of `reference_materials/scraped/` are a **static snapshot** of app.letta.com: HTML shells + minified Next.js bundles.
-- Those bundles contain **hardcoded references** to:
-  - **App host:** e.g. `https://app.letta.com`, `NEXT_PUBLIC_CURRENT_HOST`
-  - **API:** Likely baked into shared chunks (base URL for agents, chat, memory, etc.)
-- **Implications:**
-  - The scraped JS cannot be “configured” without patching minified code (fragile).
-  - To **run locally** and **disentangle** from Letta Cloud we need either a **proxy** (short-term) or a **rebuilt client** (recommended).
+| Path | Role |
+|------|------|
+| `ade-faithful/` | Source (edit here) |
+| `public/` | Deploy mirror |
 
----
-
-## Paths to a Local, API-Agnostic ADE
-
-### Option A: Thin local client (**ade-simple** today; future SPA optional)
-
-- **`ade-simple/`** is the current minimal frontend: static HTML/JS, **runtime config** (`config.js` + Settings / localStorage), single API base in `ade-simple/app.js`.
-- A **future** replacement (e.g. React/Vite or Next) should keep the same **API contract** and config idea (one base URL + optional Bearer). The transitional **`app/`** React package is **not** the long-term product; see [docs/dev-react-shell.md](docs/dev-react-shell.md).
-- **API base URL** is the only place that knows “cloud vs OSS vs Sanctum”. All requests go through this base.
-- Benefits: Full control, works offline/local, easy to adapt when OSS/cloud APIs diverge; no dependency on scraped minified code.
-
-### Option B: Proxy in front of scraped static site (short-term)
-
-- Serve the scraped HTML/JS as-is from a local static server.
-- Run a **local reverse proxy** that:
-  - Serves the static files.
-  - Intercepts requests to `https://api.letta.com` and forwards them to a configurable backend (e.g. local Letta OSS or a Sanctum API).
-- The browser still “thinks” it’s talking to api.letta.com; the proxy swaps the backend.
-- Benefits: No rebuild; can test against local OSS quickly. Drawbacks: Tied to scraped assets and their request shapes; brittle as Letta changes their client.
-
-### Option C: Patch scraped JS (not recommended)
-
-- Search-and-replace in minified bundles to replace `api.letta.com` with a placeholder and inject base URL at runtime. Fragile with bundling and updates; only consider for one-off experiments.
+Config: one **API base URL** + optional **Bearer** (`config.js` or Settings / localStorage). All REST/SSE goes through that base.
 
 ---
 
-## Recommended: Single API Base Config
+## Historical scrap (`reference_materials/`)
 
-For the **rebuilt local client** (Option A), standardize on one configurable base. **Default and primary:** local API.
-
-| Env / config       | Purpose |
-|--------------------|--------|
-| `API_BASE_URL` or `NEXT_PUBLIC_API_BASE` | Base URL for all REST calls. **Default:** local backend (e.g. `http://localhost:8283` for Letta OSS or your Sanctum API). |
-| Optional: `APP_HOST` | Only if the client needs to build absolute URLs (e.g. invite links). Default to same origin when running locally. |
-
-- **Primary: local / OSS** — `API_BASE_URL=http://localhost:8283` (or your Letta OSS / Sanctum URL). Auth: API key or local auth as the backend expects.
-- **Optional: Cloud** — If we ever support talking to Letta Cloud from this client (e.g. for dev), set `API_BASE_URL=https://api.letta.com`. Not the main use case; Cloud has its own ADE.
-
-As the local/OSS API evolves (or we switch to a Sanctum backend), we adapt the API client layer here; we don’t track Cloud’s drift.
+Static snapshot of an older hosted ADE. Useful for UX archaeology only — **not** a feature checklist and **not** runnable as the product.
 
 ---
 
-## What “Run Entirely Locally” Means
+## EOL (`v0/`)
 
-- **Frontend:** Serve **`ade-simple/`** from disk or any static host (or a dev server if you add one). No dependency on app.letta.com for HTML/JS.
-- **Backend:** **Primary:** Letta OSS or Sanctum (or equivalent) running locally (Docker / native). `API_BASE_URL` points at it by default. The Cloud ADE (app.letta.com) stays the interface for Letta Cloud; we don’t replicate that here.
-- **Auth:** Whatever the local API expects (e.g. API key, local session).
+Pre-v1 trees (`ade-simple/`, React `app/`) live under **`v0/`**. EOL — will be removed later. See [v0/README.md](v0/README.md).
 
 ---
 
-## Next Steps
+## Next steps
 
-1. **Ship target:** **`ade-faithful/`** — self-hosted Letta only. Scrape under `reference_materials/` is **not** a feature checklist.
-2. **Do not** add Cloud org/billing/members/usage, Cloud OAuth, or hard-coded `api.letta.com` / `app.letta.com`.
-3. **When OSS evolves:** adapt **`ade-faithful/app.js`**. Retire **`app/`** and fold **`ade-simple/`** when the faithful shell covers the same flows.
+1. Keep shipping **`ade-faithful/` → `public/`**.
+2. Do **not** add Cloud org/billing/members/usage, Cloud OAuth, or hard-coded `api.letta.com` / `app.letta.com`.
+3. When the self-hosted `/v1` API evolves, adapt **`ade-faithful/app.js`**.

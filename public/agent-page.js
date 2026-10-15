@@ -390,7 +390,7 @@
     currentAgent = a;
     var agentName = a.name || a.agent_name || id;
     document.getElementById('title').textContent = agentName;
-    document.title = agentName + ' — Letta ADE';
+    document.title = agentName + ' — Sanctum ADE';
     document.getElementById('agent-avatar').innerHTML = window.ADE.avatarHtml(agentName, 'lg');
     var model = window.ADE.agentModelLabel(a);
     document.getElementById('agent-sub').innerHTML =

@@ -1,3 +1,5 @@
+> **EOL — Sanctum ADE v0.** Not maintained. Will be removed in a future release. See [v0/README.md](../README.md). Product is **Sanctum ADE v1**.
+
 # ADE Simple — no Node, no build
 
 Plain HTML, CSS, and JS. Point at your Letta (or compatible) API and go. No install beyond editing one config file (or using the in-app Settings). **UI:** [Bootstrap 5.3](https://getbootstrap.com/) is loaded from **jsDelivr** (CSS + bundle JS) for layout, forms, buttons, alerts, and cards; `bootstrap-ade.css` maps the dark theme to the existing high-contrast ADE palette. **Offline:** cache or vendor Bootstrap locally if you need the UI without CDN access. **Responsive and PWA-ready**: mobile breakpoint at 768px with hamburger nav, touch-friendly tap targets, and safe-area insets for notched devices.

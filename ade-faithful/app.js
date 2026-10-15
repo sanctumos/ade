@@ -2,8 +2,8 @@
   'use strict';
 
   /**
-   * ade-faithful: self-hosted Letta ADE (static HTML/CSS/JS, no Node, no Cloud).
-   * Storage keys are namespaced so ade-simple and ade-faithful can coexist in one browser.
+   * Sanctum ADE v1 (ade-faithful): static HTML/CSS/JS against a Letta-compatible /v1 API.
+   * Storage keys remain ade_faithful_* for continuity.
    */
   function svgIcon(paths) {
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + paths + '</svg>';
@@ -34,8 +34,8 @@
     '<button type="button" class="af-backdrop" id="nav-backdrop" aria-label="Close menu"></button>' +
     '<aside class="af-sidebar" id="af-sidebar">' +
     '<div class="af-brand">' +
-    '<span class="af-brand-logo" aria-hidden="true">L</span>' +
-    '<span class="af-brand-text"><span class="af-brand-mark">Letta ADE</span><span class="af-brand-sub">ADE · self-hosted</span></span>' +
+    '<span class="af-brand-logo" aria-hidden="true">S</span>' +
+    '<span class="af-brand-text"><span class="af-brand-mark">Sanctum ADE</span><span class="af-brand-sub">v1 · self-hosted</span></span>' +
     '<button type="button" class="af-sidebar-collapse" id="sidebar-collapse" aria-controls="af-sidebar" aria-expanded="true" title="Collapse sidebar" aria-label="Collapse sidebar">' +
     ICONS.panelCollapse +
     '</button>' +

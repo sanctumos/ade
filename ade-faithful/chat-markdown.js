@@ -1,5 +1,5 @@
 /**
- * Markdown + safe HTML for ade-simple chat (Letta-style rendering).
+ * Markdown + safe HTML for Sanctum ADE chat.
  * Requires (optional): vendor/marked.min.js + vendor/purify.min.js — if missing, falls back to escaped plaintext with line breaks.
  */
 (function (global) {

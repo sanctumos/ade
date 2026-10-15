@@ -1,6 +1,6 @@
 /**
  * Chat sidecar: core-memory block panel + context-window usage bar.
- * Mirrors the official Letta ADE CoreMemorySidebar + ContextWindowPreview.
+ * Context meter + memory panel (classic ADE CoreMemorySidebar / ContextWindowPreview pattern).
  */
 (function () {
   'use strict';

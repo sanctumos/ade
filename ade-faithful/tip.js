@@ -1,5 +1,5 @@
 /**
- * ADE tooltips — same pattern as HMG CPH (cph.php):
+ * Sanctum ADE tooltips — same pattern as HMG CPH (cph.php):
  * "?" button, bubble portals to document.body, fixed place + diamond arrow,
  * click-outside / Escape / scroll / resize.
  */

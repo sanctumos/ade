@@ -43,6 +43,7 @@ def test_page_loads_no_cdn_bootstrap(page, page_name):
 
 def test_settings_and_shell_brand(page):
     page.goto(f"{BASE}/settings.html", wait_until="domcontentloaded")
+    assert "Sanctum ADE" in page.locator(".af-brand-mark").inner_text()
     brand = page.locator(".af-brand-sub").inner_text()
     assert "self-hosted" in brand.lower()
     page.fill("#base", "http://127.0.0.1:5055/api")

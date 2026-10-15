@@ -1,6 +1,6 @@
 # Reference materials (Letta cloud scrape)
 
-This folder holds **static reference captures** of Letta’s hosted ADE (`app.letta.com`) and the tooling used to refresh or inspect them. It is **not** used at runtime by Simple ADE.
+This folder holds **static reference captures** of an older hosted ADE (`app.letta.com`) and the tooling used to refresh or inspect them. It is **not** used at runtime by Sanctum ADE v1.
 
 | Item | Purpose |
 |------|---------|
@@ -29,4 +29,4 @@ npm run decode
 
 Output: `../scraped-beautified/` at repo root (gitignored). How it works: [DECODE.md](./DECODE.md).
 
-The **product** in this repository is **`ade-simple/`** (no build). The **`app/`** React tree is legacy—see [docs/dev-react-shell.md](../docs/dev-react-shell.md). Overview: root [README.md](../README.md).
+The **product** is **Sanctum ADE v1** (`ade-faithful/` / `public/`). Overview: root [README.md](../README.md). EOL trees: [v0/README.md](../v0/README.md).

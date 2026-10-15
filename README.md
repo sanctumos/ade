@@ -1,22 +1,24 @@
-# Sanctum ADE (self-hosted Letta)
+# Sanctum ADE v1
 
-**Product target:** a **self-hosted-only** Agent Development Environment. Static HTML/CSS/JS that talks to **your** Letta OSS / Sanctum Letta server. **Letta is the server** — this UI never replaces it and never talks to Letta Cloud.
+**Sanctum ADE** is Sanctum’s Agent Development Environment — a static HTML/CSS/JS client for **your** self-hosted agent server (Letta-compatible `/v1` API). This is **our fork / our product**, not the Letta Cloud ADE, and it is no longer tracking Letta’s hosted app.
 
-**Out of scope:** org/billing/members/usage, Cloud OAuth, `app.letta.com`, and chasing Cloud API drift. Cloud scrape under `reference_materials/` is **historical scrap only**, not a design or feature mandate.
+**Version:** **1** (current ship)
 
-- **`ade-faithful/`** — **ship target** (static, no Node). Shell + agents / chat / memory / tools / MCP / settings against self-hosted `/v1/*`.
-- **`ade-simple/`** — earlier Bootstrap twin (same API surface; keep for now).
+| Path | Role |
+|------|------|
+| **`ade-faithful/`** | Source tree (edit here) |
+| **`public/`** | Deploy mirror (`scripts/mirror_public.sh`) |
 
-The **`app/`** folder is a **legacy React prototype**—not the product. Maintainer notes: [docs/dev-react-shell.md](docs/dev-react-shell.md).
+**Out of scope:** Letta Cloud org/billing/OAuth, `app.letta.com`, and Cloud-only API surface. Scrapes under `reference_materials/` are historical reference only.
+
+**Backend:** Talks to a Letta-compatible HTTP API (Sanctum / self-hosted Letta OSS). “Letta” in code and docs means that **API contract**, not Letta’s product branding.
 
 ---
 
 ## Quick start
 
-**You need a running backend** that exposes a Letta-style HTTP API.
-
-1. Pick **`ade-simple/`** or **`ade-faithful/`**; copy `config.example.js` → `config.js`, set `base` (and optional `key`), **or** use **Settings** (localStorage).
-2. Open `index.html` in that folder or serve it over HTTP.
+1. Copy `ade-faithful/config.example.js` → `ade-faithful/config.js`, set `base` (and optional `key`), **or** use in-app **Settings** (localStorage).
+2. Open `ade-faithful/index.html` or serve `public/` over HTTP (production).
 
 Default API base: `http://localhost:8283`.
 
@@ -24,16 +26,16 @@ Default API base: `http://localhost:8283`.
 
 ## API compatibility
 
-Simple ADE expects a **single base URL** and optional **Bearer** token. Typical paths include `GET/POST /v1/agents`, agent messages, core memory blocks, tools, MCP servers, and models; projects and runs are optional. If your backend differs, change **`ade-simple/app.js`** / **`ade-faithful/app.js`** (and the legacy **`app/src/api/client.js`** only if you still maintain parity there).
+Sanctum ADE expects a **single base URL** and optional **Bearer** token. Typical paths: `GET/POST /v1/agents`, agent messages, core memory blocks, tools, MCP servers, models; projects and runs as available.
 
-**Full endpoint table:** [LETTA_API_COVERAGE.md](LETTA_API_COVERAGE.md).
+**Endpoint table:** [LETTA_API_COVERAGE.md](LETTA_API_COVERAGE.md).
 
 ---
 
 ## Requirements
 
-- **Backend** implementing the expected routes (see [LETTA_API_COVERAGE.md](LETTA_API_COVERAGE.md)).
-- **Browser**; optional Python 3 for `ade-simple/genconfig.py`. No Node required for the product UI.
+- A backend implementing the expected `/v1` routes
+- A browser (no Node required for the product UI)
 
 ---
 
@@ -41,16 +43,14 @@ Simple ADE expects a **single base URL** and optional **Bearer** token. Typical 
 
 ```
 .
-├── README.md                 # This file
-├── docs/
-│   └── dev-react-shell.md    # Legacy app/ — dev-only notes
-├── LETTA_API_COVERAGE.md     # API endpoints the client uses
+├── README.md                 # Sanctum ADE v1 (this file)
+├── ade-faithful/             # v1 source
+├── public/                   # v1 deploy mirror
+├── LETTA_API_COVERAGE.md     # /v1 API coverage (Letta-compatible)
 ├── LOCAL_ARCHITECTURE.md     # Local-first design notes
-├── ade-simple/               # Simple ADE (Bootstrap UI)
-├── ade-faithful/             # Same static arch.; Letta-like shell — see ade-faithful/README.md
-├── app/                      # Legacy Vite/React shell — see docs/dev-react-shell.md
-├── package.json              # Optional scrape/decode + legacy dev script
-└── reference_materials/      # Letta cloud scrape (reference only)
+├── v0/                       # EOL trees — see v0/README.md
+├── package.json              # Optional scrape tooling only
+└── reference_materials/      # Historical cloud scrape (reference only)
 ```
 
 ---
@@ -59,11 +59,10 @@ Simple ADE expects a **single base URL** and optional **Bearer** token. Typical 
 
 | Doc | Description |
 |-----|-------------|
+| [ade-faithful/README.md](ade-faithful/README.md) | v1 setup, Flask proxy, smoke tests |
 | [LETTA_API_COVERAGE.md](LETTA_API_COVERAGE.md) | Endpoint list and client coverage |
 | [LOCAL_ARCHITECTURE.md](LOCAL_ARCHITECTURE.md) | Local-first / API-swap goals |
-| [ade-simple/README.md](ade-simple/README.md) | Static app: config, CORS, troubleshooting |
-| [ade-faithful/README.md](ade-faithful/README.md) | Letta-faithful static UI (no Node) |
-| [docs/dev-react-shell.md](docs/dev-react-shell.md) | Legacy `app/` tree — maintainer notes only |
+| [v0/README.md](v0/README.md) | EOL notice only — legacy trees, will be removed |
 | [reference_materials/README.md](reference_materials/README.md) | Scrape assets & tooling |
 
 ---
@@ -93,5 +92,4 @@ Credentials: repo-root `.env` (see `.env.example`).
 
 ## Links
 
-- **This repo:** https://github.com/sanctumos/ade  
-- **Letta (cloud app, reference only):** https://app.letta.com  
+- **This repo:** https://github.com/sanctumos/ade
