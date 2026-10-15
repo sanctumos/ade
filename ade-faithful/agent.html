@@ -11,10 +11,18 @@
     <span id="ade-nav-inject"></span>
     <main class="af-main">
       <button type="button" class="af-nav-toggle" id="nav-toggle" aria-label="Open menu">≡</button>
-      <p class="af-muted"><a href="agents.html">← Agents</a></p>
-      <h1 id="title">…</h1>
+      <p class="af-eyebrow"><a href="agents.html">← All agents</a></p>
+      <header class="af-agent-head">
+        <div class="af-agent-head-main">
+          <span id="agent-avatar"></span>
+          <div style="min-width:0">
+            <h1 id="title">…</h1>
+            <div class="af-agent-head-sub" id="agent-sub"></div>
+          </div>
+        </div>
+        <a href="#" id="chat-link" class="af-btn af-btn-primary"><span data-af-icon="chat"></span>Open in Chat</a>
+      </header>
       <div id="error"></div>
-      <p><a href="#" id="chat-link" class="af-btn af-btn-primary">Open in Chat →</a></p>
 
       <p id="no-agent-hint" class="af-alert af-alert-warn af-hidden" role="note">Open an agent from <a href="agents.html">Agents</a> (URL must include <code>?id=…</code>).</p>
 

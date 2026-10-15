@@ -48,7 +48,9 @@ def test_open_in_chat_navigates_with_agent(page):
 
     page.goto(f"{BASE}/agents.html", wait_until="networkidle")
     page.wait_for_selector('a[href*="agent.html?id="]', timeout=30000)
-    first = page.locator('a[href*="agent.html?id="]').first
+    playground = os.environ.get("ADE_PLAYGROUND_AGENT_ID", "")
+    sel = f'a[href*="agent.html?id={playground}"]' if playground else 'a[href*="agent.html?id="]'
+    first = page.locator(sel).first
     agent_href = first.get_attribute("href") or ""
     assert "agent.html?id=" in agent_href
     first.click()

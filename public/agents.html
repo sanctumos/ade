@@ -10,12 +10,20 @@
   <div class="af-layout" data-ade-nav="agents">
     <span id="ade-nav-inject"></span>
     <main class="af-main">
-      <button type="button" class="af-nav-toggle" id="nav-toggle" aria-label="Open menu">≡</button>
-      <h1>Agents</h1>
-      <p class="af-muted">Create and open agents. Set model, system prompt, and tools.</p>
+      <div class="af-page-head">
+        <div class="af-page-head-main">
+          <button type="button" class="af-nav-toggle" id="nav-toggle" aria-label="Open menu">≡</button>
+          <div>
+            <h1>Agents</h1>
+            <p class="af-lede" id="agents-count">Every agent on your Letta server.</p>
+          </div>
+        </div>
+        <button type="button" class="af-btn af-btn-primary" id="new-agent-btn"><span data-af-icon="plus"></span>New agent</button>
+      </div>
       <div id="error"></div>
-      <form id="create-form" class="af-panel" style="max-width:42rem">
-        <h2>Create agent</h2>
+      <details class="af-panel" id="create-panel">
+        <summary><h2>Create agent</h2><span class="af-summary-chev" data-af-icon="chevron"></span></summary>
+      <form id="create-form" style="max-width:42rem">
         <div class="af-field">
           <label class="af-label" for="name">Name *</label>
           <input type="text" class="af-input" id="name" placeholder="Agent name" />
@@ -34,7 +42,8 @@
         </div>
         <button type="submit" class="af-btn af-btn-primary" id="create-btn">Create agent</button>
       </form>
-      <ul id="list" class="af-list"></ul>
+      </details>
+      <ul id="list" class="af-agent-grid"></ul>
     </main>
   </div>
   <script src="config.js"></script>
@@ -52,11 +61,36 @@
     function toolId(t) { return t.id != null ? t.id : t.tool_id || t.name; }
     function toolName(t) { return t.name != null ? t.name : t.tool_id || t.id; }
     function showErr(msg) { errorEl.innerHTML = '<div class="af-alert af-alert-danger" role="alert">' + msg + '</div>'; }
+    function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+    var I = window.ADE.icons;
+    document.getElementById('new-agent-btn').onclick = function() {
+      var p = document.getElementById('create-panel');
+      p.open = true;
+      p.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document.getElementById('name').focus();
+    };
     function render(agents) {
-      if (!agents.length) { listEl.innerHTML = '<li class="af-muted">No agents yet.</li>'; return; }
+      document.getElementById('agents-count').textContent = agents.length
+        ? agents.length + (agents.length === 1 ? ' agent' : ' agents') + ' on your Letta server.'
+        : 'No agents on this server yet.';
+      if (!agents.length) {
+        listEl.innerHTML = '<li class="af-empty" style="grid-column:1/-1">No agents yet. Use <strong>New agent</strong> to create one.</li>';
+        document.getElementById('create-panel').open = true;
+        return;
+      }
+      agents = agents.slice().sort(function(x, y) { return String(name(x)).localeCompare(String(name(y))); });
       listEl.innerHTML = agents.map(function(a) {
-        var aid = id(a);
-        return '<li class="af-row"><a class="af-btn af-btn-secondary" href="agent.html?id=' + encodeURIComponent(aid) + '">' + name(a) + '</a><button type="button" class="af-btn af-btn-danger" data-id="' + encodeURIComponent(aid) + '">Delete</button></li>';
+        var aid = id(a), nm = name(a), model = window.ADE.agentModelLabel(a);
+        var href = 'agent.html?id=' + encodeURIComponent(aid);
+        return '<li class="af-agent-card">' +
+          '<div class="af-agent-card-head">' + window.ADE.avatarHtml(nm) +
+          '<div style="min-width:0"><a class="af-agent-card-name" href="' + href + '">' + esc(nm) + '</a>' +
+          '<span class="af-agent-card-meta" title="' + esc(aid) + '">' + esc(model || aid) + '</span></div></div>' +
+          '<div class="af-agent-card-actions">' +
+          '<a class="af-btn af-btn-secondary af-btn-sm" href="' + href + '">' + I.sliders + 'Configure</a>' +
+          '<a class="af-btn af-btn-secondary af-btn-sm" href="chat.html?agent=' + encodeURIComponent(aid) + '">' + I.chat + 'Chat</a>' +
+          '<button type="button" class="af-btn af-btn-danger af-btn-sm af-btn-icon" title="Delete agent" aria-label="Delete ' + esc(nm) + '" data-id="' + encodeURIComponent(aid) + '">' + I.trash + '</button>' +
+          '</div></li>';
       }).join('');
       listEl.querySelectorAll('button[data-id]').forEach(function(btn) {
         btn.onclick = function() {
