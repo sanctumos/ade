@@ -75,7 +75,12 @@ def main() -> int:
 
                 shot("dashboard", "index.html", "#stat-agents")
                 shot("agents", "agents.html", ".af-agent-card")
-                agent_href = page.locator(".af-agent-card-name").first.get_attribute("href")
+                playground = os.environ.get("ADE_PLAYGROUND_AGENT_ID", "")
+                agent_href = (
+                    f"agent.html?id={playground}"
+                    if playground
+                    else page.locator(".af-agent-card-name").first.get_attribute("href")
+                )
                 shot("agent", agent_href, "#agent-avatar .af-avatar")
                 chat_href = page.locator("#chat-link").get_attribute("href")
                 shot("chat", chat_href, "#messages > *", settle=2500)

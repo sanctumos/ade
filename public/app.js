@@ -432,8 +432,32 @@
     });
   }
 
+  /**
+   * Whole collection in one request. Letta list endpoints default to small pages (agent tools: 10,
+   * tools: 50) and the `after` cursor repeats rows on this server, so ask for a big page and grow it
+   * if it comes back full.
+   */
+  function listAll(path, limit) {
+    limit = limit || 1000;
+    var sep = path.indexOf('?') >= 0 ? '&' : '?';
+    return apiFetch(path + sep + 'limit=' + limit).then(function (d) {
+      var rows = Array.isArray(d) ? d : (d && Array.isArray(d.data)) ? d.data : null;
+      if (!rows) return d;
+      if (rows.length >= limit && limit < 25000) return listAll(path, limit * 5);
+      var seen = {};
+      return rows.filter(function (r) {
+        var k = r && r.id != null ? String(r.id) : null;
+        if (k === null) return true;
+        if (seen[k]) return false;
+        seen[k] = true;
+        return true;
+      });
+    });
+  }
+
   window.ADE = {
     icons: ICONS,
+    listAll: listAll,
     avatarHtml: avatarHtml,
     agentModelLabel: agentModelLabel,
     getConfig: getConfig,
@@ -444,7 +468,7 @@
     getSelectedAgentId: getSelectedAgentId,
     setSelectedAgentId: setSelectedAgentId,
     refreshAgentSelect: refreshAgentSelect,
-    listAgents: function () { return apiFetch('/v1/agents/'); },
+    listAgents: function () { return listAll('/v1/agents/'); },
     getAgent: function (id) { return apiFetch('/v1/agents/' + id); },
     createAgent: function (body) { return apiFetch('/v1/agents/', { method: 'POST', body: JSON.stringify(body) }); },
     updateAgent: function (id, body) { return apiFetch('/v1/agents/' + id, { method: 'PATCH', body: JSON.stringify(body) }); },
@@ -487,7 +511,7 @@
       return apiFetch('/v1/agents/' + agentId + '/archival-memory/search', { method: 'POST', body: JSON.stringify(body || {}) });
     },
     listModels: function () { return apiFetch('/v1/models/'); },
-    listTools: function () { return apiFetch('/v1/tools/'); },
+    listTools: function () { return listAll('/v1/tools/'); },
     getTool: function (id) { return apiFetch('/v1/tools/' + id); },
     createTool: function (body) { return apiFetch('/v1/tools/', { method: 'POST', body: JSON.stringify(body) }); },
     updateTool: function (id, body) { return apiFetch('/v1/tools/' + id, { method: 'PATCH', body: JSON.stringify(body) }); },
@@ -509,7 +533,7 @@
     getRunMessages: function (runId, params) { var q = params ? '?' + new URLSearchParams(params).toString() : ''; return apiFetch('/v1/runs/' + runId + '/messages' + q); },
     getRunUsage: function (runId) { return apiFetch('/v1/runs/' + runId + '/usage'); },
     getRunSteps: function (runId, params) { var q = params ? '?' + new URLSearchParams(params).toString() : ''; return apiFetch('/v1/runs/' + runId + '/steps' + q); },
-    listAgentTools: function (agentId) { return apiFetch('/v1/agents/' + agentId + '/tools'); },
+    listAgentTools: function (agentId) { return listAll('/v1/agents/' + agentId + '/tools'); },
     listProjects: function () { return apiFetch('/v1/projects/'); },
     createProject: function (body) { return apiFetch('/v1/projects/', { method: 'POST', body: JSON.stringify(body) }); },
     getProject: function (id) { return apiFetch('/v1/projects/' + id); },

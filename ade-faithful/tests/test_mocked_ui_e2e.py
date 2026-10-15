@@ -20,6 +20,9 @@ AGENT = {
     "tools": [],
     "tool_ids": [],
 }
+# Like the real server: agent tools page at 10 by default, the directory at 50.
+DIRECTORY = [{"id": f"tool-{i:03d}", "name": f"tool_{i:03d}"} for i in range(60)]
+AGENT_TOOLS = [DIRECTORY[i] for i in (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 55, 58)] + [{"id": "tool-zz", "name": "offlist"}]
 REMINDER = "<system-reminder>\nYou are a sleeptime agent.\n" + ("transcript " * 50)
 
 
@@ -42,7 +45,9 @@ class MockLetta:
         ]
 
     def handle(self, route, request):
-        path = parse_qs(urlparse(request.url).query).get("path", [""])[0].split("?", 1)[0]
+        full = parse_qs(urlparse(request.url).query).get("path", [""])[0]
+        path, _, inner_q = full.partition("?")
+        limit = parse_qs(inner_q).get("limit", [None])[0]
         method = request.method
         if path.rstrip("/") == "/v1/agents" and method == "GET":
             return self._json(route, [AGENT])
@@ -55,9 +60,9 @@ class MockLetta:
         if path == f"/v1/agents/{AGENT_ID}/tools":
             if not self.agent_tools_ok:
                 return route.fulfill(status=500, body="boom")
-            return self._json(route, [{"id": "tool-a", "name": "alpha"}, {"id": "tool-z", "name": "zeta"}])
+            return self._json(route, AGENT_TOOLS[: int(limit or 10)])
         if path.rstrip("/") == "/v1/tools":
-            return self._json(route, [{"id": "tool-a", "name": "alpha"}, {"id": "tool-b", "name": "beta"}])
+            return self._json(route, DIRECTORY[: int(limit or 50)])
         if path.rstrip("/") == "/v1/models":
             return self._json(route, [{"handle": "openai-proxy/other-model"}])
         if path == f"/v1/agents/{AGENT_ID}/messages" and method == "GET":
@@ -98,14 +103,15 @@ def test_save_keeps_attached_tools_and_current_model(page):
     page.goto(f"{BASE}/agent.html?id={AGENT_ID}", wait_until="networkidle")
     _wait_tools_mounted(page)
     assert page.locator("#model").input_value() == "openai-proxy/legacy-model"
-    assert page.locator("#agent-sub .af-badge-tools").inner_text() == "2 tools"
-    assert page.locator("input[name=tool][value=tool-a]").is_checked()
-    assert not page.locator("input[name=tool][value=tool-b]").is_checked()
+    assert page.locator("#agent-sub .af-badge-tools").inner_text() == "15 tools"
+    assert page.locator("input[name=tool]").count() == 60, "directory truncated"
+    assert page.locator("input[name=tool][value=tool-058]").is_checked()
+    assert not page.locator("input[name=tool][value=tool-020]").is_checked()
     page.locator('[data-pane="general"] .ade-save-config').click()
     page.wait_for_function("() => true")
     page.wait_for_timeout(500)
     assert mock.patches, "Save did not PATCH"
-    assert sorted(mock.patches[-1]["tool_ids"]) == ["tool-a", "tool-z"], mock.patches[-1]
+    assert sorted(mock.patches[-1]["tool_ids"]) == sorted(t["id"] for t in AGENT_TOOLS), mock.patches[-1]
     assert mock.patches[-1]["model"] == "openai-proxy/legacy-model"
     assert not errors, errors
 
