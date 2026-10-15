@@ -455,7 +455,7 @@
         var reason = m.reason ? '<div class="chat-md" style="margin-top:8px">' + AC.parseMarkdown(String(m.reason)) + '</div>' : '';
         wrap.innerHTML =
           '<div class="chat-turn__label">Approval response</div>' +
-          '<p style="margin:0;font-weight:600;color:' + (ok ? '#6ee7b7' : '#f87171') + '">' +
+          '<p style="margin:0;font-weight:600;color:' + (ok ? 'var(--af-success)' : 'var(--af-danger)') + '">' +
           (ok ? 'Approved' : 'Denied') + '</p>' + reason;
         return wrap;
       }
