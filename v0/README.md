@@ -11,3 +11,5 @@ End-of-life trees from before **Sanctum ADE v1**. Kept only so history is reacha
 **Current product:** [Sanctum ADE v1](../README.md) — source in `ade-faithful/`, deploy mirror in `public/`.
 
 Do not link these folders from product docs, onboarding, or ship checklists except as this EOL notice.
+
+**License:** same as the repo — code [AGPL-3.0](../LICENSE-AGPLv3), docs [CC-BY-SA-4.0](../LICENSE-CC-BY-SA); see [LICENSE](../LICENSE).

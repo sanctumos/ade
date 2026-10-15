@@ -1,0 +1,47 @@
+DUAL LICENSE NOTICE
+
+Sanctum ADE
+Copyright (C) 2026 Sanctum / Decision Science Corp
+
+This project is distributed under a dual license structure:
+
+1. SOFTWARE CODE (JavaScript, CSS, HTML, Python, shell scripts, configuration, etc.)
+   Licensed under: GNU Affero General Public License v3.0 (AGPL-3.0)
+   See: LICENSE-AGPLv3
+
+2. DOCUMENTATION AND OTHER CONTENT (README files, documentation, images, etc.)
+   Licensed under: Creative Commons Attribution-ShareAlike 4.0 International (CC-BY-SA-4.0)
+   See: LICENSE-CC-BY-SA
+
+LICENSE APPLICABILITY:
+
+SOFTWARE CODE includes but is not limited to:
+- JavaScript (*.js)
+- CSS (*.css)
+- HTML (*.html)
+- Python (*.py)
+- Shell / build scripts (*.sh, Makefile, etc.)
+- Configuration templates (*.json, *.example.js, etc.)
+- Test files under ade-faithful/tests/
+- Deploy mirrors of the above (e.g. public/)
+
+DOCUMENTATION AND OTHER CONTENT includes but is not limited to:
+- README and other Markdown (*.md)
+- Images and graphics authored for this project
+- Text documentation
+- These license notice files
+
+THIRD-PARTY / NON-PROJECT MATERIAL (not covered by this dual license):
+- Vendored libraries under ade-faithful/vendor/ and public/vendor/ (keep their upstream licenses)
+- npm dependencies listed in package.json / package-lock.json (upstream licenses)
+- Historical scrapes under reference_materials/scraped/ and related capture assets
+  (third-party copyright; retained for reference only)
+
+For the complete terms of each license, please refer to the respective license files:
+- LICENSE-AGPLv3 (for software code)
+- LICENSE-CC-BY-SA (for documentation and other content)
+
+This dual licensing approach ensures that:
+- Software code remains free and open source under copyleft terms (AGPL-3.0)
+- Documentation and content can be freely shared and adapted (CC-BY-SA-4.0)
+- Both licenses require attribution and sharing of modifications

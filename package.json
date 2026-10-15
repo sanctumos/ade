@@ -1,7 +1,7 @@
 {
   "name": "sanctum-ade",
   "version": "1.0.0",
-  "description": "Sanctum ADE v1 — static Agent Development Environment (ade-faithful/); optional historical scrape under reference_materials/",
+  "description": "Sanctum ADE v1 \u2014 static Agent Development Environment (ade-faithful/); optional historical scrape under reference_materials/",
   "type": "module",
   "scripts": {
     "scrape": "node reference_materials/scrape.js",
@@ -13,5 +13,6 @@
   },
   "devDependencies": {
     "js-beautify": "^1.15.4"
-  }
+  },
+  "license": "AGPL-3.0-or-later"
 }

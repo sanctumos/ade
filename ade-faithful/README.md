@@ -41,6 +41,10 @@ Uses Playwright in `.venv` (see `ade-faithful-verify` Cursor rule).
 | `vendor/` | marked + DOMPurify (no CDN) |
 | `config.example.js` | → `config.js` |
 
+## License
+
+Same as the repo root: **code** [AGPL-3.0](../LICENSE-AGPLv3), **docs** [CC-BY-SA-4.0](../LICENSE-CC-BY-SA). See [LICENSE](../LICENSE). Vendored files under `vendor/` keep their upstream licenses.
+
 ## Related
 
 - [Root README](../README.md) · [LETTA_API_COVERAGE.md](../LETTA_API_COVERAGE.md) · [v0 EOL](../v0/README.md)

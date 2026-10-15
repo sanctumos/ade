@@ -44,6 +44,9 @@ Sanctum ADE expects a **single base URL** and optional **Bearer** token. Typical
 ```
 .
 ├── README.md                 # Sanctum ADE v1 (this file)
+├── LICENSE                   # Dual-notice (AGPL-3.0 code + CC-BY-SA-4.0 docs)
+├── LICENSE-AGPLv3
+├── LICENSE-CC-BY-SA
 ├── ade-faithful/             # v1 source
 ├── public/                   # v1 deploy mirror
 ├── LETTA_API_COVERAGE.md     # /v1 API coverage (Letta-compatible)
@@ -87,6 +90,19 @@ Credentials: repo-root `.env` (see `.env.example`).
 | **API unreachable** | Backend up? Base URL in Settings or `config.js` (no trailing slash). |
 | **CORS** | Allow your frontend origin on the API. |
 | **401 / 403** | Set Bearer token in Settings. |
+
+---
+
+## License
+
+Dual license (same pattern as other Sanctum products):
+
+| Material | License |
+|----------|---------|
+| **Software code** (JS, CSS, HTML, Python, scripts, config templates, tests, `public/` mirror) | [AGPL-3.0](LICENSE-AGPLv3) |
+| **Documentation & other content** (Markdown, project images, etc.) | [CC-BY-SA-4.0](LICENSE-CC-BY-SA) |
+
+See [LICENSE](LICENSE) for the dual-notice and third-party carve-outs (vendored libs, npm deps, `reference_materials/` scrapes).
 
 ---
 
