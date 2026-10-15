@@ -53,6 +53,47 @@ class MockLetta:
             },
             {"id": "m4", "message_type": "assistant_message", "content": "**Hi** back"},
         ]
+        self.blocks = [
+            {
+                "id": "block-persona",
+                "label": "persona",
+                "value": "I am a test agent.",
+                "limit": 2000,
+                "description": "Persona block",
+                "read_only": False,
+            },
+            {
+                "id": "block-human",
+                "label": "human",
+                "value": "Tester",
+                "limit": 2000,
+                "read_only": False,
+            },
+            {
+                "id": "block-broca",
+                "label": "system_recent_context",
+                "value": "Attached by Broca mid-stream.",
+                "limit": 5000,
+                "read_only": True,
+            },
+        ]
+        self.context = {
+            "context_window_size_max": 32000,
+            "context_window_size_current": 4800,
+            "num_tokens_system": 120,
+            "num_tokens_functions_definitions": 800,
+            "num_tokens_external_memory_summary": 40,
+            "num_tokens_core_memory": 900,
+            "num_tokens_summary_memory": 0,
+            "num_tokens_messages": 2940,
+            "num_messages": 6,
+            "system_prompt": "be helpful",
+            "core_memory": "<memory_blocks/>",
+            "external_memory_summary": "",
+            "summary_memory": None,
+            "functions_definitions": [],
+            "messages": [],
+        }
 
     def handle(self, route, request):
         full = parse_qs(urlparse(request.url).query).get("path", [""])[0]
@@ -102,6 +143,13 @@ class MockLetta:
             self.messages.append({"id": "a9", "message_type": "assistant_message", "content": "pong"})
             sse = 'data: {"message_type":"assistant_message","content":"pong"}\n\ndata: [DONE]\n\n'
             return route.fulfill(status=200, headers={"content-type": "text/event-stream"}, body=sse)
+        if path.rstrip("/") in (
+            f"/v1/agents/{AGENT_ID}/core-memory/blocks",
+            f"/v1/agents/{AGENT_ID}/core-memory/blocks/",
+        ) and method == "GET":
+            return self._json(route, self.blocks)
+        if path == f"/v1/agents/{AGENT_ID}/context" and method == "GET":
+            return self._json(route, self.context)
         return self._json(route, [])
 
     @staticmethod
@@ -256,3 +304,40 @@ def test_chat_ignores_stale_active_runs_present_at_open(page):
     page.wait_for_timeout(3500)
     assert mock.stream_runs == [], mock.stream_runs
     assert page.locator("#messages .chat-shimmer").count() == 0
+
+
+def test_chat_context_bar_and_memory_panel(page):
+    """Context usage bar + collapsible core-memory sidebar (Broca attach/detach surface)."""
+    mock = MockLetta()
+    _boot(page, mock)
+    page.evaluate("() => localStorage.removeItem('af-chat-memory-open')")
+    page.goto(f"{BASE}/chat.html?agent={AGENT_ID}", wait_until="networkidle")
+    page.wait_for_selector("#chat-context-bar .chat-ctx-track", timeout=15000)
+    bar = page.locator("#chat-context-bar").inner_text().lower()
+    assert "context window" in bar
+    assert "85% free" in bar or "free" in bar
+    assert page.locator("#chat-context-bar .chat-ctx-seg").count() >= 3
+    assert page.locator("#chat-memory-panel").is_visible()
+    assert page.locator("#chat-memory-count").inner_text() == "3"
+    assert page.locator('.chat-memory-card[data-label="persona"]').count() == 1
+    assert page.locator('.chat-memory-card[data-label="system_recent_context"]').count() == 1
+    # Live attach: Broca adds a block; bump refreshes the panel (same path as the 4s poll).
+    mock.blocks.append(
+        {
+            "id": "block-new",
+            "label": "broca_ephemeral",
+            "value": "just attached",
+            "limit": 1000,
+            "read_only": False,
+        }
+    )
+    page.evaluate("() => window.ADE_CHAT_SIDECAR.bump()")
+    page.wait_for_function(
+        "() => document.getElementById('chat-memory-count').textContent === '4'",
+        timeout=8000,
+    )
+    page.locator("#chat-memory-close").click()
+    assert page.locator("html").get_attribute("data-chat-memory") == "closed"
+    assert page.evaluate("() => localStorage.getItem('af-chat-memory-open')") == "0"
+    page.locator("#chat-memory-toggle").click()
+    assert page.locator("html").get_attribute("data-chat-memory") == "open"

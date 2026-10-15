@@ -607,6 +607,12 @@
         throw e;
       });
     },
+    /** GET /v1/agents/:id/context — ContextWindowOverview (token breakdown for the bar) */
+    getAgentContext: function (agentId, params) {
+      var q = '';
+      if (params && Object.keys(params).length) q = '?' + new URLSearchParams(params).toString();
+      return apiFetch('/v1/agents/' + agentId + '/context' + q);
+    },
     listArchivalMemory: function (agentId, params) {
       var q = '';
       if (params && Object.keys(params).length) q = '?' + new URLSearchParams(params).toString();
