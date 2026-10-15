@@ -28,13 +28,13 @@ Today’s installer already hints at the right shape (`sanctum_bootstrap.sh`, Le
 5. **Prescribed folders** — Bootstraps do not invent paths; they implement the layout contract (agents/, broca, smcp/, control/, shared venv rules, etc.).
 6. **Safe to re-run** — Idempotent; declare state; refuse or migrate when invariants break.
 7. **Composite Sanctum Agents** — One “agent” in Sanctum/ADE can map to **many** Letta agents (main loop, sleeptime, future cerebellum, …) plus host modules (Broca, SMCP). Wizard/meta endpoints create the **bundle**; granular endpoints still exist for each piece.
-8. **Microservices for data** — Sanctum state does **not** live in Letta Postgres (per-module SQLite / Sanctum registry). Broca/SMCP stay their own processes. Extending the **HTTP surface** ≠ merging the **databases** or folding Broca into the Letta runtime.
-9. **One API face per box** (Mark 2026-10-15) — Operators and ADE think: “the Letta API on this Sanctum box,” extended with Sanctum routes—not “Letta plus a second host API I have to configure.”
+8. **Microservices** (agreed) — Letta runtime, each agent’s Broca, SMCP, etc. remain separate processes. Extending the **on-box Letta HTTP face** with Sanctum routes does not merge those runtimes or their stores.
+9. **One API face per box** (Mark 2026-10-15) — Operators and ADE think: “the Letta API on this Sanctum box,” extended with Sanctum routes—not a second Settings base by default.
 
 ### Non-goals (for this stub)
 
-- Merging Sanctum schema into Letta Postgres
-- Running Broca/SMCP *inside* the Letta agent loop / SyncServer business logic
+- One global Broca for all agents (kills per-agent fingerprint)
+- Re-apply that blindly overwrites customized Broca trees
 - Replacing DSC multihost / Ada deploy lane for *product* sites
 - Solving every Sanctum component in v2.0 — pick a thin vertical first
 - Making ADE a full PaaS
@@ -69,10 +69,11 @@ From the installer layout canon (Aug 2025):
 |-----------|----------------------------|
 | Shared Sanctum venv (with SMCP as the known exception) | Bootstrap must declare venv needs / never silently fork interpreters |
 | Per-module SQLite under module `db/` | Bootstrap creates module skeleton, not a shared mega-DB |
-| Agent tenancy = `agents/<uid>/` | Broca switch is per-agent (or per-agent-module), not global-only |
+| Agent tenancy = `agents/<uid>/` | Broca (and kin) are **per-agent modules**, not one shared Broca for the box |
+| **Per-agent Broca fingerprint** (Mark 2026-10-15) | Each agent’s Broca tends to grow its own patches/customization over time — bootstraps install a baseline; **must not** collapse instances into a single global Broca process or wipe local drift on re-apply without an explicit migrate/reset |
 | Ports recorded / unique | Bootstrap allocates or registers port; ADE shows it |
 | Secrets stay local | ADE triggers; does not become a secret warehouse |
-| **No shared Postgres with Letta** (Mark 2026-10-15) | Host API / Sanctum agent registry use Sanctum DBs only; Letta agents referenced by id over `/v1` |
+| **No shared Postgres with Letta** (Mark 2026-10-15) | Sanctum registry / jobs use Sanctum DBs only; Letta agents referenced by id over `/v1`. Aligns with preferred **microservices** stance (Broca, SMCP, Letta = separate processes) — not a debate; a constraint we already agree on |
 
 Existing artifacts to **factor**, not throw away:
 
@@ -385,9 +386,10 @@ sanctum module set broca --agent athena --desired running
 |------|----------|
 | 2026-10-15 | Stub opened; options A–D + hybrid sketched; no winner. |
 | 2026-10-15 | Emerging preference: API-driven bootstraps (Option E). |
-| 2026-10-15 | **No shared Postgres with Letta** — Sanctum state separate; Broca/SMCP stay own processes. |
+| 2026-10-15 | **Microservices preferred** — Sanctum state ∉ Letta Postgres; Broca/SMCP stay own processes. (Constraint, not a disagreement.) |
+| 2026-10-15 | **Per-agent Broca fingerprint** — instances customize over time; bootstraps must respect drift (no global Broca, no careless overwrite). |
 | 2026-10-15 | **Composite Sanctum Agent**: one Sanctum entity → N Letta agents + host modules; granular + meta. |
-| 2026-10-15 | **Clarified:** extend **the Letta API on every Sanctum box** with Sanctum endpoints (E1 fork-mount or E2 same-URL sidecar)—not a second ADE Settings base by default. Prior “separate Host API URL” was Otto answering the wrong frame. |
+| 2026-10-15 | **Clarified:** extend **the Letta API on every Sanctum box** with Sanctum endpoints (E1 or E2)—not a second ADE Settings base by default. |
 
 ---
 
