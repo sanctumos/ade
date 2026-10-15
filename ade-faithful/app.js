@@ -2,13 +2,13 @@
   'use strict';
 
   /**
-   * ade-faithful: same API surface as ade-simple, Letta-cloud–inspired chrome (no Node).
+   * ade-faithful: self-hosted Letta ADE (static HTML/CSS/JS, no Node, no Cloud).
    * Storage keys are namespaced so ade-simple and ade-faithful can coexist in one browser.
    */
   var ADE_NAV_SHELL_HTML =
     '<button type="button" class="af-backdrop" id="nav-backdrop" aria-label="Close menu"></button>' +
     '<aside class="af-sidebar">' +
-    '<div class="af-brand"><span class="af-brand-mark">Letta</span><span class="af-brand-sub">ADE · local</span></div>' +
+    '<div class="af-brand"><span class="af-brand-mark">Letta</span><span class="af-brand-sub">ADE · self-hosted</span></div>' +
     '<nav class="af-nav">' +
     '<a class="af-nav-link" href="index.html">Dashboard</a>' +
     '<a class="af-nav-link" href="projects.html">Projects</a>' +
@@ -225,9 +225,21 @@
     return out;
   }
 
+  /** Build request URL. Bases ending in proxy.php use ?path= (multihost PHP, no PATH_INFO). */
+  function apiUrl(path) {
+    if (path.indexOf('http') === 0) return path;
+    var p = path.indexOf('/') === 0 ? path : '/' + path;
+    var base = apiBase();
+    if (/proxy\.php\/?$/i.test(base) || /proxy\.php$/i.test(base)) {
+      var sep = base.indexOf('?') >= 0 ? '&' : '?';
+      return base.replace(/\/$/, '') + sep + 'path=' + encodeURIComponent(p);
+    }
+    return base + p;
+  }
+
   function apiFetch(path, options) {
     options = options || {};
-    var url = path.indexOf('http') === 0 ? path : apiBase() + (path.indexOf('/') === 0 ? '' : '/') + path;
+    var url = apiUrl(path);
     var headers = { 'Content-Type': 'application/json' };
     var key = getConfig().key;
     if (key) headers['Authorization'] = 'Bearer ' + key;
@@ -237,6 +249,123 @@
       var ct = res.headers.get('content-type');
       if (ct && ct.indexOf('application/json') !== -1) return res.json();
       return res.text();
+    });
+  }
+
+  /**
+   * POST /v1/agents/:id/messages with streaming=true (SSE).
+   * handlers: { onEvent(obj), onDone(), onError(err) }
+   * Falls back to non-stream sendMessage if the server rejects streaming.
+   */
+  function sendMessageStream(agentId, body, handlers) {
+    handlers = handlers || {};
+    var payload = normalizeAgentSendBody(Object.assign({}, body || {}, {
+      streaming: true,
+      stream_tokens: body && body.stream_tokens === false ? false : true,
+      include_pings: true
+    }));
+    var url = apiUrl('/v1/agents/' + agentId + '/messages');
+    var headers = { 'Content-Type': 'application/json', Accept: 'text/event-stream' };
+    var key = getConfig().key;
+    if (key) headers.Authorization = 'Bearer ' + key;
+
+    return fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(payload) }).then(function (res) {
+      var ct = (res.headers.get('content-type') || '').toLowerCase();
+      if (!res.ok) {
+        return res.text().then(function (t) {
+          var err = new Error('API ' + res.status + ': ' + (t || res.statusText));
+          if (handlers.onError) handlers.onError(err);
+          throw err;
+        });
+      }
+      /* Some servers ignore streaming and return JSON — treat as one-shot done. */
+      if (ct.indexOf('application/json') !== -1) {
+        return res.json().then(function (data) {
+          if (handlers.onEvent) handlers.onEvent({ message_type: '_json_response', data: data });
+          if (handlers.onDone) handlers.onDone(data);
+          return data;
+        });
+      }
+      if (!res.body || !res.body.getReader) {
+        return res.text().then(function (t) {
+          if (handlers.onDone) handlers.onDone(t);
+          return t;
+        });
+      }
+      var reader = res.body.getReader();
+      var decoder = new TextDecoder();
+      var buffer = '';
+      function emitSseBlock(block) {
+        var lines = block.split('\n');
+        var dataLines = [];
+        var eventName = '';
+        for (var i = 0; i < lines.length; i++) {
+          var line = lines[i];
+          if (line.indexOf('event:') === 0) eventName = line.slice(6).trim();
+          else if (line.indexOf('data:') === 0) dataLines.push(line.slice(5).replace(/^ /, ''));
+        }
+        if (!dataLines.length) return;
+        var raw = dataLines.join('\n');
+        if (raw === '[DONE]') return;
+        try {
+          var obj = JSON.parse(raw);
+          if (eventName && obj && typeof obj === 'object' && !obj.event) obj._sse_event = eventName;
+          if (handlers.onEvent) handlers.onEvent(obj);
+        } catch (e) {
+          if (handlers.onEvent) handlers.onEvent({ message_type: '_raw', content: raw, _sse_event: eventName });
+        }
+      }
+      function pump() {
+        return reader.read().then(function (result) {
+          if (result.done) {
+            if (buffer.trim()) emitSseBlock(buffer);
+            if (handlers.onDone) handlers.onDone();
+            return;
+          }
+          buffer += decoder.decode(result.value, { stream: true });
+          var parts = buffer.split('\n\n');
+          buffer = parts.pop() || '';
+          for (var j = 0; j < parts.length; j++) {
+            if (parts[j].trim()) emitSseBlock(parts[j]);
+          }
+          return pump();
+        });
+      }
+      return pump().catch(function (err) {
+        if (handlers.onError) handlers.onError(err);
+        throw err;
+      });
+    });
+  }
+
+  /**
+   * Send with streaming preferred; on stream failure, fall back to non-stream.
+   * handlers same as sendMessageStream; also called for fallback JSON via onEvent(_json_response).
+   */
+  function sendMessagePreferStream(agentId, body, handlers) {
+    handlers = handlers || {};
+    var streamStarted = false;
+    var wrapped = {
+      onEvent: function (obj) {
+        streamStarted = true;
+        if (handlers.onEvent) handlers.onEvent(obj);
+      },
+      onDone: handlers.onDone,
+      onError: handlers.onError
+    };
+    return sendMessageStream(agentId, body, wrapped).catch(function (err) {
+      var msg = (err && err.message) ? String(err.message) : '';
+      /* Only fall back if the server rejected streaming before any events (not mid-stream). */
+      if (streamStarted) throw err;
+      if (!/^API (400|404|405|415|422|501)\b/.test(msg)) throw err;
+      return apiFetch('/v1/agents/' + agentId + '/messages', {
+        method: 'POST',
+        body: JSON.stringify(normalizeAgentSendBody(body))
+      }).then(function (data) {
+        if (handlers.onEvent) handlers.onEvent({ message_type: '_json_response', data: data });
+        if (handlers.onDone) handlers.onDone(data);
+        return data;
+      });
     });
   }
 
@@ -256,6 +385,8 @@
     deleteAgent: function (id) { return apiFetch('/v1/agents/' + id, { method: 'DELETE' }); },
     cancelAgentMessages: function (agentId, body) { return apiFetch('/v1/agents/' + agentId + '/messages/cancel', { method: 'POST', body: JSON.stringify(body || {}) }); },
     sendMessage: function (agentId, body) { return apiFetch('/v1/agents/' + agentId + '/messages', { method: 'POST', body: JSON.stringify(normalizeAgentSendBody(body)) }); },
+    sendMessageStream: sendMessageStream,
+    sendMessagePreferStream: sendMessagePreferStream,
     getAgentMessages: function (agentId, params) {
       var q = '';
       if (params && Object.keys(params).length) q = '?' + new URLSearchParams(params).toString();
@@ -274,6 +405,20 @@
         if (m.indexOf('API 404') !== -1) return apiFetch(fallback);
         throw e;
       });
+    },
+    listArchivalMemory: function (agentId, params) {
+      var q = '';
+      if (params && Object.keys(params).length) q = '?' + new URLSearchParams(params).toString();
+      return apiFetch('/v1/agents/' + agentId + '/archival-memory' + q);
+    },
+    createArchivalMemory: function (agentId, body) {
+      return apiFetch('/v1/agents/' + agentId + '/archival-memory', { method: 'POST', body: JSON.stringify(body || {}) });
+    },
+    deleteArchivalMemory: function (agentId, memoryId) {
+      return apiFetch('/v1/agents/' + agentId + '/archival-memory/' + encodeURIComponent(memoryId), { method: 'DELETE' });
+    },
+    searchArchivalMemory: function (agentId, body) {
+      return apiFetch('/v1/agents/' + agentId + '/archival-memory/search', { method: 'POST', body: JSON.stringify(body || {}) });
     },
     listModels: function () { return apiFetch('/v1/models/'); },
     listTools: function () { return apiFetch('/v1/tools/'); },

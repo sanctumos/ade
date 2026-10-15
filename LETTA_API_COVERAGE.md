@@ -1,8 +1,8 @@
-# Letta API coverage — cloud vs local
+# Letta API coverage — self-hosted only
 
-**Product:** [Simple ADE](README.md) — **`ade-simple/`** and **`ade-faithful/`** are static UIs (`ade-simple/app.js`, `ade-faithful/app.js`; same API surface, separate localStorage keys). The **`app/`** React tree is a **legacy mirror** of the API layer; see [docs/dev-react-shell.md](docs/dev-react-shell.md). Letta cloud static capture (not runtime): `reference_materials/`.
+**Product:** Sanctum ADE — **`ade-faithful/`** (ship) and **`ade-simple/`** (twin). Static UIs against **self-hosted Letta OSS / Sanctum**. Cloud is out of scope; `reference_materials/` is scrap only.
 
-This document maps the [Letta API](https://docs.letta.com/api) to **cloud-only** vs **local/cross‑backend** features and records which endpoints **Simple ADE** (`ade-simple` + the shared function names in `app/src/api/client.js` until that tree is removed) targets.
+This document maps the [Letta API](https://docs.letta.com/api) and marks **Cloud-only** rows so we **do not** build them. Client coverage = what **`ade-faithful/app.js`** implements for self-hosted.
 
 **References:** [Agents](https://docs.letta.com/api/resources/agents), [Tools](https://docs.letta.com/api/resources/tools), [MCP Servers](https://docs.letta.com/api/resources/mcp_servers/), [Models](https://docs.letta.com/api/resources/models/), [Runs](https://docs.letta.com/api/resources/runs/).
 
@@ -46,7 +46,7 @@ This document maps the [Letta API](https://docs.letta.com/api) to **cloud-only**
 | Method | Path | Purpose | In client | Notes |
 |--------|------|---------|-----------|--------|
 | GET | `/v1/agents/:id/messages` | List messages (history) | ✅ `getAgentMessages(agentId)` | Optional for chat; query: limit, order, before, after, conversation_id |
-| POST | `/v1/agents/:id/messages` | Send message | ✅ `sendMessage(agentId, body)` | body: **`input`** (string) and/or **`messages`**[] per [API](https://docs.letta.com/api-reference/agents/messages/create/); clients map legacy **`message`** → `input`; optional `streaming`, etc. |
+| POST | `/v1/agents/:id/messages` | Send message | ✅ `sendMessage` / `sendMessageStream` / `sendMessagePreferStream` | **`input`** / **`messages`**; legacy **`message`** → `input`. Stream: `streaming=true` (+ `stream_tokens`, `include_pings`) → SSE |
 | POST | `/v1/agents/:id/messages/cancel` | Cancel runs | ✅ `cancelAgentMessages(agentId, body?)` | body: { run_ids?: string[] }; needs Redis on server |
 
 ### Agent core memory
@@ -56,6 +56,15 @@ This document maps the [Letta API](https://docs.letta.com/api) to **cloud-only**
 | GET | `/v1/agents/:id/core-memory/blocks` | List blocks | ✅ `listAgentMemoryBlocks(agentId, params?)` (404 → tries `/blocks/` fallback) | `persona`, `human`, etc. |
 | GET | `/v1/agents/:id/core-memory/blocks/:label` | Get block | ✅ `getAgentMemory(agentId, label)` | label e.g. `persona` |
 | PATCH | `/v1/agents/:id/core-memory/blocks/:label` | Update block | ✅ `updateAgentMemory(agentId, label, body)` | body: `value` (Letta) / `content` (some servers) |
+
+### Archival memory (self-hosted)
+
+| Method | Path | Purpose | In client | Notes |
+|--------|------|---------|-----------|--------|
+| GET | `/v1/agents/:id/archival-memory` | List passages | ✅ `listArchivalMemory` | Query: limit, after, before, search, ascending |
+| POST | `/v1/agents/:id/archival-memory` | Insert passage | ✅ `createArchivalMemory` | body: `{ text }` |
+| DELETE | `/v1/agents/:id/archival-memory/:memory_id` | Delete passage | ✅ `deleteArchivalMemory` | |
+| POST | `/v1/agents/:id/archival-memory/search` | Semantic search | ✅ `searchArchivalMemory` | Optional UI later |
 
 ### Tools
 

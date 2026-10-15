@@ -1,1 +1,7 @@
 config.js
+.venv/
+config.js
+__pycache__/
+.pytest_cache/
+test-results/
+playwright-report/

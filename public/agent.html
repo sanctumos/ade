@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agent — Letta ADE</title>
+  <link rel="stylesheet" href="shell.css" />
+</head>
+<body>
+  <div class="af-layout" data-ade-nav="agents">
+    <span id="ade-nav-inject"></span>
+    <main class="af-main">
+      <button type="button" class="af-nav-toggle" id="nav-toggle" aria-label="Open menu">≡</button>
+      <p class="af-muted"><a href="agents.html">← Agents</a></p>
+      <h1 id="title">…</h1>
+      <div id="error"></div>
+      <p><a href="#" id="chat-link" class="af-btn af-btn-primary">Open in Chat →</a></p>
+
+      <p id="no-agent-hint" class="af-alert af-alert-warn af-hidden" role="note">Open an agent from <a href="agents.html">Agents</a> (URL must include <code>?id=…</code>).</p>
+
+      <div id="agent-editor" class="af-hidden" style="max-width:720px">
+        <div class="af-tabs" role="tablist">
+          <button type="button" class="af-tab is-active" data-tab="general" role="tab" aria-selected="true">General</button>
+          <button type="button" class="af-tab" data-tab="tools" role="tab" aria-selected="false">Tools</button>
+          <button type="button" class="af-tab" data-tab="memory" role="tab" aria-selected="false">Memory</button>
+          <button type="button" class="af-tab" data-tab="archival" role="tab" aria-selected="false">Archival</button>
+        </div>
+
+        <div class="af-tab-pane is-active" data-pane="general" role="tabpanel">
+          <p class="af-muted af-mb">Model, <code>llm_config</code>, and <code>system</code> prompt. <strong>Save</strong> also persists tool choices from the Tools tab.</p>
+          <div id="config-form">
+            <div class="af-field af-hidden" id="model-row">
+              <label class="af-label" for="model">Model</label>
+              <select class="af-select" id="model"></select>
+            </div>
+            <div class="af-grid-2 af-mb" id="llm-advanced">
+              <div>
+                <label class="af-label" for="llm-temperature">Temperature</label>
+                <input type="number" class="af-input" id="llm-temperature" step="0.05" min="0" max="2" placeholder="e.g. 0.7" />
+              </div>
+              <div>
+                <label class="af-label" for="llm-max-tokens">Max tokens</label>
+                <input type="number" class="af-input" id="llm-max-tokens" min="1" step="1" placeholder="optional" />
+              </div>
+            </div>
+            <p class="af-hint af-mb">Saved into <code>llm_config</code>. Leave blank to omit a field.</p>
+            <div class="af-field">
+              <label class="af-label" for="system">System prompt</label>
+              <textarea class="af-input af-input-wide" id="system" rows="5"></textarea>
+            </div>
+          </div>
+          <button type="button" class="af-btn af-btn-primary ade-save-config">Save configuration</button>
+        </div>
+
+        <div class="af-tab-pane" data-pane="tools" role="tabpanel">
+          <p class="af-muted af-mb">Which registered tools this agent may call. Saved as <code>tool_ids</code>.</p>
+          <div id="tools-section" class="af-panel af-hidden">
+            <div class="af-spread af-mb">
+              <div>
+                <h2 style="margin:0">Tools for this agent</h2>
+                <p class="af-hint">Pick by group. Use directory links to add more on the server first.</p>
+              </div>
+              <div class="af-inline">
+                <a href="tools.html" class="af-btn af-btn-sm af-btn-secondary">Tools directory</a>
+                <a href="mcp.html" class="af-btn af-btn-sm af-btn-secondary">MCP servers</a>
+              </div>
+            </div>
+            <div id="tools-toolbar" class="af-inline af-mb af-hidden">
+              <span id="tools-count-badge" class="af-badge af-badge-accent">—</span>
+              <input type="search" id="tools-filter" class="af-input af-input-sm" disabled placeholder="Filter…" autocomplete="off" aria-label="Filter tools" />
+              <button type="button" id="tools-enable-visible" class="af-btn af-btn-sm af-btn-secondary" disabled>Enable visible</button>
+              <button type="button" id="tools-disable-visible" class="af-btn af-btn-sm af-btn-secondary" disabled>Disable visible</button>
+            </div>
+            <div id="tools-list-mount" class="af-tools-scroll"></div>
+          </div>
+          <button type="button" class="af-btn af-btn-primary ade-save-config af-mt">Save configuration</button>
+        </div>
+
+        <div class="af-tab-pane" data-pane="memory" role="tabpanel">
+          <p class="af-muted af-mb">Core memory blocks from <code>GET …/core-memory/blocks</code>. Each block saves on its own button.</p>
+          <div id="memory-blocks">Loading blocks…</div>
+        </div>
+
+        <div class="af-tab-pane" data-pane="archival" role="tabpanel">
+          <p class="af-muted af-mb">Archival memory passages (<code>/v1/agents/{id}/archival-memory</code>). Self-hosted Letta only.</p>
+          <form id="archival-add" class="af-panel">
+            <label class="af-label" for="archival-text">New passage</label>
+            <textarea class="af-input af-input-wide" id="archival-text" rows="3" placeholder="Text to store in archival memory…"></textarea>
+            <button type="submit" class="af-btn af-btn-primary af-mt" id="archival-add-btn">Add passage</button>
+          </form>
+          <div id="archival-list" class="af-mt">Loading archival…</div>
+        </div>
+
+        <section class="af-danger af-mt-lg" aria-labelledby="danger-zone-heading">
+          <div class="af-danger-head" id="danger-zone-heading">
+            <div class="af-danger-label">Danger zone</div>
+            <button type="button" class="af-btn af-btn-sm af-btn-secondary" id="danger-zone-toggle" aria-expanded="false">Show delete options</button>
+          </div>
+          <div id="danger-zone-body" class="af-danger-body af-hidden">
+            <p class="af-muted af-mb">Removing an agent deletes it on the server. <strong style="color:#fca5a5">This cannot be undone.</strong></p>
+            <p class="af-mb">Type the name exactly, then confirm.</p>
+            <p class="af-meta af-mb">Name to match:</p>
+            <p class="af-mb"><code id="delete-agent-name-display" class="af-name-chip">…</code></p>
+            <div class="af-field" style="max-width:420px">
+              <label class="af-label" for="delete-agent-confirm-input">Type the agent name to enable delete</label>
+              <input type="text" class="af-input af-mono" id="delete-agent-confirm-input" autocomplete="off" spellcheck="false" />
+            </div>
+            <button type="button" class="af-btn af-btn-danger" id="delete-agent-confirm-btn" disabled>Permanently delete this agent</button>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+  <script src="agent-page.js"></script>
+</body>
+</html>

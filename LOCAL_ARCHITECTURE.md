@@ -74,6 +74,6 @@ As the local/OSS API evolves (or we switch to a Sanctum backend), we adapt the A
 
 ## Next Steps
 
-1. **Short-term:** Treat **`ade-simple/`** as the ship target; use the scrape as **reference only** (layout, routes, copy). Optionally run an **API proxy** (Option B) against `reference_materials/` for experiments.
-2. **Medium-term:** Extend or replace the UI while keeping the **OSS API** as source of truth; retire **`app/`** when a new shell or richer `ade-simple` subsumes it (see [docs/dev-react-shell.md](docs/dev-react-shell.md)).
-3. **When OSS (or our backend) evolves:** Adapt **`ade-simple/app.js`** (and temporarily `app/src/api/client.js` if it still exists). We don’t track Cloud; the Cloud ADE handles Cloud.
+1. **Ship target:** **`ade-faithful/`** — self-hosted Letta only. Scrape under `reference_materials/` is **not** a feature checklist.
+2. **Do not** add Cloud org/billing/members/usage, Cloud OAuth, or hard-coded `api.letta.com` / `app.letta.com`.
+3. **When OSS evolves:** adapt **`ade-faithful/app.js`**. Retire **`app/`** and fold **`ade-simple/`** when the faithful shell covers the same flows.

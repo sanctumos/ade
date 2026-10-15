@@ -1,6 +1,6 @@
 /**
  * Markdown + safe HTML for ade-simple chat (Letta-style rendering).
- * Requires (optional): marked + DOMPurify from CDN on chat.html — if missing, falls back to escaped plaintext with line breaks.
+ * Requires (optional): vendor/marked.min.js + vendor/purify.min.js — if missing, falls back to escaped plaintext with line breaks.
  */
 (function (global) {
   'use strict';

@@ -1,12 +1,13 @@
-# Simple ADE
+# Sanctum ADE (self-hosted Letta)
 
-**Simple ADE** is a **local Agent Development Environment**: static frontends that talk to **your** API (Letta OSS, Sanctum, or any compatible backend). Nothing here depends on Letta Cloud at runtime.
+**Product target:** a **self-hosted-only** Agent Development Environment. Static HTML/CSS/JS that talks to **your** Letta OSS / Sanctum Letta server. **Letta is the server** — this UI never replaces it and never talks to Letta Cloud.
 
-- **`ade-simple/`** — default “simple” UI (Bootstrap + dark theme).
-- **`ade-faithful/`** — same static architecture (no Node), **Letta cloud–inspired** shell and IA; see [ade-faithful/README.md](ade-faithful/README.md).
+**Out of scope:** org/billing/members/usage, Cloud OAuth, `app.letta.com`, and chasing Cloud API drift. Cloud scrape under `reference_materials/` is **historical scrap only**, not a design or feature mandate.
 
-The **`app/`** folder is a **legacy React prototype** for API parity experiments—it is not the product and **is not documented for end users**. Maintainer notes: [docs/dev-react-shell.md](docs/dev-react-shell.md).  
-Older **scraped** snapshots of `app.letta.com` live under [`reference_materials/`](reference_materials/).
+- **`ade-faithful/`** — **ship target** (static, no Node). Shell + agents / chat / memory / tools / MCP / settings against self-hosted `/v1/*`.
+- **`ade-simple/`** — earlier Bootstrap twin (same API surface; keep for now).
+
+The **`app/`** folder is a **legacy React prototype**—not the product. Maintainer notes: [docs/dev-react-shell.md](docs/dev-react-shell.md).
 
 ---
 

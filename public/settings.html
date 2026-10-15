@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Settings — Letta ADE (local)</title>
+  <link rel="stylesheet" href="shell.css" />
+</head>
+<body>
+  <div class="af-layout" data-ade-nav="settings">
+    <span id="ade-nav-inject"></span>
+    <main class="af-main">
+      <button type="button" class="af-nav-toggle" id="nav-toggle" aria-label="Open menu">≡</button>
+      <h1>Settings</h1>
+      <p class="af-muted">API base and key from <code>config.js</code> or saved in this browser (overrides file).</p>
+      <form id="form" class="af-panel" style="max-width:480px">
+        <label class="af-label" for="base">API base URL</label>
+        <input type="text" class="af-input" id="base" autocomplete="url" style="margin-bottom:14px" />
+        <label class="af-label" for="key">API key (optional)</label>
+        <input type="text" class="af-input" id="key" placeholder="Bearer token" autocomplete="off" style="margin-bottom:16px" />
+        <button type="submit" class="af-btn af-btn-primary">Save in this browser</button>
+      </form>
+      <p class="af-muted af-small">Saved values override config.js for this browser only.</p>
+    </main>
+  </div>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+  <script>
+    var c = window.ADE.getConfig();
+    document.getElementById('base').value = c.base;
+    document.getElementById('key').value = c.key;
+    document.getElementById('form').onsubmit = function(e) {
+      e.preventDefault();
+      window.ADE.setStoredBase(document.getElementById('base').value.trim());
+      window.ADE.setStoredKey(document.getElementById('key').value.trim());
+      window.ADE.fillApiBaseDisplay();
+      alert('Saved. Reload any page to use the new values.');
+    };
+  </script>
+</body>
+</html>

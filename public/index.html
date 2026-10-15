@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dashboard — Letta ADE (local)</title>
+  <link rel="stylesheet" href="shell.css" />
+</head>
+<body>
+  <div class="af-layout" data-ade-nav="dashboard">
+    <span id="ade-nav-inject"></span>
+    <main class="af-main">
+      <button type="button" class="af-nav-toggle" id="nav-toggle" aria-label="Open menu">≡</button>
+      <h1>Dashboard</h1>
+      <p class="af-muted">Self-hosted Letta ADE — static UI; your Letta server is the only backend.</p>
+      <div id="status"></div>
+      <div class="af-dash-grid">
+        <a class="af-dash-card" href="projects.html">
+          Projects
+          <span class="af-muted">Organize agents (when backend supports projects)</span>
+        </a>
+        <a class="af-dash-card" href="chat.html">
+          Chat
+          <span class="af-muted">Talk to the active agent</span>
+        </a>
+        <a class="af-dash-card" href="agents.html">
+          Agents
+          <span class="af-muted">Create, model, tools, memory</span>
+        </a>
+        <a class="af-dash-card" href="tools.html">
+          Tools
+          <span class="af-muted">Directory &amp; attach to agents</span>
+        </a>
+        <a class="af-dash-card" href="mcp.html">
+          MCP
+          <span class="af-muted">Servers (HTTP, SSE, stdio)</span>
+        </a>
+        <a class="af-dash-card" href="settings.html">
+          Settings
+          <span class="af-muted">API base &amp; key</span>
+        </a>
+      </div>
+    </main>
+  </div>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+  <script>
+    var statusEl = document.getElementById('status');
+    window.ADE.listAgents().then(function() { return { ok: true }; }).catch(function() { return { ok: false }; })
+      .then(function(h) {
+        statusEl.innerHTML = '<div class="af-alert ' + (h.ok ? 'af-alert-success' : 'af-alert-danger') + '"><strong>API</strong> — ' + (h.ok ? 'connected' : 'unreachable') + '</div>';
+      });
+  </script>
+</body>
+</html>

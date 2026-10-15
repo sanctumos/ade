@@ -1,15 +1,18 @@
-# ade-faithful — Letta ADE UI (static, no Node)
+# ade-faithful — self-hosted Letta ADE (static, no Node)
 
-Faithful **non-Node** port of the original Letta cloud ADE: same **architecture** as [`ade-simple/`](../ade-simple/) (`config.js` + `app.js` + static HTML), with **chrome and information architecture** aligned to the cloud app (sidebar: Dashboard → Projects → Chat → Agents → Tools → MCP → Settings).
+**Self-hosted Letta only.** Static HTML/CSS/JS (`config.js` + `app.js` + pages) that calls **your** Letta OSS/Sanctum API. No Cloud, no org console, no Node build.
+
+Folder name is historical; product intent is **OSS ADE**, not a pixel clone of `app.letta.com`.
 
 ## How it differs from `ade-simple/`
 
 | | **ade-simple** | **ade-faithful** (this folder) |
 |--|----------------|--------------------------------|
 | Runtime | Static files, no build | Same |
-| API | `window.ADE` in `app.js` | Same API surface (copy; storage keys are `ade_faithful_*` so both UIs can coexist in one browser) |
-| Visual | Bootstrap + custom theme | **Letta-style shell** (`shell.css`: zinc-like tokens, brand block). Hybrid pages still use Bootstrap + `ade-base.css` for forms/lists until a full parity pass. |
-| Reference | — | Compare with `reference_materials/scraped/` |
+| Backend | Self-hosted Letta `/v1` | Same |
+| API | `window.ADE` in `app.js` | Same surface (storage keys `ade_faithful_*`) |
+| Visual | Bootstrap + theme | `shell.css` shell; some pages still hybrid Bootstrap until cleaned up |
+| Cloud | Never | Never |
 
 ## Setup
 
@@ -21,22 +24,23 @@ Faithful **non-Node** port of the original Letta cloud ADE: same **architecture*
 From this folder:
 
 ```bash
-pip install flask requests   # once
-python3 temp_flask_server.py
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+ADE_FLASK_UPSTREAM=http://127.0.0.1:8283 .venv/bin/python temp_flask_server.py
 ```
 
 - Serves the UI at **`http://127.0.0.1:5055/`**
-- Proxies **`/api/*`** to **`ADE_FLASK_UPSTREAM`** (default `https://sanctum.zero1.network:8443`)
+- Proxies **`/api/*`** to **`ADE_FLASK_UPSTREAM`** (default **`http://127.0.0.1:8283`** — self-hosted Letta)
+- Passes through **SSE** for `streaming=true` message sends
 
-In **Settings** (or `config.js`), set API base to:
+In **Settings** (or `config.js`), set API base to `http://127.0.0.1:5055/api`.
 
-`http://127.0.0.1:5055/api`
+### Smoke
 
-so calls become same-origin (`/api/v1/...`) and avoid CORS. Override upstream with env `ADE_FLASK_UPSTREAM`; port with `ADE_FLASK_PORT`.
+```bash
+./scripts/smoke_test.sh
+```
 
-> The old `ade-simple/temp_flask_server.py` is retired — use this file only.
-
-Optional: same as ade-simple, `python3 genconfig.py` from this folder with `ADE_BASE` / `ADE_KEY` in `.env`.
+Uses Playwright in `.venv` (see `ade-faithful-verify` Cursor rule).
 
 ## Files
 
@@ -45,14 +49,18 @@ Optional: same as ade-simple, `python3 genconfig.py` from this folder with `ADE_
 | `shell.css` | Letta-inspired layout (sidebar, nav, dashboard grid, forms primitives) |
 | `ade-base.css` | Shared list/card utilities (from ade-simple) for Bootstrap pages |
 | `bootstrap-ade.css` | Bootstrap overrides for dark ADE |
-| `app.js` | `window.ADE` API client (parity with ade-simple) |
+| `app.js` | `window.ADE` API client (stream + archival + CRUD) |
+| `vendor/` | marked + DOMPurify (no CDN) |
 | `config.example.js` | → `config.js` |
 
-## Parity roadmap
+## Build roadmap (self-hosted)
 
-- [ ] Replace Bootstrap blocks on agents / MCP / agent / chat with pure `shell.css` components where possible.
-- [ ] Match typography and spacing to `reference_materials/scraped/pages/*.html` (measure / extract tokens).
-- [ ] Optional: vendor a subset of Letta CDN CSS locally for pixel-closer match (license permitting).
+- [x] Drop Bootstrap CDN; pure `shell.css` on agents / chat / MCP / tools / agent.
+- [x] Vendor marked/DOMPurify (`vendor/`) — no CDN.
+- [x] Streaming send (`streaming=true` SSE) with non-stream fallback.
+- [x] Archival memory list / add / delete on agent detail.
+- [x] Playwright smoke (`./scripts/smoke_test.sh`).
+- [ ] Optional: semantic archival search UI; richer stream lane rendering mid-token.
 
 ## Related
 

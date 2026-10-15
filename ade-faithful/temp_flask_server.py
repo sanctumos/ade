@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """
-Local static server for ade-faithful/ + optional same-origin API proxy.
+Local static server for ade-faithful/ + same-origin API proxy (incl. SSE streaming).
 
 Serves this directory on http://127.0.0.1:5055/ so the ADE can use http origins
 (not file://) and you can point config at the proxy to avoid CORS.
 
 Proxy: requests to /api/<path> forward to UPSTREAM_BASE/<path>.
+Streaming responses (text/event-stream) are passed through chunk-by-chunk.
 
 Usage:
   cd ade-faithful
@@ -13,7 +14,7 @@ Usage:
   python3 temp_flask_server.py
 
 Env:
-  ADE_FLASK_UPSTREAM — API base to proxy (default: https://sanctum.zero1.network:8443)
+  ADE_FLASK_UPSTREAM — API base to proxy (default: http://127.0.0.1:8283)
   ADE_FLASK_PORT     — listen port (default: 5055)
 """
 from __future__ import annotations
@@ -25,7 +26,7 @@ from flask import Flask, Response, request, send_from_directory
 import requests
 
 ROOT = Path(__file__).resolve().parent
-UPSTREAM_BASE = os.environ.get("ADE_FLASK_UPSTREAM", "https://sanctum.zero1.network:8443").rstrip("/")
+UPSTREAM_BASE = os.environ.get("ADE_FLASK_UPSTREAM", "http://127.0.0.1:8283").rstrip("/")
 PORT = int(os.environ.get("ADE_FLASK_PORT", "5055"))
 
 app = Flask(__name__, static_folder=str(ROOT), static_url_path="")
@@ -53,16 +54,17 @@ def api_proxy(path: str):
         headers["Authorization"] = request.headers["Authorization"]
     if request.headers.get("Content-Type"):
         headers["Content-Type"] = request.headers["Content-Type"]
+    if request.headers.get("Accept"):
+        headers["Accept"] = request.headers["Accept"]
 
     if request.method == "OPTIONS":
-        # Let browser preflight succeed when using the proxy as API base.
         return Response(
             "",
             status=204,
             headers={
                 "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-                "Access-Control-Allow-Headers": "Authorization, Content-Type",
+                "Access-Control-Allow-Headers": "Authorization, Content-Type, Accept",
                 "Access-Control-Max-Age": "86400",
             },
         )
@@ -73,20 +75,44 @@ def api_proxy(path: str):
         headers=headers,
         data=request.get_data(),
         allow_redirects=True,
-        timeout=60,
+        timeout=(30, 600),
+        stream=True,
     )
 
+    ct = (upstream.headers.get("Content-Type") or "").lower()
     passthrough = {}
     for k, v in upstream.headers.items():
         lk = k.lower()
-        if lk in {"content-type", "content-disposition", "cache-control", "etag"}:
+        if lk in {
+            "content-type",
+            "content-disposition",
+            "cache-control",
+            "etag",
+            "x-accel-buffering",
+        }:
             passthrough[k] = v
 
-    return Response(upstream.content, status=upstream.status_code, headers=passthrough)
+    if "text/event-stream" in ct or "stream" in ct:
+        passthrough.setdefault("Cache-Control", "no-cache")
+        passthrough.setdefault("X-Accel-Buffering", "no")
+
+        def generate():
+            try:
+                for chunk in upstream.iter_content(chunk_size=1024):
+                    if chunk:
+                        yield chunk
+            finally:
+                upstream.close()
+
+        return Response(generate(), status=upstream.status_code, headers=passthrough)
+
+    body = upstream.content
+    upstream.close()
+    return Response(body, status=upstream.status_code, headers=passthrough)
 
 
 if __name__ == "__main__":
     print(f"Serving {ROOT} at http://127.0.0.1:{PORT}/")
     print(f"API proxy: /api/* -> {UPSTREAM_BASE}/*")
     print("Set ADE config base to http://127.0.0.1:%d/api (Settings or config.js)" % PORT)
-    app.run(host="127.0.0.1", port=PORT, debug=False)
+    app.run(host="127.0.0.1", port=PORT, debug=False, threaded=True)

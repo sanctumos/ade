@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tools — Letta ADE</title>
+  <link rel="stylesheet" href="shell.css" />
+</head>
+<body>
+  <div class="af-layout" data-ade-nav="tools">
+    <span id="ade-nav-inject"></span>
+    <main class="af-main">
+      <button type="button" class="af-nav-toggle" id="nav-toggle" aria-label="Open menu">≡</button>
+      <h1>Tools</h1>
+      <p class="af-muted">All tools available to agents. Attach them when creating or editing an agent.</p>
+      <div id="error"></div>
+      <ul id="list" class="af-list"></ul>
+    </main>
+  </div>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+  <script>
+    var listEl = document.getElementById('list');
+    var errorEl = document.getElementById('error');
+    function norm(d) { return Array.isArray(d) ? d : (d && d.data) ? d.data : (d && d.tools) ? d.tools : []; }
+    function tid(t) { return t.id != null ? t.id : t.tool_id || t.name; }
+    function tname(t) { return t.name != null ? t.name : t.tool_id || t.id; }
+    function ttype(t) { return t.tool_type != null ? t.tool_type : t.type || '—'; }
+    function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
+    window.ADE.listTools().then(function(d) {
+      var tools = norm(d);
+      listEl.innerHTML = tools.length ? tools.map(function(t) {
+        return '<li class="af-card"><div class="af-card-title">' + esc(tname(t)) + '</div>' +
+          '<div class="af-meta">ID: ' + esc(tid(t)) + ' · Type: ' + esc(ttype(t)) + '</div>' +
+          (t.description ? '<p class="af-muted af-mb" style="margin-top:8px">' + esc(t.description) + '</p>' : '') +
+          '</li>';
+      }).join('') : '<li class="af-muted">No tools yet. Add MCP servers or create server tools.</li>';
+    }).catch(function(e) {
+      errorEl.innerHTML = '<div class="af-alert af-alert-danger" role="alert">' + e.message + '</div>';
+    });
+  </script>
+</body>
+</html>
