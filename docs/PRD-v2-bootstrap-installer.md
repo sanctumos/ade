@@ -1,6 +1,6 @@
 # PRD stub — Sanctum ADE v2 × bootstrap installer
 
-**Status:** ideation stub (v0) — options on the table, no winner yet  
+**Status:** ideation stub (v0.1) — options retained; **emerging preference: internal bootstrap API** (Letta-shaped)  
 **Date:** 2026-10-15  
 **Product:** Sanctum ADE (next major after v1 static UI) + SanctumOS installer evolution  
 **Related:** `sanctumos/installer` (kernel bootstraps, control plane), canonical layout in installer `docs/reference/docs-on-installer-criteria.md`
@@ -22,10 +22,11 @@ Today’s installer already hints at the right shape (`sanctum_bootstrap.sh`, Le
 ## 2. Goals (what “good” looks like)
 
 1. **Bootstraps, not a blob** — Each installable unit is a named, idempotent bootstrap that lands files/config/services in the canonical tree (`~/sanctum/…` or `/sanctum/…` per layout doc).
-2. **ADE as the switchboard** — UI can list components, show installed/running/missing, and trigger enable/disable (Broca switches first-class).
-3. **Same recipes CLI and ADE** — Whatever ADE runs, `sanctum bootstrap <id>` (or equivalent) can run headlessly.
-4. **Prescribed folders** — Bootstraps do not invent paths; they implement the layout contract (agents/, broca, smcp/, control/, shared venv rules, etc.).
-5. **Safe to re-run** — Idempotent; declare state; refuse or migrate when invariants break.
+2. **API-driven (Letta-shaped)** — Install/enable/status are **HTTP resources**, not “ADE shells a script and hopes.” Letta is API-first; Sanctum host ops should be too. ADE is a client of that API (same as it is a client of `/v1` agents).
+3. **ADE as the switchboard** — UI can list components, show installed/running/missing, and trigger enable/disable (Broca switches first-class) via the bootstrap API.
+4. **Same verbs for CLI and ADE** — CLI is a thin client of the same API (`sanctum bootstrap …` → HTTP), not a parallel codepath.
+5. **Prescribed folders** — Bootstraps do not invent paths; they implement the layout contract (agents/, broca, smcp/, control/, shared venv rules, etc.).
+6. **Safe to re-run** — Idempotent; declare state; refuse or migrate when invariants break.
 
 ### Non-goals (for this stub)
 
@@ -58,7 +59,50 @@ Existing artifacts to **factor**, not throw away:
 
 ## 4. Ways to skin the cat
 
-Four approaches. Same destination (callable bootstraps + ADE switches); different spines.
+Approaches below. Same destination (callable bootstraps + ADE switches); different spines.
+
+### Emerging frame — Option E: Internal Bootstrap API (Letta-shaped)
+
+**Mark (2026-10-15):** Letta is API-driven. Why shouldn’t install bootstraps be?
+
+**Idea:** A small **on-box Sanctum Host API** (name TBD: `sanctum-host`, `bootstrapd`, control `/v1/…`) that owns:
+
+| Resource | Rough verbs |
+|----------|-------------|
+| `/v1/bootstraps` | List available bootstrap units + manifests |
+| `/v1/bootstraps/{id}` | Get contract (deps, paths, env schema) |
+| `/v1/components` | Installed/desired inventory on this host |
+| `/v1/components/{id}` | GET status · PUT/PATCH desired state · DELETE uninstall |
+| `/v1/components/{id}/actions/apply` | Run reconcile (install/configure/start as needed) |
+| `/v1/agents/{uid}/modules/broca` | Broca switch as a first-class sub-resource |
+| `/v1/jobs/{job_id}` | Long-running apply logs / SSE (install isn’t always sync) |
+
+Implementation behind the API can still be shell/Python recipes (Option A guts) or a reconciler (Option B guts). **The public contract is HTTP**, the way Letta’s public contract is `/v1`.
+
+```text
+┌─────────────┐     HTTP      ┌──────────────────┐     exec      ┌─────────────┐
+│ Sanctum ADE │ ────────────► │ Host Bootstrap   │ ────────────► │ recipes /   │
+│ (browser)   │  ← status/SSE │ API (localhost)  │               │ packs / fs  │
+└─────────────┘               └──────────────────┘               └─────────────┘
+       │                              ▲
+       │         same API             │
+       └────── CLI / Otto / Ada ──────┘
+```
+
+| Pros | Cons |
+|------|------|
+| Mental model matches Letta + ADE already | One more local service to run/secure |
+| ADE stays a static client (or thin SPA) talking JSON | Must define auth (loopback-only? token in ADE Settings?) |
+| Otto/Ada/automation get the same surface | Job/SSE semantics for long installs |
+| Broca switches are resources, not special UI hacks | Temptation to boil the ocean on v1 of the API |
+
+**Best if:** We want Sanctum host ops to feel like first-class product surface, not “scripts with a dashboard wallpaper.”
+
+**Relationship to A–D:** E is the **spine**. A/B/D become backends behind the API; C is “host API lives inside revived control plane.”
+
+---
+
+### Option A — Recipe pack (dumb scripts, smart docs)
 
 ### Option A — Recipe pack (dumb scripts, smart docs)
 
@@ -133,15 +177,14 @@ A small **bootstrap daemon or CLI** reconciles desired vs actual (files exist? p
 
 ---
 
-### Hybrid sketch (likely landing zone — not a decision yet)
+### Hybrid sketch (updated leaning — still not locked)
 
-Most Sanctum-shaped answer in this workspace tends to look like:
+> **E (Host Bootstrap API) as the spine** · **B manifests** as the resource schema · **A recipes** (or D packs later) as what `apply` actually runs · **C** only if we decide the API *is* the revived control plane rather than a new thin service.
 
-> **B’s manifests + A’s readable recipes**, with ADE as the switchboard (and optionally Control as the on-box API later).
-
-- Human/Otto can read and run one bootstrap file
-- Manifest declares deps/health so ADE doesn’t hardcode paths
-- Broca switch = `desired: running|stopped` for `agents/<uid>/broca`, not a rewrite of Broca
+- ADE v2 never shells out; it calls `http://127.0.0.1:<host-api>/v1/…` (or unix socket)
+- CLI / Otto use the same base URL + token
+- Broca switch = `PATCH …/agents/{uid}/modules/broca { "desired": "running" }` then poll job/status
+- Recipes stay readable on disk for break-glass SSH; API is the supported path
 
 ---
 
@@ -161,7 +204,7 @@ Independent of which spine we pick, the UI wants roughly:
 
 ## 6. Bootstrap contract (minimum viable interface)
 
-Whatever option we choose, each bootstrap should answer:
+Each bootstrap unit is both a **manifest** (GET) and an **apply target** (POST/PATCH):
 
 ```text
 id:              broca-agent
@@ -169,44 +212,57 @@ version:         0.1.0
 summary:         Wire Broca under agents/<uid>/broca
 writes:          agents/<uid>/broca/{app,config,db,logs,run}
 requires:        [sanctum-venv, letta-reachable]
-env:             AGENT_UID, PORT, LETTA_BASE, …
+env_schema:      { AGENT_UID, PORT, LETTA_BASE, … }
 idempotent:      true
 healthcheck:     GET http://127.0.0.1:$PORT/health  (or equivalent)
 undo:            optional stop + leave data | wipe module dir
 ```
 
-CLI sketch (illustrative only):
+### API sketch (illustrative — Letta-rhymed)
 
-```bash
-sanctum bootstrap list
-sanctum bootstrap plan broca-agent --agent athena
-sanctum bootstrap apply broca-agent --agent athena
-sanctum bootstrap status broca-agent --agent athena
+```http
+GET  /v1/bootstraps
+GET  /v1/bootstraps/broca-agent
+GET  /v1/components
+GET  /v1/agents/{uid}/modules/broca
+PATCH /v1/agents/{uid}/modules/broca
+     { "desired": "running", "port": 8871 }
+POST /v1/agents/{uid}/modules/broca/apply
+     → { "job_id": "…" }
+GET  /v1/jobs/{job_id}          # status + log cursor
+GET  /v1/jobs/{job_id}/events   # SSE while applying
 ```
 
-ADE calls the same verbs over local HTTP or a unix socket so we never maintain two orchestrators.
+CLI is a client:
+
+```bash
+sanctum api get /v1/bootstraps
+sanctum module set broca --agent athena --desired running
+sanctum module apply broca --agent athena --follow
+```
 
 ---
 
 ## 7. Open questions (hone-in fodder)
 
-1. **Root of truth:** Does ADE talk to a long-lived control daemon, or shell out to CLI per action?
-2. **Layout root:** Stick to installer canon (`/sanctum` vs `~/sanctum` vs moya’s `~/sanctum/agents/…` as lived reality)?
-3. **Broca first vertical:** One agent (Athena) end-to-end before generic component catalog?
-4. **Privilege:** How much can ADE trigger without root (Termux / user systemd / screen)?
-5. **Secrets:** Generate in-place in module `config/.env`, never round-trip through browser storage beyond “set once”.
-6. **v0 trees / ADE ship:** Does “install ADE” mean sync `public/` only, or a small Flask/proxy unit too?
-7. **Packaging home:** New `sanctumos/bootstraps` repo vs folder under `installer/` vs ADE repo owning only UI?
+1. **Host API process:** Long-lived daemon vs on-demand (`systemd socket` / ADE-spawned child)? Loopback-only vs LAN?
+2. **Auth:** Shared bearer in ADE Settings (like Letta key)? Or unix-socket = implicit local trust?
+3. **Layout root:** Stick to installer canon (`/sanctum` vs `~/sanctum` vs moya’s lived `~/sanctum/agents/…`)?
+4. **Broca first vertical:** One agent (Athena) end-to-end before generic component catalog?
+5. **Privilege:** How much can the API do without root (Termux / user systemd / screen)?
+6. **Secrets:** Generate in module `config/.env` server-side; ADE never stores host secrets beyond the Host API token.
+7. **Where does the API live?** New thin service vs revive `installer/control` as that API?
+8. **Namespace:** Separate port from Letta (`8283`) — e.g. Host API `:9055` or under a path on the ADE proxy?
 
 ---
 
 ## 8. Suggested hone-in path (process, not architecture)
 
-1. Mark picks **spine preference** (A / B / C / D / hybrid) and the **first vertical** (almost certainly Broca-on-existing-Letta).
-2. Freeze a one-page **bootstrap contract** (fields above).
-3. Implement **two** bootstraps only: `sanctum-venv` (or no-op if present) + `broca-agent`.
-4. ADE v2 slice: Host page that lists those two and toggles Broca for one agent.
-5. Only then expand the catalog (SMCP, Tasks bridge, etc.).
+1. Lock **spine = Host Bootstrap API (E)** unless Mark vetoes — recipes/manifests are backends.
+2. Freeze **v0 OpenAPI** for: list bootstraps, Broca module get/patch/apply, jobs.
+3. Implement API + **one** recipe behind it: `broca-agent` for one uid (Athena).
+4. ADE v2 Host page: talk only to Host API (plus existing Letta `/v1` for chat).
+5. Expand catalog (SMCP, etc.) only after Broca switch feels product-grade.
 
 ---
 
@@ -215,6 +271,7 @@ ADE calls the same verbs over local HTTP or a unix socket so we never maintain t
 | Date | Decision |
 |------|----------|
 | 2026-10-15 | Stub opened; options A–D + hybrid sketched; no winner. |
+| 2026-10-15 | Emerging preference: **internal bootstrap API** (Option E) — Letta-shaped; A/B/D as backends; ADE/CLI as clients. Not final lock. |
 
 ---
 
