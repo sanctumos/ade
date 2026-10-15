@@ -100,6 +100,7 @@ Sanctum ADE expects a **single base URL** and optional **Bearer** token. Typical
 | [LETTA_API_COVERAGE.md](LETTA_API_COVERAGE.md) | Endpoint list and client coverage |
 | [LOCAL_ARCHITECTURE.md](LOCAL_ARCHITECTURE.md) | Local-first / API-swap goals |
 | [v0/README.md](v0/README.md) | EOL notice only — legacy trees, will be removed |
+| [docs/PRD-v2-bootstrap-installer.md](docs/PRD-v2-bootstrap-installer.md) | ADE v2 × bootstrap installer — ideation stub |
 | [reference_materials/README.md](reference_materials/README.md) | Scrape assets & tooling |
 
 ---
