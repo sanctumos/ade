@@ -317,16 +317,20 @@ def test_chat_context_bar_and_memory_panel(page):
     assert "context window" in bar
     assert "85% free" in bar or "free" in bar
     assert page.locator("#chat-context-bar .chat-ctx-seg").count() >= 3
-    # Legend removed — segment details live on hover (official ADE chart tooltip).
+    # Legend removed — segment details use HMG CPH-style click tip (portal + arrow).
     assert page.locator("#chat-context-bar .chat-ctx-legend").count() == 0
     msg_seg = page.locator('#chat-context-bar .chat-ctx-seg[data-ctx-label*="Messages"]')
     assert msg_seg.count() == 1
-    msg_seg.hover()
+    msg_seg.click()
     tip = page.locator("#chat-ctx-tip")
     tip.wait_for(state="visible", timeout=3000)
+    assert "chat-ctx-tip-fixed" in (tip.get_attribute("class") or "")
     tip_text = tip.inner_text()
     assert "Messages" in tip_text
     assert "%" in tip_text
+    # Click outside closes (CPH pattern).
+    page.locator(".chat-ctx-title").click()
+    assert tip.is_hidden()
     assert page.locator("#chat-memory-panel").is_visible()
     assert page.locator("#chat-memory-count").inner_text() == "3"
     assert page.locator('.chat-memory-card[data-label="persona"]').count() == 1

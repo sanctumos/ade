@@ -113,69 +113,160 @@
   }
 
   function segTipAttrs(label, tokens, pct, color) {
-    /* Official ADE chart tooltip: "Label (N%)" + raw token count + color swatch. */
+    /* Official ADE chart tooltip payload: "Label (N%)" + raw token count + color. */
     return ' data-ctx-label="' + esc(label) + ' (' + pct + '%)"' +
       ' data-ctx-value="' + esc(String(tokens)) + '"' +
-      ' data-ctx-color="' + esc(color) + '"';
+      ' data-ctx-color="' + esc(color) + '"' +
+      ' role="button" tabindex="0" aria-expanded="false"';
   }
 
-  function hideCtxTip() {
+  /* HMG CPH tooltip pattern: portal to body + fixed place + arrow (cph.php placeTip). */
+  var ctxTipAnchor = null;
+
+  function ensureCtxTip() {
     var tip = document.getElementById('chat-ctx-tip');
-    if (tip) tip.hidden = true;
+    if (tip) return tip;
+    tip = document.createElement('div');
+    tip.id = 'chat-ctx-tip';
+    tip.className = 'chat-ctx-tip-bubble';
+    tip.setAttribute('role', 'tooltip');
+    tip.hidden = true;
+    tip.innerHTML =
+      '<span class="chat-ctx-tip-swatch" aria-hidden="true"></span>' +
+      '<span class="chat-ctx-tip-body">' +
+        '<span class="chat-ctx-tip-label"></span>' +
+        '<span class="chat-ctx-tip-value"></span>' +
+      '</span>';
+    document.body.appendChild(tip);
+    tip._afTipHome = document.body;
+    return tip;
   }
 
-  function showCtxTip(seg, clientX, clientY) {
+  function resetCtxTip() {
     var tip = document.getElementById('chat-ctx-tip');
-    if (!tip || !seg) return;
+    if (!tip) return;
+    tip.hidden = true;
+    tip.classList.remove('chat-ctx-tip-fixed', 'chat-ctx-tip-above');
+    tip.style.left = '';
+    tip.style.right = '';
+    tip.style.top = '';
+    tip.style.bottom = '';
+    tip.style.removeProperty('--chat-ctx-tip-arrow-left');
+    if (tip._afTipHome && tip.parentNode !== tip._afTipHome) {
+      tip._afTipHome.appendChild(tip);
+    }
+    if (ctxTipAnchor) {
+      ctxTipAnchor.setAttribute('aria-expanded', 'false');
+      ctxTipAnchor = null;
+    }
+  }
+
+  function fillCtxTip(seg) {
+    var tip = ensureCtxTip();
     var sw = tip.querySelector('.chat-ctx-tip-swatch');
     var lab = tip.querySelector('.chat-ctx-tip-label');
     var val = tip.querySelector('.chat-ctx-tip-value');
     var color = seg.getAttribute('data-ctx-color') || 'transparent';
-    if (sw) {
-      sw.style.background = color === 'transparent' ? 'var(--af-border)' : color;
-    }
+    if (sw) sw.style.background = color === 'transparent' ? 'var(--af-border)' : color;
     if (lab) lab.textContent = seg.getAttribute('data-ctx-label') || '';
     if (val) val.textContent = seg.getAttribute('data-ctx-value') || '';
+    return tip;
+  }
+
+  function placeCtxTip(anchor, tip) {
+    if (!anchor || !tip) return;
+    if (!tip._afTipHome) tip._afTipHome = tip.parentNode || document.body;
+    if (tip.parentNode !== document.body) document.body.appendChild(tip);
     tip.hidden = false;
+    tip.classList.add('chat-ctx-tip-fixed');
+    tip.classList.remove('chat-ctx-tip-above');
+    tip.style.left = '0px';
+    tip.style.top = '0px';
+    tip.style.right = 'auto';
+    tip.style.bottom = 'auto';
+    var br = anchor.getBoundingClientRect();
+    var gap = 8;
     var pad = 12;
-    var tw = tip.offsetWidth || 160;
-    var th = tip.offsetHeight || 40;
-    var x = clientX + pad;
-    var y = clientY - th - 8;
-    if (x + tw > window.innerWidth - 8) x = clientX - tw - pad;
-    if (y < 8) y = clientY + pad;
-    tip.style.left = Math.max(8, x) + 'px';
-    tip.style.top = Math.max(8, y) + 'px';
+    var tw = tip.offsetWidth;
+    var th = tip.offsetHeight;
+    var vw = window.innerWidth;
+    var vh = window.innerHeight;
+    var left = br.left;
+    if (left + tw > vw - pad) left = vw - pad - tw;
+    if (left < pad) left = pad;
+    var openAbove = br.bottom + gap + th > vh - pad && br.top - gap - th >= pad;
+    var top = openAbove ? (br.top - gap - th) : (br.bottom + gap);
+    if (top < pad) top = pad;
+    if (top + th > vh - pad) top = Math.max(pad, vh - pad - th);
+    tip.style.left = Math.round(left) + 'px';
+    tip.style.top = Math.round(top) + 'px';
+    tip.classList.toggle('chat-ctx-tip-above', openAbove);
+    var arrowLeft = Math.round(br.left + br.width / 2 - left - 5);
+    arrowLeft = Math.max(10, Math.min(tw - 20, arrowLeft));
+    tip.style.setProperty('--chat-ctx-tip-arrow-left', arrowLeft + 'px');
+  }
+
+  function openCtxTip(seg) {
+    if (!seg) return;
+    if (ctxTipAnchor && ctxTipAnchor !== seg) {
+      ctxTipAnchor.setAttribute('aria-expanded', 'false');
+    }
+    var tip = fillCtxTip(seg);
+    ctxTipAnchor = seg;
+    seg.setAttribute('aria-expanded', 'true');
+    placeCtxTip(seg, tip);
+  }
+
+  function toggleCtxTip(seg) {
+    if (!seg) return;
+    if (ctxTipAnchor === seg) {
+      resetCtxTip();
+      return;
+    }
+    openCtxTip(seg);
+  }
+
+  function repositionCtxTip() {
+    if (!ctxTipAnchor) return;
+    var tip = document.getElementById('chat-ctx-tip');
+    if (tip && !tip.hidden) placeCtxTip(ctxTipAnchor, tip);
   }
 
   function bindCtxTip() {
-    var host = document.getElementById('chat-context-bar');
-    if (!host || host.getAttribute('data-ctx-tip-bound') === '1') return;
-    host.setAttribute('data-ctx-tip-bound', '1');
-    host.addEventListener('pointerover', function (e) {
+    if (document.documentElement.getAttribute('data-ctx-tip-bound') === '1') return;
+    document.documentElement.setAttribute('data-ctx-tip-bound', '1');
+    ensureCtxTip();
+    document.addEventListener('click', function (e) {
       var seg = e.target && e.target.closest ? e.target.closest('.chat-ctx-seg') : null;
-      if (!seg || !host.contains(seg)) return;
-      showCtxTip(seg, e.clientX, e.clientY);
-    });
-    host.addEventListener('pointermove', function (e) {
-      var tip = document.getElementById('chat-ctx-tip');
-      if (!tip || tip.hidden) return;
-      var seg = e.target && e.target.closest ? e.target.closest('.chat-ctx-seg') : null;
-      if (!seg || !host.contains(seg)) {
-        hideCtxTip();
+      var host = document.getElementById('chat-context-bar');
+      if (seg && host && host.contains(seg)) {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleCtxTip(seg);
         return;
       }
-      showCtxTip(seg, e.clientX, e.clientY);
+      if (!e.target.closest || (!e.target.closest('#chat-ctx-tip') && !e.target.closest('.chat-ctx-seg'))) {
+        resetCtxTip();
+      }
     });
-    host.addEventListener('pointerleave', hideCtxTip);
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') resetCtxTip();
+      if ((e.key === 'Enter' || e.key === ' ') && e.target && e.target.classList &&
+          e.target.classList.contains('chat-ctx-seg')) {
+        e.preventDefault();
+        toggleCtxTip(e.target);
+      }
+    });
+    window.addEventListener('resize', repositionCtxTip);
+    window.addEventListener('scroll', repositionCtxTip, true);
   }
 
   function renderContextBar(ctx) {
     var host = document.getElementById('chat-context-bar');
     if (!host) return;
+    resetCtxTip();
     if (!ctx) {
       host.innerHTML = '<div class="chat-ctx-empty">Context usage unavailable</div>';
-      hideCtxTip();
       return;
     }
     var max = Number(ctx.context_window_size_max) || 0;
@@ -209,13 +300,8 @@
           ' · <span class="chat-ctx-free">' + pctFree + '% free</span>' +
         '</div>' +
       '</div>' +
-      '<div class="chat-ctx-track" role="img" aria-label="Context usage ' + pctUsed +
-        '% used. Hover a segment for details.">' + bars + '</div>' +
-      '<div class="chat-ctx-tip" id="chat-ctx-tip" hidden role="tooltip">' +
-        '<span class="chat-ctx-tip-swatch" aria-hidden="true"></span>' +
-        '<span class="chat-ctx-tip-label"></span>' +
-        '<span class="chat-ctx-tip-value"></span>' +
-      '</div>';
+      '<div class="chat-ctx-track" role="group" aria-label="Context usage ' + pctUsed +
+        '% used. Click a segment for details.">' + bars + '</div>';
     bindCtxTip();
   }
 
