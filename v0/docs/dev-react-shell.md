@@ -1,10 +1,10 @@
-> **EOL — Sanctum ADE v0.** Not maintained. Will be removed in a future release. See [v0/README.md](../README.md). Product is **Sanctum ADE v1** (`ade-faithful/` → `public/`).
+> **EOL — Sanctum ADE v0.** Not maintained. Will be removed in a future release. See [v0/README.md](../README.md). Product is **Sanctum ADE v1** (`public/`).
 
 # Legacy React shell (`app/`) — archaeology only
 
 This file documents the **EOL** Vite + React prototype under `v0/app/`. It is **not** a supported product surface.
 
-**Current product:** [Sanctum ADE v1](../../README.md) — source in `ade-faithful/`, deploy mirror in `public/`.
+**Current product:** [Sanctum ADE v1](../../README.md) — edit and ship `public/`.
 
 Do **not** link this doc from onboarding, ship checklists, or product README except via the [v0 EOL notice](../README.md).
 

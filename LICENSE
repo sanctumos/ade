@@ -22,8 +22,8 @@ SOFTWARE CODE includes but is not limited to:
 - Python (*.py)
 - Shell / build scripts (*.sh, Makefile, etc.)
 - Configuration templates (*.json, *.example.js, etc.)
-- Test files under ade-faithful/tests/
-- Deploy mirrors of the above (e.g. public/)
+- Test files under tests/
+- The public/ product tree
 
 DOCUMENTATION AND OTHER CONTENT includes but is not limited to:
 - README and other Markdown (*.md)
@@ -32,7 +32,7 @@ DOCUMENTATION AND OTHER CONTENT includes but is not limited to:
 - These license notice files
 
 THIRD-PARTY / NON-PROJECT MATERIAL (not covered by this dual license):
-- Vendored libraries under ade-faithful/vendor/ and public/vendor/ (keep their upstream licenses)
+- Vendored libraries under public/vendor/ (keep their upstream licenses)
 - npm dependencies listed in package.json / package-lock.json (upstream licenses)
 - Historical scrapes under reference_materials/scraped/ and related capture assets
   (third-party copyright; retained for reference only)

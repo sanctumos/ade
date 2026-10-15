@@ -16,10 +16,11 @@
 
 | Path | Role |
 |------|------|
-| `ade-faithful/` | Source (edit here) |
-| `public/` | Deploy mirror |
+| `public/` | Product UI (edit and deploy here) |
+| `scripts/` | Local Flask proxy, smoke, visual verify |
+| `tests/` | Playwright smoke |
 
-Config: one **API base URL** + optional **Bearer** (`config.js` or Settings / localStorage). All REST/SSE goes through that base.
+Config: one **API base URL** + optional **Bearer** (`public/config.js` or Settings / localStorage). All REST/SSE goes through that base.
 
 ---
 
@@ -31,12 +32,12 @@ Static snapshot of an older hosted ADE. Useful for UX archaeology only — **not
 
 ## EOL (`v0/`)
 
-Pre-v1 trees (`ade-simple/`, React `app/`) live under **`v0/`**. EOL — will be removed later. See [v0/README.md](v0/README.md).
+Pre-v1 trees (`ade-simple/`, React `app/`, `ade-faithful/`) live under **`v0/`**. EOL — will be removed later. See [v0/README.md](v0/README.md).
 
 ---
 
-## Next steps
+## Evolution
 
-1. Keep shipping **`ade-faithful/` → `public/`**.
-2. Do **not** add Cloud org/billing/members/usage, Cloud OAuth, or hard-coded `api.letta.com` / `app.letta.com`.
-3. When the self-hosted `/v1` API evolves, adapt **`ade-faithful/app.js`**.
+1. Keep shipping **`public/`**.
+2. Ignore Cloud-only surface.
+3. When the self-hosted `/v1` API evolves, adapt **`public/app.js`**.

@@ -2,6 +2,6 @@
 
 # `app/` — legacy React shell
 
-This package is **EOL**. Current product is **Sanctum ADE v1** (`ade-faithful/` → `public/`). See [v0/README.md](../README.md).
+This package is **EOL**. Current product is **Sanctum ADE v1** (`public/`). See [v0/README.md](../README.md).
 
 **Internal / dev-forward notes only:** [docs/dev-react-shell.md](../docs/dev-react-shell.md).

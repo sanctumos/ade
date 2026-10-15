@@ -2,7 +2,7 @@
   'use strict';
 
   /**
-   * Sanctum ADE v1 (ade-faithful): static HTML/CSS/JS against a Letta-compatible /v1 API.
+   * Sanctum ADE v1: static HTML/CSS/JS against a Letta-compatible /v1 API.
    * Storage keys remain ade_faithful_* for continuity.
    */
   function svgIcon(paths) {

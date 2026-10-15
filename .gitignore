@@ -3,12 +3,11 @@
 .env
 .otto-githooks-installed
 .venv/
-ade-faithful/.pytest_cache/
-ade-faithful/.venv/
-ade-faithful/__pycache__/
-ade-faithful/config.js
-ade-faithful/playwright-report/
-ade-faithful/test-results/
+__pycache__/
+.pytest_cache/
+public/config.js
+playwright-report/
+test-results/
 login-failure.png
 node_modules/
 oauth-failure.png

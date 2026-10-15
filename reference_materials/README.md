@@ -29,4 +29,4 @@ npm run decode
 
 Output: `../scraped-beautified/` at repo root (gitignored). How it works: [DECODE.md](./DECODE.md).
 
-The **product** is **Sanctum ADE v1** (`ade-faithful/` / `public/`). Overview: root [README.md](../README.md). EOL trees: [v0/README.md](../v0/README.md).
+The **product** is **Sanctum ADE v1** (`public/`). Overview: root [README.md](../README.md). EOL trees: [v0/README.md](../v0/README.md).

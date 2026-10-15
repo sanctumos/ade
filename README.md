@@ -6,8 +6,9 @@
 
 | Path | Role |
 |------|------|
-| **`ade-faithful/`** | Source tree (edit here) |
-| **`public/`** | Deploy mirror (`scripts/mirror_public.sh`) |
+| **`public/`** | Product UI (edit and deploy here) |
+| **`scripts/`** | Local Flask proxy, smoke, visual verify |
+| **`tests/`** | Playwright / unit smoke |
 
 **Out of scope:** Letta Cloud org/billing/OAuth, `app.letta.com`, and Cloud-only API surface. Scrapes under `reference_materials/` are historical reference only.
 
@@ -17,10 +18,23 @@
 
 ## Quick start
 
-1. Copy `ade-faithful/config.example.js` → `ade-faithful/config.js`, set `base` (and optional `key`), **or** use in-app **Settings** (localStorage).
-2. Open `ade-faithful/index.html` or serve `public/` over HTTP (production).
+1. Copy `public/config.example.js` → `public/config.js`, set `base` (and optional `key`), **or** use in-app **Settings** (localStorage). Or from repo root: `python3 scripts/genconfig.py` (reads `.env` `ADE_BASE` / `ADE_KEY`).
+2. Serve `public/` over HTTP (production), or locally:
 
-Default API base: `http://localhost:8283`.
+```bash
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+ADE_FLASK_UPSTREAM=http://127.0.0.1:8283 .venv/bin/python scripts/flask_server.py
+```
+
+- UI: **`http://127.0.0.1:5055/`**
+- Proxies **`/api/*`** to the upstream Letta-compatible server
+- In **Settings**, set API base to `http://127.0.0.1:5055/api`
+
+### Smoke
+
+```bash
+./scripts/smoke_test.sh
+```
 
 ---
 
@@ -47,8 +61,9 @@ Sanctum ADE expects a **single base URL** and optional **Bearer** token. Typical
 ├── LICENSE                   # Dual-notice (AGPL-3.0 code + CC-BY-SA-4.0 docs)
 ├── LICENSE-AGPLv3
 ├── LICENSE-CC-BY-SA
-├── ade-faithful/             # v1 source
-├── public/                   # v1 deploy mirror
+├── public/                   # v1 product UI (edit here)
+├── scripts/                  # Flask proxy, smoke, visual verify
+├── tests/                    # Playwright smoke
 ├── LETTA_API_COVERAGE.md     # /v1 API coverage (Letta-compatible)
 ├── LOCAL_ARCHITECTURE.md     # Local-first design notes
 ├── v0/                       # EOL trees — see v0/README.md
@@ -62,7 +77,6 @@ Sanctum ADE expects a **single base URL** and optional **Bearer** token. Typical
 
 | Doc | Description |
 |-----|-------------|
-| [ade-faithful/README.md](ade-faithful/README.md) | v1 setup, Flask proxy, smoke tests |
 | [LETTA_API_COVERAGE.md](LETTA_API_COVERAGE.md) | Endpoint list and client coverage |
 | [LOCAL_ARCHITECTURE.md](LOCAL_ARCHITECTURE.md) | Local-first / API-swap goals |
 | [v0/README.md](v0/README.md) | EOL notice only — legacy trees, will be removed |
@@ -87,8 +101,8 @@ Credentials: repo-root `.env` (see `.env.example`).
 
 | Issue | What to try |
 |-------|-------------|
-| **API unreachable** | Backend up? Base URL in Settings or `config.js` (no trailing slash). |
-| **CORS** | Allow your frontend origin on the API. |
+| **API unreachable** | Backend up? Base URL in Settings or `public/config.js` (no trailing slash). |
+| **CORS** | Allow your frontend origin on the API, or use `scripts/flask_server.py`. |
 | **401 / 403** | Set Bearer token in Settings. |
 
 ---
@@ -99,7 +113,7 @@ Dual license (same pattern as other Sanctum products):
 
 | Material | License |
 |----------|---------|
-| **Software code** (JS, CSS, HTML, Python, scripts, config templates, tests, `public/` mirror) | [AGPL-3.0](LICENSE-AGPLv3) |
+| **Software code** (JS, CSS, HTML, Python, scripts, config templates, tests, `public/`) | [AGPL-3.0](LICENSE-AGPLv3) |
 | **Documentation & other content** (Markdown, project images, etc.) | [CC-BY-SA-4.0](LICENSE-CC-BY-SA) |
 
 See [LICENSE](LICENSE) for the dual-notice and third-party carve-outs (vendored libs, npm deps, `reference_materials/` scrapes).

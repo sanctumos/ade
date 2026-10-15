@@ -1,0 +1,3 @@
+# Optional: local static server + API proxy (temp_flask_server.py)
+flask>=3.0
+requests>=2.28

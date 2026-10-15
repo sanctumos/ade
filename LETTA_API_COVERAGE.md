@@ -1,8 +1,8 @@
 # Letta-compatible API coverage — Sanctum ADE v1
 
-**Product:** **Sanctum ADE v1** (`ade-faithful/` → `public/`). Static UI against a **self-hosted Letta-compatible `/v1` API** (Sanctum / Letta OSS). Cloud is out of scope; `reference_materials/` is scrap only. Pre-v1 trees live under **`v0/`** (EOL).
+**Product:** **Sanctum ADE v1** (`public/`). Static UI against a **self-hosted Letta-compatible `/v1` API** (Sanctum / Letta OSS). Cloud is out of scope; `reference_materials/` is scrap only. Pre-v1 trees live under **`v0/`** (EOL).
 
-This document maps the [Letta API](https://docs.letta.com/api) contract and marks **Cloud-only** rows so we **do not** build them. Client coverage = what **`ade-faithful/app.js`** implements for self-hosted.
+This document maps the [Letta API](https://docs.letta.com/api) contract and marks **Cloud-only** rows so we **do not** build them. Client coverage = what **`public/app.js`** implements for self-hosted.
 
 **References:** [Agents](https://docs.letta.com/api/resources/agents), [Tools](https://docs.letta.com/api/resources/tools), [MCP Servers](https://docs.letta.com/api/resources/mcp_servers/), [Models](https://docs.letta.com/api/resources/models/), [Runs](https://docs.letta.com/api/resources/runs/).
 
@@ -145,4 +145,4 @@ Backends may return:
 - **Arrays:** `[...]` or `{ data: [...] }` or `{ agents: [...] }`, `{ tools: [...] }`, `{ mcp_servers: [...] }`, etc.
 - **Single resource:** `{ id, name, ... }` or wrapped.
 
-Clients normalize in the API helpers or UI (e.g. `Array.isArray(d) ? d : d?.data ?? d?.agents ?? []`). Change shapes in **`ade-faithful/app.js`** only (v1). Do not update EOL trees under **`v0/`**.
+Clients normalize in the API helpers or UI (e.g. `Array.isArray(d) ? d : d?.data ?? d?.agents ?? []`). Change shapes in **`public/app.js`** only (v1). Do not update EOL trees under **`v0/`**.

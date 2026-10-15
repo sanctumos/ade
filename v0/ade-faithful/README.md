@@ -1,3 +1,5 @@
+> **EOL — Sanctum ADE v0.** Not maintained. Will be removed in a future release. See [v0/README.md](../README.md). Product is **Sanctum ADE v1** (`public/`).
+
 # Sanctum ADE v1 (source)
 
 Static HTML/CSS/JS Agent Development Environment for **Sanctum**. Talks to a **Letta-compatible** self-hosted `/v1` API. No Cloud, no Node build.
