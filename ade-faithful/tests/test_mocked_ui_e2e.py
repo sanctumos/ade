@@ -33,6 +33,7 @@ class MockLetta:
         self.posts: list[dict] = []
         self.stream_runs: list[str] = []
         self.active_runs: list[dict] = []
+        self.active_polls = 0
         self.messages = [
             {"id": "m1", "message_type": "user_message", "content": REMINDER},
             {"id": "m2", "message_type": "user_message", "content": "hello there"},
@@ -75,6 +76,7 @@ class MockLetta:
         if path.rstrip("/") == "/v1/models":
             return self._json(route, [{"handle": "openai-proxy/other-model"}])
         if path.rstrip("/") == "/v1/runs/active" and method == "GET":
+            self.active_polls += 1
             return self._json(route, list(self.active_runs))
         if path.startswith("/v1/runs/") and path.endswith("/stream") and method == "POST":
             run_id = path[len("/v1/runs/") : -len("/stream")]
@@ -210,13 +212,47 @@ def test_chat_hitches_external_active_run(page):
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.goto(f"{BASE}/chat.html?agent={AGENT_ID}", wait_until="networkidle")
     page.wait_for_selector("#messages .chat-row--assistant", timeout=15000)
+    # Wait for prime poll so a pre-existing run would be ignored; then introduce a NEW run.
+    page.wait_for_timeout(100)
+    deadline = page.evaluate("() => Date.now()") + 8000
+    while mock.active_polls < 1:
+        page.wait_for_timeout(100)
+        if page.evaluate("() => Date.now()") > deadline:
+            break
+    assert mock.active_polls >= 1, "chat sync never primed /runs/active"
 
-    mock.active_runs = [{"id": "run-ext-1", "status": "running", "agent_id": AGENT_ID}]
+    mock.active_runs = [{
+        "id": "run-ext-1",
+        "status": "running",
+        "agent_id": AGENT_ID,
+        "created_at": "2099-01-01T00:00:00Z",
+    }]
     page.wait_for_function(
         "() => [...document.querySelectorAll('#messages .chat-turn--assistant')]"
         ".some(e => e.innerText.includes('external pong'))",
         timeout=15000,
     )
     assert mock.stream_runs == ["run-ext-1"], mock.stream_runs
-    assert page.locator("#messages .chat-turn--user").filter(has_text="from broca").count() == 1
+    # History reconcile after hitch is async — wait for the paired user row.
+    page.wait_for_function(
+        "() => [...document.querySelectorAll('#messages .chat-turn--user')]"
+        ".some(e => e.innerText.includes('from broca'))",
+        timeout=10000,
+    )
     assert not errors, errors
+
+
+def test_chat_ignores_stale_active_runs_present_at_open(page):
+    """Zombie 'active' runs already on the agent must not hitch-loop / blink the chat."""
+    mock = MockLetta()
+    mock.active_runs = [
+        {"id": f"run-old-{i}", "status": "running", "agent_id": AGENT_ID,
+         "created_at": "2020-01-01T00:00:00Z"}
+        for i in range(5)
+    ]
+    _boot(page, mock)
+    page.goto(f"{BASE}/chat.html?agent={AGENT_ID}", wait_until="networkidle")
+    page.wait_for_selector("#messages .chat-row--assistant", timeout=15000)
+    page.wait_for_timeout(3500)
+    assert mock.stream_runs == [], mock.stream_runs
+    assert page.locator("#messages .chat-shimmer").count() == 0

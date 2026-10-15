@@ -519,16 +519,30 @@
         '<h2>' + AC.escHtml(title) + '</h2><p>' + AC.escHtml(text) + '</p></div>';
     }
 
+    var lastHistoryFingerprint = '';
+
+    function historyFingerprint(msgs) {
+      if (!msgs || !msgs.length) return '0';
+      return msgs.length + ':' + msgs.map(function(m) {
+        return String(m.id || m.otid || '') + '/' + String(m.message_type || m.type || '');
+      }).join(',');
+    }
+
     function loadHistory(aid, opts) {
       opts = opts || {};
       if (!aid) {
         renderEmpty('No agent selected', 'Pick an agent from the sidebar to start chatting.');
+        lastHistoryFingerprint = '';
         return Promise.resolve(false);
       }
       if (!opts.softFail && !opts.quiet) historyHint.textContent = 'Loading conversation…';
       return window.ADE.getAgentMessages(aid, { limit: '200' }).then(function(d) {
         var msgs = normalizeMessages(d);
+        var fp = historyFingerprint(msgs);
         historyHint.textContent = msgs.length ? ('Showing last ' + msgs.length + ' messages') : '';
+        /* Skip DOM rebuild when nothing changed — stops the chat blink. */
+        if (opts.skipIfUnchanged && fp === lastHistoryFingerprint) return true;
+        lastHistoryFingerprint = fp;
         renderHistory(msgs);
         return true;
       }).catch(function() {
@@ -547,7 +561,8 @@
       hitching: false,
       ignoreRunIds: {},
       hitchedRunIds: {},
-      hitchAbort: null
+      hitchAbort: null,
+      primed: false
     };
 
     function stopChatSync() {
@@ -561,23 +576,40 @@
       chatSync.agentId = null;
       chatSync.ignoreRunIds = {};
       chatSync.hitchedRunIds = {};
+      chatSync.primed = false;
+    }
+
+    function absorbActiveRuns(runs) {
+      (runs || []).forEach(function(r) {
+        if (r && r.id != null) chatSync.ignoreRunIds[String(r.id)] = true;
+      });
     }
 
     function startChatSync(agentId) {
       stopChatSync();
       chatSync.agentId = agentId || null;
       if (!agentId) return;
-      scheduleActivePoll();
+      /* Ignore zombie/stale "active" runs already on the agent — only hitch NEW ones. */
+      window.ADE.listActiveRuns({ agent_id: agentId }).then(function(runs) {
+        if (chatSync.agentId !== agentId) return;
+        absorbActiveRuns(runs);
+        chatSync.primed = true;
+        scheduleActivePoll();
+      }).catch(function() {
+        if (chatSync.agentId !== agentId) return;
+        chatSync.primed = true;
+        scheduleActivePoll();
+      });
       chatSync.idleTimer = setInterval(function() {
         if (document.hidden || chatSync.ownSendActive || chatSync.hitching) return;
         if (!chatSync.agentId) return;
-        loadHistory(chatSync.agentId, { softFail: true, quiet: true });
-      }, 20000);
+        loadHistory(chatSync.agentId, { softFail: true, quiet: true, skipIfUnchanged: true });
+      }, 30000);
     }
 
     function scheduleActivePoll() {
       if (chatSync.pollTimer) { clearInterval(chatSync.pollTimer); chatSync.pollTimer = null; }
-      if (!chatSync.agentId || document.hidden) return;
+      if (!chatSync.agentId || document.hidden || !chatSync.primed) return;
       chatSync.pollTimer = setInterval(tickActiveRuns, 2500);
       tickActiveRuns();
     }
@@ -587,14 +619,12 @@
       if (!active || !chatSync.agentId) return;
       /* Snapshot runs already active when we send so we don't hitch our own. */
       window.ADE.listActiveRuns({ agent_id: chatSync.agentId }).then(function(runs) {
-        (runs || []).forEach(function(r) {
-          if (r && r.id != null) chatSync.ignoreRunIds[String(r.id)] = true;
-        });
+        absorbActiveRuns(runs);
       }).catch(function() { /* ignore */ });
     }
 
     function tickActiveRuns() {
-      if (!chatSync.agentId || document.hidden || chatSync.ownSendActive || chatSync.hitching) return;
+      if (!chatSync.agentId || document.hidden || chatSync.ownSendActive || chatSync.hitching || !chatSync.primed) return;
       window.ADE.listActiveRuns({ agent_id: chatSync.agentId }).then(function(runs) {
         if (!Array.isArray(runs) || !runs.length) return;
         for (var i = 0; i < runs.length; i++) {
@@ -604,6 +634,12 @@
           if (chatSync.ignoreRunIds[rid] || chatSync.hitchedRunIds[rid]) continue;
           var status = String(r.status || '').toLowerCase();
           if (status && status !== 'running' && status !== 'created' && status !== 'pending') continue;
+          /* Prefer recently created runs; skip ancient zombies that slipped past priming. */
+          var created = r.created_at ? Date.parse(r.created_at) : NaN;
+          if (!isNaN(created) && (Date.now() - created) > 120000) {
+            chatSync.ignoreRunIds[rid] = true;
+            continue;
+          }
           hitchExternalRun(rid);
           return;
         }
@@ -654,10 +690,15 @@
       }
       function finish(ok) {
         if (state.thinkTimer) { clearInterval(state.thinkTimer); state.thinkTimer = null; }
-        if (!state.sawAssistant || !state.acc.trim()) streamWrap.remove();
-        return loadHistory(opts.aid, { softFail: true }).then(function(loaded) {
-          if (!loaded && state.sawAssistant && state.acc) { /* keep streamed bubble */ }
-          else if (!loaded && !state.sawAssistant && opts.fallbackEmpty) addMsg('assistant', '(no response)');
+        var hadContent = !!(state.sawAssistant && state.acc.trim());
+        if (!hadContent) streamWrap.remove();
+        return loadHistory(opts.aid, {
+          softFail: true,
+          quiet: !hadContent,
+          skipIfUnchanged: !hadContent
+        }).then(function(loaded) {
+          if (!loaded && hadContent) { /* keep streamed bubble */ }
+          else if (!loaded && !hadContent && opts.fallbackEmpty) addMsg('assistant', '(no response)');
           return loaded;
         });
       }
@@ -672,6 +713,7 @@
       if (!chatSync.agentId || chatSync.hitching) return;
       chatSync.hitching = true;
       chatSync.hitchedRunIds[runId] = true;
+      chatSync.ignoreRunIds[runId] = true;
       var aid = chatSync.agentId;
       var ui = attachStreamUi({ aid: aid });
       var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -685,12 +727,14 @@
         onError: function() {
           chatSync.hitchAbort = null;
           ui.fail();
-          loadHistory(aid, { softFail: true, quiet: true }).finally(function() { chatSync.hitching = false; });
+          loadHistory(aid, { softFail: true, quiet: true, skipIfUnchanged: true })
+            .finally(function() { chatSync.hitching = false; });
         }
       }, ctrl ? { signal: ctrl.signal } : undefined).catch(function() {
         chatSync.hitchAbort = null;
         ui.fail();
-        loadHistory(aid, { softFail: true, quiet: true }).finally(function() { chatSync.hitching = false; });
+        loadHistory(aid, { softFail: true, quiet: true, skipIfUnchanged: true })
+          .finally(function() { chatSync.hitching = false; });
       });
     }
 
@@ -702,7 +746,7 @@
       if (!chatSync.agentId) return;
       scheduleActivePoll();
       if (!chatSync.ownSendActive && !chatSync.hitching) {
-        loadHistory(chatSync.agentId, { softFail: true, quiet: true });
+        loadHistory(chatSync.agentId, { softFail: true, quiet: true, skipIfUnchanged: true });
       }
     });
 
