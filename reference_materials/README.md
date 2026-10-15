@@ -30,3 +30,5 @@ npm run decode
 Output: `../scraped-beautified/` at repo root (gitignored). How it works: [DECODE.md](./DECODE.md).
 
 The **product** is **Sanctum ADE v1** (`public/`). Overview: root [README.md](../README.md). EOL trees: [v0/README.md](../v0/README.md).
+
+**License:** Captured scrape/CDN assets here are **not** covered by Sanctum ADE’s AGPL / CC-BY-SA grant — see root [LICENSE](../LICENSE) (NOT COVERED section). Third-party copyright remains with the original owners.

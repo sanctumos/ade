@@ -116,7 +116,7 @@ Dual license (same pattern as other Sanctum products):
 | **Software code** (JS, CSS, HTML, Python, scripts, config templates, tests, `public/`) | [AGPL-3.0](LICENSE-AGPLv3) |
 | **Documentation & other content** (Markdown, project images, etc.) | [CC-BY-SA-4.0](LICENSE-CC-BY-SA) |
 
-See [LICENSE](LICENSE) for the dual-notice and third-party carve-outs (vendored libs, npm deps, `reference_materials/` scrapes).
+See [LICENSE](LICENSE). **Important:** we do **not** claim AGPL/CC-BY-SA over `reference_materials/` scrapes or other captured third-party code — that carve-out is explicit in `LICENSE`.
 
 ---
 

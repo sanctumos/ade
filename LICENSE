@@ -16,32 +16,43 @@ This project is distributed under a dual license structure:
 LICENSE APPLICABILITY:
 
 SOFTWARE CODE includes but is not limited to:
-- JavaScript (*.js)
-- CSS (*.css)
-- HTML (*.html)
-- Python (*.py)
-- Shell / build scripts (*.sh, Makefile, etc.)
-- Configuration templates (*.json, *.example.js, etc.)
-- Test files under tests/
-- The public/ product tree
+- The public/ product tree (Sanctum ADE v1)
+- Tests under tests/
+- Tooling under scripts/
+- EOL archaeology under v0/ (same terms; not maintained)
+- Configuration templates (*.example.js, etc.) authored for this project
 
 DOCUMENTATION AND OTHER CONTENT includes but is not limited to:
-- README and other Markdown (*.md)
+- README and other Markdown authored for this project
 - Images and graphics authored for this project
-- Text documentation
 - These license notice files
 
-THIRD-PARTY / NON-PROJECT MATERIAL (not covered by this dual license):
-- Vendored libraries under public/vendor/ (keep their upstream licenses)
-- npm dependencies listed in package.json / package-lock.json (upstream licenses)
-- Historical scrapes under reference_materials/scraped/ and related capture assets
-  (third-party copyright; retained for reference only)
+================================================================================
+NOT COVERED — NO LICENSE GRANT FROM SANCTUM / DSC
+================================================================================
 
-For the complete terms of each license, please refer to the respective license files:
-- LICENSE-AGPLv3 (for software code)
-- LICENSE-CC-BY-SA (for documentation and other content)
+Sanctum ADE’s AGPL-3.0 / CC-BY-SA-4.0 terms do **not** apply to, and we make
+**no claim** to relicense, the following:
 
-This dual licensing approach ensures that:
-- Software code remains free and open source under copyleft terms (AGPL-3.0)
-- Documentation and content can be freely shared and adapted (CC-BY-SA-4.0)
-- Both licenses require attribution and sharing of modifications
+1. **Reference scrapes and captured third-party code** under `reference_materials/`
+   (including `scraped/`, `_next/`, `seo/`, bundled chunk/HTML captures, and any
+   similar static snapshots of third-party ADE / Letta Cloud / CDN assets).
+   That material is retained for archaeology and UX reference only. Copyright
+   remains with the original owners. Presence in this repository is **not** a
+   grant of rights under AGPL, CC-BY-SA, or any other Sanctum/DSC license.
+
+2. **Vendored libraries** under `public/vendor/` (and any copies under `v0/`) —
+   upstream licenses only.
+
+3. **npm dependencies** listed in `package.json` / `package-lock.json` —
+   upstream licenses only.
+
+If you need rights to anything in (1), obtain them from the copyright holder.
+Do not treat this repo’s dual license as covering that material.
+
+================================================================================
+
+For the complete terms of each license that *does* apply to Sanctum-authored
+product code and docs, see:
+- LICENSE-AGPLv3 (software code)
+- LICENSE-CC-BY-SA (documentation and other Sanctum-authored content)
