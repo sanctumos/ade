@@ -1,6 +1,6 @@
 # PRD stub — Sanctum ADE v2 × bootstrap installer
 
-**Status:** ideation stub (v0.1) — options retained; **emerging preference: internal bootstrap API** (Letta-shaped)  
+**Status:** ideation stub (v0.2) — Host API spine + **composite Sanctum Agent** (meta vs granular)  
 **Date:** 2026-10-15  
 **Product:** Sanctum ADE (next major after v1 static UI) + SanctumOS installer evolution  
 **Related:** `sanctumos/installer` (kernel bootstraps, control plane), canonical layout in installer `docs/reference/docs-on-installer-criteria.md`
@@ -27,12 +27,15 @@ Today’s installer already hints at the right shape (`sanctum_bootstrap.sh`, Le
 4. **Same verbs for CLI and ADE** — CLI is a thin client of the same API (`sanctum bootstrap …` → HTTP), not a parallel codepath.
 5. **Prescribed folders** — Bootstraps do not invent paths; they implement the layout contract (agents/, broca, smcp/, control/, shared venv rules, etc.).
 6. **Safe to re-run** — Idempotent; declare state; refuse or migrate when invariants break.
+7. **Composite Sanctum Agents** — One “agent” in Sanctum/ADE can map to **many** Letta agents (main loop, sleeptime, future cerebellum, …) plus host modules (Broca, SMCP). Wizard/meta endpoints create the **bundle**; granular endpoints still exist for each piece.
+8. **Microservices stay microservices** — Sanctum Host API does **not** share Letta’s Postgres. Sanctum state lives in Sanctum stores (per-module SQLite / control registry). Letta remains the agent runtime API we call over HTTP.
 
 ### Non-goals (for this stub)
 
-- Rewriting Letta itself
+- Rewriting Letta itself / merging Sanctum schema into Letta DB
+- Putting Broca/SMCP *inside* the Letta process
 - Replacing DSC multihost / Ada deploy lane for *product* sites
-- Solving every Sanctum component in v2.0 — pick a thin vertical (e.g. Broca + one shared service) first
+- Solving every Sanctum component in v2.0 — pick a thin vertical first
 - Making ADE a full PaaS
 
 ---
@@ -48,6 +51,7 @@ From the installer layout canon (Aug 2025):
 | Agent tenancy = `agents/<uid>/` | Broca switch is per-agent (or per-agent-module), not global-only |
 | Ports recorded / unique | Bootstrap allocates or registers port; ADE shows it |
 | Secrets stay local | ADE triggers; does not become a secret warehouse |
+| **No shared Postgres with Letta** (Mark 2026-10-15) | Host API / Sanctum agent registry use Sanctum DBs only; Letta agents referenced by id over `/v1` |
 
 Existing artifacts to **factor**, not throw away:
 
@@ -188,17 +192,92 @@ A small **bootstrap daemon or CLI** reconciles desired vs actual (files exist? p
 
 ---
 
+## 4b. Composite Sanctum Agent (meta-calls) — Mark 2026-10-15
+
+**Does this make sense?** Yes. It’s the missing product noun.
+
+Today humans already think “Athena.” On the box that is already (or will be):
+
+| Sanctum concept | Letta layer (granular) | Sanctum host layer (granular) |
+|-----------------|------------------------|-------------------------------|
+| **Athena** (one Sanctum Agent) | Main-loop agent id | Broca under `agents/athena/` |
+| | Sleeptime / sleep-time agent id | (optional) SMCP server/tools bound to her |
+| | Future **Cerebellum** agent id | … |
+
+ADE v1 only sees Letta’s flat agent list. ADE v2 + Host API should let you operate at **either** altitude:
+
+### Granular (keep these)
+
+```http
+POST /v1/modules/broca/apply          # turn Broca on for uid=athena
+POST → Letta /v1/agents               # create one Letta agent (Host API as client)
+PATCH /v1/sanctum-agents/{id}/loops/sleeptime
+```
+
+### Meta (wizard / “full Sanctum agent”)
+
+```http
+POST /v1/sanctum-agents
+{
+  "name": "Athena",
+  "uid": "athena",
+  "profile": "full",          # or explicit feature flags
+  "loops": {
+    "main": true,
+    "sleeptime": true,
+    "cerebellum": false       # not created yet — optional
+  },
+  "host": {
+    "broca": true,
+    "smcp": true
+  }
+}
+→ { "sanctum_agent_id": "…", "job_id": "…" }
+```
+
+That one call is an **orchestrated job** that, in order (illustrative):
+
+1. Creates/links Letta agents for each enabled loop (N× Letta `POST /v1/agents` + sleeptime/group wiring as Letta requires)
+2. Writes Sanctum registry row: `sanctum_agent` → `{ main_id, sleeptime_id, cerebellum_id?, … }`
+3. Applies host bootstraps: Broca for `uid`, SMCP server/tools as requested
+4. Returns job progress over SSE so the wizard can show “creating sleeptime… starting Broca…”
+
+**Altitude rule:**
+
+- **Letta** = runtime primitives (one agent = one Letta agent)
+- **Sanctum** = product aggregate (one Sanctum Agent = graph of Letta agents + host modules)
+- **ADE** = UI that prefers Sanctum altitude for “people,” Letta altitude for deep debug/chat-to-a-specific-loop
+
+```text
+                    POST /v1/sanctum-agents  (meta)
+                              │
+              ┌───────────────┼───────────────┐
+              ▼               ▼               ▼
+        Letta /v1         Letta /v1      Host bootstrap
+        main agent      sleeptime …      Broca + SMCP
+              │               │               │
+              └───────────────┴───────────────┘
+                              │
+                    Sanctum registry (SQLite)
+                    — not Letta Postgres —
+```
+
+**Install endpoints** (“turn on Broca for xyz-agent”) are the granular host verbs. **Meta-calls** are the compose API the agent-creation wizard hits. Same service, two layers — not two products.
+
+---
+
 ## 5. ADE v2 surface (product sketch)
 
 Independent of which spine we pick, the UI wants roughly:
 
 | Area | Behavior |
 |------|----------|
+| **Sanctum Agents** | First-class list of *composites* (Athena = main + sleeptime + …). Drill into loops. |
+| **New agent wizard** | Hits meta `POST /v1/sanctum-agents` with profile flags; streams job |
 | **Host** | Base path (`~/sanctum`), Letta `/v1` health, shared venv status |
-| **Components** | Cards: Letta, Broca (per agent), SMCP, ADE itself, … — Install / Start / Stop / Open logs |
-| **Broca switches** | Per-agent enable, port, Telegram/bridge knobs that map to that agent’s Broca config — not a second Broca |
-| **Install drawer** | Pick bootstrap → show paths it will touch → run → stream log |
-| **Keep v1 chat** | Agents/chat/memory remain; installer is a new primary nav section (“Host” / “Sanctum”) |
+| **Components / Broca switches** | Granular: enable Broca/SMCP per Sanctum uid without recreating Letta agents |
+| **Letta debug** | Escape hatch: raw Letta agent list/chat (v1 behavior) when you need one loop |
+| **Install drawer** | Pick bootstrap → paths → apply → SSE log |
 
 ---
 
@@ -220,49 +299,61 @@ undo:            optional stop + leave data | wipe module dir
 
 ### API sketch (illustrative — Letta-rhymed)
 
+**Granular host**
+
 ```http
 GET  /v1/bootstraps
-GET  /v1/bootstraps/broca-agent
 GET  /v1/components
-GET  /v1/agents/{uid}/modules/broca
-PATCH /v1/agents/{uid}/modules/broca
+GET  /v1/sanctum-agents/{uid}/modules/broca
+PATCH /v1/sanctum-agents/{uid}/modules/broca
      { "desired": "running", "port": 8871 }
-POST /v1/agents/{uid}/modules/broca/apply
+POST /v1/sanctum-agents/{uid}/modules/broca/apply
      → { "job_id": "…" }
-GET  /v1/jobs/{job_id}          # status + log cursor
-GET  /v1/jobs/{job_id}/events   # SSE while applying
 ```
 
-CLI is a client:
+**Composite / meta**
+
+```http
+GET  /v1/sanctum-agents
+POST /v1/sanctum-agents                 # wizard — full bundle job
+GET  /v1/sanctum-agents/{uid}           # includes letta_agent_ids + modules
+PATCH /v1/sanctum-agents/{uid}/loops/cerebellum
+     { "desired": "present" }           # add optional loop later
+GET  /v1/jobs/{job_id}
+GET  /v1/jobs/{job_id}/events           # SSE
+```
+
+CLI is a client of the same API:
 
 ```bash
-sanctum api get /v1/bootstraps
+sanctum agent create --name Athena --profile full --follow
 sanctum module set broca --agent athena --desired running
-sanctum module apply broca --agent athena --follow
 ```
 
 ---
 
 ## 7. Open questions (hone-in fodder)
 
-1. **Host API process:** Long-lived daemon vs on-demand (`systemd socket` / ADE-spawned child)? Loopback-only vs LAN?
-2. **Auth:** Shared bearer in ADE Settings (like Letta key)? Or unix-socket = implicit local trust?
-3. **Layout root:** Stick to installer canon (`/sanctum` vs `~/sanctum` vs moya’s lived `~/sanctum/agents/…`)?
-4. **Broca first vertical:** One agent (Athena) end-to-end before generic component catalog?
-5. **Privilege:** How much can the API do without root (Termux / user systemd / screen)?
-6. **Secrets:** Generate in module `config/.env` server-side; ADE never stores host secrets beyond the Host API token.
-7. **Where does the API live?** New thin service vs revive `installer/control` as that API?
-8. **Namespace:** Separate port from Letta (`8283`) — e.g. Host API `:9055` or under a path on the ADE proxy?
+1. **Host API process:** Long-lived daemon vs on-demand? Loopback-only vs LAN?
+2. **Auth:** Bearer in ADE Settings (like Letta key)? Unix-socket = local trust?
+3. **Layout root:** Installer canon vs moya’s lived `~/sanctum/agents/…`?
+4. **First vertical:** (a) Broca-on for existing Athena, or (b) meta-create stub Sanctum Agent that only links *existing* Letta ids, then (c) full create bundle?
+5. **Sleeptime wiring:** Exact Letta group/sleeptime API shape we must call — freeze against live Classic version on moya.
+6. **Cerebellum:** Placeholder loop in the schema now, implement later — yes/no?
+7. **Privilege / secrets / packaging home** — unchanged from prior stub.
+8. **Where does the API live?** New thin service (preferred with microservices stance) vs revive `installer/control`.
+9. **Chat default:** When user opens “Athena” in ADE, which Letta id gets messages — main only, or routable per loop?
 
 ---
 
 ## 8. Suggested hone-in path (process, not architecture)
 
-1. Lock **spine = Host Bootstrap API (E)** unless Mark vetoes — recipes/manifests are backends.
-2. Freeze **v0 OpenAPI** for: list bootstraps, Broca module get/patch/apply, jobs.
-3. Implement API + **one** recipe behind it: `broca-agent` for one uid (Athena).
-4. ADE v2 Host page: talk only to Host API (plus existing Letta `/v1` for chat).
-5. Expand catalog (SMCP, etc.) only after Broca switch feels product-grade.
+1. Lock: **Host API as separate microservice** (no Letta Postgres); **Sanctum Agent composite** as the product noun.
+2. Freeze v0 OpenAPI with **both** layers: granular Broca module + `sanctum-agents` GET/POST (POST may initially only *link* existing Letta ids).
+3. Vertical A: `PATCH broca desired=running` for `athena` against lived layout.
+4. Vertical B: meta `POST /v1/sanctum-agents` creates main+sleeptime via Letta client + registry row (Broca optional flag).
+5. Wizard UI in ADE last — API + job SSE first.
+6. Cerebellum / richer profiles after the two-loop bundle is boringly reliable.
 
 ---
 
@@ -272,6 +363,8 @@ sanctum module apply broca --agent athena --follow
 |------|----------|
 | 2026-10-15 | Stub opened; options A–D + hybrid sketched; no winner. |
 | 2026-10-15 | Emerging preference: **internal bootstrap API** (Option E) — Letta-shaped; A/B/D as backends; ADE/CLI as clients. Not final lock. |
+| 2026-10-15 | **No shared Postgres with Letta** — keep microservices. |
+| 2026-10-15 | **Composite Sanctum Agent**: one Sanctum entity → N Letta agents (main, sleeptime, future cerebellum) + host modules (Broca, SMCP). Granular + meta endpoints. Wizard hits meta. |
 
 ---
 
