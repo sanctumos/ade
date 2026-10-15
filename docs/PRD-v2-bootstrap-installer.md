@@ -1,6 +1,6 @@
 # PRD stub — Sanctum ADE v2 × bootstrap installer
 
-**Status:** ideation stub (v0.2) — Host API spine + **composite Sanctum Agent** (meta vs granular)  
+**Status:** ideation stub (v0.3) — **extend on-box Letta API** with Sanctum endpoints; composite Sanctum Agent  
 **Date:** 2026-10-15  
 **Product:** Sanctum ADE (next major after v1 static UI) + SanctumOS installer evolution  
 **Related:** `sanctumos/installer` (kernel bootstraps, control plane), canonical layout in installer `docs/reference/docs-on-installer-criteria.md`
@@ -22,21 +22,42 @@ Today’s installer already hints at the right shape (`sanctum_bootstrap.sh`, Le
 ## 2. Goals (what “good” looks like)
 
 1. **Bootstraps, not a blob** — Each installable unit is a named, idempotent bootstrap that lands files/config/services in the canonical tree (`~/sanctum/…` or `/sanctum/…` per layout doc).
-2. **API-driven (Letta-shaped)** — Install/enable/status are **HTTP resources**, not “ADE shells a script and hopes.” Letta is API-first; Sanctum host ops should be too. ADE is a client of that API (same as it is a client of `/v1` agents).
-3. **ADE as the switchboard** — UI can list components, show installed/running/missing, and trigger enable/disable (Broca switches first-class) via the bootstrap API.
-4. **Same verbs for CLI and ADE** — CLI is a thin client of the same API (`sanctum bootstrap …` → HTTP), not a parallel codepath.
+2. **API-driven on the box** — Every Sanctum box already runs a **Letta API**. Sanctum install/meta/Broca verbs should show up as **additional endpoints on that same API surface** (ADE keeps one base URL + one bearer), not a second unrelated control daemon by default.
+3. **ADE as the switchboard** — UI lists composites/modules and triggers enable/disable via those Sanctum endpoints (plus existing Letta agent/chat routes).
+4. **Same verbs for CLI and ADE** — CLI hits the same on-box `/v1` (or `/v1/sanctum/…`) as ADE.
 5. **Prescribed folders** — Bootstraps do not invent paths; they implement the layout contract (agents/, broca, smcp/, control/, shared venv rules, etc.).
 6. **Safe to re-run** — Idempotent; declare state; refuse or migrate when invariants break.
 7. **Composite Sanctum Agents** — One “agent” in Sanctum/ADE can map to **many** Letta agents (main loop, sleeptime, future cerebellum, …) plus host modules (Broca, SMCP). Wizard/meta endpoints create the **bundle**; granular endpoints still exist for each piece.
-8. **Microservices stay microservices** — Sanctum Host API does **not** share Letta’s Postgres. Sanctum state lives in Sanctum stores (per-module SQLite / control registry). Letta remains the agent runtime API we call over HTTP.
+8. **Microservices for data** — Sanctum state does **not** live in Letta Postgres (per-module SQLite / Sanctum registry). Broca/SMCP stay their own processes. Extending the **HTTP surface** ≠ merging the **databases** or folding Broca into the Letta runtime.
+9. **One API face per box** (Mark 2026-10-15) — Operators and ADE think: “the Letta API on this Sanctum box,” extended with Sanctum routes—not “Letta plus a second host API I have to configure.”
 
 ### Non-goals (for this stub)
 
-- Rewriting Letta itself / merging Sanctum schema into Letta DB
-- Putting Broca/SMCP *inside* the Letta process
+- Merging Sanctum schema into Letta Postgres
+- Running Broca/SMCP *inside* the Letta agent loop / SyncServer business logic
 - Replacing DSC multihost / Ada deploy lane for *product* sites
 - Solving every Sanctum component in v2.0 — pick a thin vertical first
 - Making ADE a full PaaS
+
+---
+
+## 2b. Clarification — “extend the Letta API on the box” (v0.3)
+
+Earlier stub language assumed a **separate** Host microservice. Mark’s target is different:
+
+> What lives on every Sanctum box is the Letta API. **Extend that** with Sanctum endpoints (Broca on/off, meta-create full Sanctum Agent, etc.).
+
+So the product question is **how** to extend that face—not whether ADE talks to two unrelated servers.
+
+| Approach | What ADE hits | Sanctum code lives | Risk |
+|----------|---------------|--------------------|------|
+| **E1 — Fork-mount routers** | Same origin as Letta (`:8283/v1/sanctum/...`) | Extra FastAPI routers in Sanctum’s Letta fork; handlers call Sanctum libs + Letta managers over in-process/`SyncServer` only where needed; Sanctum DB = SQLite beside the box | One process to run; upgrade merges on `ROUTERS` / `app.py`; must keep handlers thin |
+| **E2 — Sidecar, same URL** | Same origin via nginx/`proxy.php` (`/v1/agents` → Letta, `/v1/sanctum` → sidecar) | Separate Sanctum process; path-split at edge | True process isolation; two processes; ADE still one base URL |
+| **E3 — Separate Host API** (earlier stub default) | Second base URL | Separate process | Cleanest isolation; worse “every box” UX (two settings) |
+
+**Leaning for investigation:** **E1 or E2** (one face). **E3** only if fork-mount proves too painful.
+
+**Still true from the Classic peek:** Letta’s router list is easy to extend; SyncServer/Postgres are not where Sanctum composite state should live. E1 done right = new routers + Sanctum services, not “grow SyncServer.”
 
 ---
 
@@ -65,11 +86,12 @@ Existing artifacts to **factor**, not throw away:
 
 Approaches below. Same destination (callable bootstraps + ADE switches); different spines.
 
-### Emerging frame — Option E: Internal Bootstrap API (Letta-shaped)
+### Emerging frame — Option E: Sanctum endpoints on the on-box Letta API
 
-**Mark (2026-10-15):** Letta is API-driven. Why shouldn’t install bootstraps be?
+**Mark (2026-10-15):** Letta is API-driven. Why shouldn’t install bootstraps be?  
+**Mark (2026-10-15):** Extending **the Letta API that lives on every Sanctum box**—not a second control-plane URL by default.
 
-**Idea:** A small **on-box Sanctum Host API** (name TBD: `sanctum-host`, `bootstrapd`, control `/v1/…`) that owns:
+**Idea:** Sanctum routes (install/meta/Broca) appear under that box’s Letta API face (`/v1/sanctum/…` or sibling resources). Implementation is E1 (fork routers) or E2 (sidecar behind same proxy). That surface owns:
 
 | Resource | Rough verbs |
 |----------|-------------|
@@ -84,25 +106,25 @@ Approaches below. Same destination (callable bootstraps + ADE switches); differe
 Implementation behind the API can still be shell/Python recipes (Option A guts) or a reconciler (Option B guts). **The public contract is HTTP**, the way Letta’s public contract is `/v1`.
 
 ```text
-┌─────────────┐     HTTP      ┌──────────────────┐     exec      ┌─────────────┐
-│ Sanctum ADE │ ────────────► │ Host Bootstrap   │ ────────────► │ recipes /   │
-│ (browser)   │  ← status/SSE │ API (localhost)  │               │ packs / fs  │
-└─────────────┘               └──────────────────┘               └─────────────┘
-       │                              ▲
-       │         same API             │
-       └────── CLI / Otto / Ada ──────┘
+┌─────────────┐   one base URL    ┌─────────────────────────────┐
+│ Sanctum ADE │ ────────────────► │ On-box Letta API (extended) │
+│ CLI / Otto  │                   │  /v1/agents …     (Classic) │
+└─────────────┘                   │  /v1/sanctum/…    (ours)    │
+                                  └───────────┬─────────────────┘
+                        ┌─────────────────────┼─────────────────────┐
+                        ▼                     ▼                     ▼
+                 Letta runtime DB      Sanctum SQLite         Broca / SMCP
+                 (unchanged)           (composites/jobs)      (own processes)
 ```
 
 | Pros | Cons |
 |------|------|
-| Mental model matches Letta + ADE already | One more local service to run/secure |
-| ADE stays a static client (or thin SPA) talking JSON | Must define auth (loopback-only? token in ADE Settings?) |
-| Otto/Ada/automation get the same surface | Job/SSE semantics for long installs |
-| Broca switches are resources, not special UI hacks | Temptation to boil the ocean on v1 of the API |
+| Matches “every Sanctum box has a Letta API” | Sanctum Letta **fork** (or careful sidecar path-split) |
+| ADE: one Settings base + one key | E1: merge cost on upstream Letta pulls |
+| Same password middleware / ops muscle memory | Must not leak Sanctum state into Letta Postgres |
+| Meta + granular on one OpenAPI | Job/SSE for long applies still needed |
 
-**Best if:** We want Sanctum host ops to feel like first-class product surface, not “scripts with a dashboard wallpaper.”
-
-**Relationship to A–D:** E is the **spine**. A/B/D become backends behind the API; C is “host API lives inside revived control plane.”
+**Relationship to A–D:** E (on-box extended API) is the **face**. A/B/D are backends behind Sanctum handlers; C only if control plane *is* that extension.
 
 ---
 
@@ -183,12 +205,11 @@ A small **bootstrap daemon or CLI** reconciles desired vs actual (files exist? p
 
 ### Hybrid sketch (updated leaning — still not locked)
 
-> **E (Host Bootstrap API) as the spine** · **B manifests** as the resource schema · **A recipes** (or D packs later) as what `apply` actually runs · **C** only if we decide the API *is* the revived control plane rather than a new thin service.
+> **On-box Letta API + Sanctum routes (E1 or E2)** as the face · **B manifests** as schema · **A recipes** behind `apply` · Sanctum SQLite for composites · Letta Postgres untouched · Broca/SMCP stay microservices.
 
-- ADE v2 never shells out; it calls `http://127.0.0.1:<host-api>/v1/…` (or unix socket)
-- CLI / Otto use the same base URL + token
-- Broca switch = `PATCH …/agents/{uid}/modules/broca { "desired": "running" }` then poll job/status
-- Recipes stay readable on disk for break-glass SSH; API is the supported path
+- ADE Settings: single API base (the box’s Letta URL) — Sanctum paths under `/v1/sanctum/…`
+- Broca switch / meta-create = Sanctum handlers; they **call** Classic agent APIs and host recipes
+- Break-glass: recipes on disk; supported path = HTTP on the box API
 
 ---
 
@@ -341,19 +362,20 @@ sanctum module set broca --agent athena --desired running
 5. **Sleeptime wiring:** Exact Letta group/sleeptime API shape we must call — freeze against live Classic version on moya.
 6. **Cerebellum:** Placeholder loop in the schema now, implement later — yes/no?
 7. **Privilege / secrets / packaging home** — unchanged from prior stub.
-8. **Where does the API live?** New thin service (preferred with microservices stance) vs revive `installer/control`.
-9. **Chat default:** When user opens “Athena” in ADE, which Letta id gets messages — main only, or routable per loop?
+8. **E1 vs E2:** Fork-mount Sanctum routers into Letta process vs sidecar path-split on same URL?
+9. **Chat default:** Opening “Athena” in ADE — which Letta id gets messages?
+10. **Fork strategy:** How we carry Sanctum routers across upstream Letta upgrades (overlay package vs long-lived fork).
 
 ---
 
 ## 8. Suggested hone-in path (process, not architecture)
 
-1. Lock: **Host API as separate microservice** (no Letta Postgres); **Sanctum Agent composite** as the product noun.
-2. Freeze v0 OpenAPI with **both** layers: granular Broca module + `sanctum-agents` GET/POST (POST may initially only *link* existing Letta ids).
-3. Vertical A: `PATCH broca desired=running` for `athena` against lived layout.
-4. Vertical B: meta `POST /v1/sanctum-agents` creates main+sleeptime via Letta client + registry row (Broca optional flag).
-5. Wizard UI in ADE last — API + job SSE first.
-6. Cerebellum / richer profiles after the two-loop bundle is boringly reliable.
+1. Lock product face: **Sanctum endpoints on the on-box Letta API** (one base URL). Data stays microservices (no Letta Postgres for Sanctum).
+2. Spike **E1 vs E2** on a throwaway box: mount `/v1/sanctum/health` both ways; pick by ops pain.
+3. Freeze v0 OpenAPI under `/v1/sanctum/…`: Broca module + sanctum-agents GET/POST + jobs.
+4. Vertical A: Broca on for existing `athena`.
+5. Vertical B: meta-create / link composite (main+sleeptime).
+6. Wizard UI last.
 
 ---
 
@@ -362,9 +384,10 @@ sanctum module set broca --agent athena --desired running
 | Date | Decision |
 |------|----------|
 | 2026-10-15 | Stub opened; options A–D + hybrid sketched; no winner. |
-| 2026-10-15 | Emerging preference: **internal bootstrap API** (Option E) — Letta-shaped; A/B/D as backends; ADE/CLI as clients. Not final lock. |
-| 2026-10-15 | **No shared Postgres with Letta** — keep microservices. |
-| 2026-10-15 | **Composite Sanctum Agent**: one Sanctum entity → N Letta agents (main, sleeptime, future cerebellum) + host modules (Broca, SMCP). Granular + meta endpoints. Wizard hits meta. |
+| 2026-10-15 | Emerging preference: API-driven bootstraps (Option E). |
+| 2026-10-15 | **No shared Postgres with Letta** — Sanctum state separate; Broca/SMCP stay own processes. |
+| 2026-10-15 | **Composite Sanctum Agent**: one Sanctum entity → N Letta agents + host modules; granular + meta. |
+| 2026-10-15 | **Clarified:** extend **the Letta API on every Sanctum box** with Sanctum endpoints (E1 fork-mount or E2 same-URL sidecar)—not a second ADE Settings base by default. Prior “separate Host API URL” was Otto answering the wrong frame. |
 
 ---
 
