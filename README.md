@@ -14,6 +14,26 @@
 
 **Backend:** Talks to a Letta-compatible HTTP API (Sanctum / self-hosted Letta OSS). “Letta” in code and docs means that **API contract**, not Letta’s product branding.
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/desktop-dashboard.png" alt="Sanctum ADE dashboard" width="900">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/desktop-agents.png" alt="Sanctum ADE agents list" width="900">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/desktop-chat.png" alt="Sanctum ADE chat with memory panel" width="900">
+</p>
+
+More captures (including mobile) live under [`docs/screenshots/`](docs/screenshots/). Refresh with:
+
+```bash
+ADE_E2E_API_KEY=… .venv/bin/python scripts/visual_verify.py docs/screenshots
+```
+
 ---
 
 ## Quick start
