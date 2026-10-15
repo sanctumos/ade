@@ -44,28 +44,6 @@
 }
 .chat-header-actions { display: flex; gap: 8px; flex-shrink: 0; }
 
-.chat-memory-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  padding: 0;
-  border: 1px solid var(--af-border);
-  border-radius: var(--af-radius-sm);
-  background: var(--af-bg-surface);
-  color: var(--af-text-muted);
-  cursor: pointer;
-  flex-shrink: 0;
-}
-.chat-memory-toggle:hover { background: var(--af-hover-wash); color: var(--af-text); }
-.chat-memory-toggle svg { width: 16px; height: 16px; }
-html[data-chat-memory="open"] .chat-memory-toggle {
-  border-color: var(--af-accent-ring);
-  color: var(--af-accent-strong);
-  background: var(--af-accent-dim);
-}
-
 /* Context window usage bar (official ADE ContextWindowPreview) */
 .chat-context-bar {
   flex-shrink: 0;
@@ -138,17 +116,16 @@ html[data-chat-memory="open"] .chat-memory-toggle {
 }
 
 .chat-memory-panel {
-  width: 300px;
+  --chat-memory-w: 300px;
+  width: var(--chat-memory-w);
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   border-left: 1px solid var(--af-border-subtle);
   background: var(--af-bg-raised);
   min-height: 0;
-}
-/* Collapse via attribute — works on desktop + mobile (don't rely on [hidden] alone) */
-html[data-chat-memory="closed"] .chat-memory-panel {
-  display: none !important;
+  transition: width 0.2s ease, padding 0.2s ease;
+  overflow: hidden;
 }
 .chat-memory-head {
   display: flex;
@@ -159,6 +136,7 @@ html[data-chat-memory="closed"] .chat-memory-panel {
   border-bottom: 1px solid var(--af-border-subtle);
   flex-shrink: 0;
 }
+.chat-memory-head-text { min-width: 0; flex: 1; }
 .chat-memory-title {
   margin: 0;
   font-size: 13px;
@@ -170,18 +148,48 @@ html[data-chat-memory="closed"] .chat-memory-panel {
   font-size: 11px;
   color: var(--af-text-dim);
 }
-.chat-memory-close {
+.chat-memory-collapse {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 28px;
   height: 28px;
+  margin-left: auto;
+  padding: 0;
   border: 1px solid var(--af-border-subtle);
   border-radius: var(--af-radius-sm);
   background: var(--af-bg-surface);
   color: var(--af-text-muted);
   cursor: pointer;
-  font-size: 16px;
-  line-height: 1;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
-.chat-memory-close:hover { color: var(--af-text); background: var(--af-hover-wash); }
+.chat-memory-collapse:hover {
+  background: var(--af-hover-wash);
+  color: var(--af-text);
+  border-color: var(--af-border);
+}
+.chat-memory-collapse svg { width: 15px; height: 15px; }
+
+/* Icon rail when collapsed — same idea as left af-sidebar collapse */
+html[data-chat-memory="closed"] .chat-memory-panel {
+  --chat-memory-w: 52px;
+  width: 52px;
+}
+html[data-chat-memory="closed"] .chat-memory-head {
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 8px;
+  border-bottom: none;
+}
+html[data-chat-memory="closed"] .chat-memory-head-text,
+html[data-chat-memory="closed"] .chat-memory-list,
+html[data-chat-memory="closed"] .chat-memory-foot {
+  display: none;
+}
+html[data-chat-memory="closed"] .chat-memory-collapse {
+  margin-left: 0;
+}
 .chat-memory-list {
   flex: 1;
   min-height: 0;
@@ -741,8 +749,14 @@ html[data-chat-memory="closed"] .chat-memory-panel {
     bottom: 0;
     z-index: 20;
     width: min(320px, 88vw);
+    --chat-memory-w: min(320px, 88vw);
     box-shadow: var(--af-shadow-lg);
     border-left: 1px solid var(--af-border-subtle);
+  }
+  html[data-chat-memory="closed"] .chat-memory-panel {
+    --chat-memory-w: 48px;
+    width: 48px;
+    box-shadow: none;
   }
   .chat-messages-scroll { padding: 16px 14px 10px; }
   .chat-composer-wrap { padding: 8px 12px 12px; }
@@ -754,7 +768,7 @@ html[data-chat-memory="closed"] .chat-memory-panel {
   .chat-composer-meta .chat-kbd-hint { display: none; }
 }
 
-html[data-skin-comp="ledger"] :is(.chat-memory-toggle, .chat-memory-close, .chat-memory-card, .chat-ctx-track, .chat-ctx-swatch),
-html[data-skin-comp="brutalist"] :is(.chat-memory-toggle, .chat-memory-close, .chat-memory-card, .chat-ctx-track, .chat-ctx-swatch) {
+html[data-skin-comp="ledger"] :is(.chat-memory-collapse, .chat-memory-card, .chat-ctx-track, .chat-ctx-swatch),
+html[data-skin-comp="brutalist"] :is(.chat-memory-collapse, .chat-memory-card, .chat-ctx-track, .chat-ctx-swatch) {
   border-radius: 0;
 }

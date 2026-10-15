@@ -77,6 +77,12 @@
     ].join(':');
   }
 
+  /* Same glyphs as app.js sidebar collapse, mirrored for a right-hand panel. */
+  var ICON_COLLAPSE =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/><path d="M15 4v16"/></svg>';
+  var ICON_EXPAND =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/><path d="M9 4v16"/></svg>';
+
   function isMemoryOpen() {
     try { return localStorage.getItem(STORAGE_MEM) !== '0'; } catch (e) { return true; }
   }
@@ -87,15 +93,16 @@
       else localStorage.setItem(STORAGE_MEM, '0');
     } catch (e) { /* ignore */ }
     document.documentElement.setAttribute('data-chat-memory', open ? 'open' : 'closed');
-    var btn = document.getElementById('chat-memory-toggle');
+    var btn = document.getElementById('chat-memory-collapse');
     if (btn) {
       btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-      btn.setAttribute('title', open ? 'Hide memory blocks' : 'Show memory blocks');
-      btn.setAttribute('aria-label', open ? 'Hide memory blocks' : 'Show memory blocks');
+      btn.setAttribute('title', open ? 'Collapse memory panel' : 'Expand memory panel');
+      btn.setAttribute('aria-label', open ? 'Collapse memory panel' : 'Expand memory panel');
+      btn.innerHTML = open ? ICON_COLLAPSE : ICON_EXPAND;
     }
     var panel = document.getElementById('chat-memory-panel');
     if (panel) {
-      panel.hidden = !open;
+      panel.removeAttribute('hidden');
       panel.setAttribute('aria-hidden', open ? 'false' : 'true');
     }
   }
@@ -266,20 +273,12 @@
     if (uiBound) return;
     uiBound = true;
     setMemoryOpen(isMemoryOpen());
-    var toggle = document.getElementById('chat-memory-toggle');
-    var closeBtn = document.getElementById('chat-memory-close');
-    if (toggle) {
-      toggle.addEventListener('click', function (e) {
+    var btn = document.getElementById('chat-memory-collapse');
+    if (btn) {
+      btn.addEventListener('click', function (e) {
         e.preventDefault();
         e.stopPropagation();
         setMemoryOpen(!isMemoryOpen());
-      });
-    }
-    if (closeBtn) {
-      closeBtn.addEventListener('click', function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        setMemoryOpen(false);
       });
     }
   }

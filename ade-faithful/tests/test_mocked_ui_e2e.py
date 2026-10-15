@@ -345,14 +345,35 @@ def test_chat_context_bar_and_memory_panel(page):
           return ws && panel && body && panel.previousElementSibling === body;
         }"""
     )
-    page.locator("#chat-memory-close").click()
+    # No header hamburger for memory — collapse lives on the panel (like left nav).
+    assert page.locator("#chat-memory-toggle").count() == 0
+    assert page.locator("#chat-memory-collapse").count() == 1
+    wide = page.evaluate(
+        "() => document.getElementById('chat-memory-panel').getBoundingClientRect().width"
+    )
+    page.locator("#chat-memory-collapse").click()
     assert page.locator("html").get_attribute("data-chat-memory") == "closed"
     assert page.evaluate("() => localStorage.getItem('af-chat-memory-open')") == "0"
-    assert not page.locator("#chat-memory-panel").is_visible()
-    page.locator("#chat-memory-toggle").click()
-    assert page.locator("html").get_attribute("data-chat-memory") == "open"
+    # Collapses to an icon rail (still visible), not display:none.
     assert page.locator("#chat-memory-panel").is_visible()
-    # Toggle again via header button (must not double-bind / no-op).
-    page.locator("#chat-memory-toggle").click()
+    page.wait_for_function(
+        "() => document.getElementById('chat-memory-panel').getBoundingClientRect().width < 80",
+        timeout=3000,
+    )
+    narrow = page.evaluate(
+        "() => document.getElementById('chat-memory-panel').getBoundingClientRect().width"
+    )
+    assert narrow < 80 and narrow < wide
+    page.locator("#chat-memory-collapse").click()
+    assert page.locator("html").get_attribute("data-chat-memory") == "open"
+    page.wait_for_function(
+        "() => document.getElementById('chat-memory-panel').getBoundingClientRect().width > 200",
+        timeout=3000,
+    )
+    # Toggle again (must not double-bind / no-op).
+    page.locator("#chat-memory-collapse").click()
     assert page.locator("html").get_attribute("data-chat-memory") == "closed"
-    assert not page.locator("#chat-memory-panel").is_visible()
+    page.wait_for_function(
+        "() => document.getElementById('chat-memory-panel').getBoundingClientRect().width < 80",
+        timeout=3000,
+    )
