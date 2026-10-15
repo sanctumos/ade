@@ -10,18 +10,36 @@
 <body>
   <div class="af-layout" data-ade-nav="chat">
     <span id="ade-nav-inject"></span>
-    <main class="af-main">
-      <button type="button" class="af-nav-toggle" id="nav-toggle" aria-label="Open menu">≡</button>
-      <h1>Chat</h1>
-      <div id="error"></div>
-      <p class="af-muted">Messages for the <strong>active agent</strong> (sidebar). Streaming when the self-hosted server supports it; markdown for replies; reasoning and tool steps in separate lanes.</p>
-      <p class="af-muted" id="agent-setup-line" style="font-size:14px;margin-bottom:16px"><a href="agent.html" id="config-agent-link">Agent setup →</a> — model, tools, core memory, archival.</p>
-      <div id="messages" class="chat-thread chat-messages-scroll"></div>
-      <p id="history-hint" class="af-muted" style="margin-top:-8px;margin-bottom:12px;font-size:12px;display:none"></p>
-      <form id="send-form" class="af-composer">
-        <input type="text" class="af-input" id="input" placeholder="Message…" autocomplete="off" />
-        <button type="submit" class="af-btn af-btn-primary" id="send-btn">Send</button>
-      </form>
+    <main class="af-main af-main--chat">
+      <header class="chat-header">
+        <div class="chat-header-main">
+          <button type="button" class="af-nav-toggle" id="nav-toggle" aria-label="Open menu">≡</button>
+          <span id="chat-agent-avatar"></span>
+          <div class="chat-header-title">
+            <h1 class="chat-header-name" id="chat-agent-name">Chat</h1>
+            <div class="chat-header-sub" id="chat-agent-sub">Select an agent in the sidebar</div>
+          </div>
+        </div>
+        <div class="chat-header-actions">
+          <a href="agent.html" id="config-agent-link" class="af-btn af-btn-secondary af-btn-sm" title="Model, tools, core memory, archival"><span id="config-agent-icon"></span><span>Configure</span></a>
+        </div>
+      </header>
+      <div class="chat-body">
+        <div id="error"></div>
+        <div class="chat-messages-scroll" id="chat-scroll">
+          <div id="messages" class="chat-thread"></div>
+        </div>
+        <div class="chat-composer-wrap">
+          <form id="send-form" class="chat-composer">
+            <textarea id="input" rows="1" placeholder="Message the agent…" autocomplete="off" aria-label="Message"></textarea>
+            <button type="submit" class="af-btn af-btn-primary chat-send" id="send-btn" aria-label="Send"></button>
+          </form>
+          <div class="chat-composer-meta">
+            <p id="history-hint"></p>
+            <span class="chat-kbd-hint"><kbd>Enter</kbd> to send · <kbd>Shift</kbd>+<kbd>Enter</kbd> for a new line</span>
+          </div>
+        </div>
+      </div>
     </main>
   </div>
   <script src="vendor/marked.min.js"></script>
@@ -34,8 +52,82 @@
     var messagesEl = document.getElementById('messages');
     var inputEl = document.getElementById('input');
     var errorEl = document.getElementById('error');
+    var scrollEl = document.getElementById('chat-scroll');
     function currentAgentId() { return window.ADE.getSelectedAgentId(); }
     var historyHint = document.getElementById('history-hint');
+    var knownAgents = [];
+    document.getElementById('send-btn').innerHTML = window.ADE.icons.send;
+    document.getElementById('config-agent-icon').outerHTML = window.ADE.icons.sliders;
+
+    function scrollToBottom() { scrollEl.scrollTop = scrollEl.scrollHeight; }
+
+    function currentAgent() {
+      var aid = currentAgentId();
+      for (var i = 0; i < knownAgents.length; i++) {
+        var a = knownAgents[i];
+        if (String(a.id != null ? a.id : a.agent_id) === String(aid)) return a;
+      }
+      return null;
+    }
+    function currentAgentName() {
+      var a = currentAgent();
+      if (a) return a.name || a.agent_name || a.id;
+      var sel = document.getElementById('ade-agent-select');
+      return sel && sel.selectedIndex >= 0 && sel.value ? sel.options[sel.selectedIndex].text : 'Agent';
+    }
+
+    function updateHeader() {
+      var aid = currentAgentId();
+      var nameEl = document.getElementById('chat-agent-name');
+      var subEl = document.getElementById('chat-agent-sub');
+      var avEl = document.getElementById('chat-agent-avatar');
+      if (!aid) {
+        nameEl.textContent = 'Chat';
+        subEl.textContent = 'Select an agent in the sidebar';
+        avEl.innerHTML = '';
+        return;
+      }
+      var nm = currentAgentName();
+      nameEl.textContent = nm;
+      avEl.innerHTML = window.ADE.avatarHtml(nm);
+      var model = window.ADE.agentModelLabel(currentAgent());
+      subEl.innerHTML = '<span class="af-dot is-ok"></span>' + AC.escHtml(model || 'Self-hosted Letta agent');
+      document.title = nm + ' — Chat — Letta ADE';
+    }
+
+    function assistantRow(innerHtml) {
+      var row = document.createElement('div');
+      row.className = 'chat-row chat-row--assistant';
+      var nm = currentAgentName();
+      row.innerHTML = window.ADE.avatarHtml(nm) +
+        '<div class="chat-row-body"><div class="chat-row-name">' + AC.escHtml(nm) + '</div>' +
+        '<div class="chat-turn chat-turn--assistant">' + innerHtml + '</div></div>';
+      return row;
+    }
+    function userRow(innerHtml) {
+      var row = document.createElement('div');
+      row.className = 'chat-row chat-row--user';
+      row.innerHTML = '<div class="chat-row-body"><div class="chat-turn chat-turn--user">' + innerHtml + '</div></div>';
+      return row;
+    }
+
+    /** Sleeptime / system-reminder payloads arrive as user_message; they are agent plumbing, not something a person typed. */
+    var INTERNAL_PREVIEW_MAX = 20000;
+    function isInternalContext(text) {
+      var t = String(text || '').replace(/^\s+/, '');
+      return t.indexOf('<system-reminder>') === 0 || t.indexOf('<system>') === 0 || t.length > 6000;
+    }
+    function internalContextElement(text) {
+      var wrap = document.createElement('div');
+      wrap.className = 'chat-turn chat-turn--internal chat-step';
+      var s = String(text);
+      var shown = s.length > INTERNAL_PREVIEW_MAX ? s.slice(0, INTERNAL_PREVIEW_MAX) + '\n…' : s;
+      var tag = '<span class="chat-turn__label-tag">' + s.length.toLocaleString() + ' chars</span>';
+      wrap.innerHTML = '<details class="chat-details">' +
+        chatCollapsibleSummary('Internal context', tag) +
+        '<div class="chat-details-body"><pre class="chat-json">' + AC.escHtml(shown) + '</pre></div></details>';
+      return wrap;
+    }
 
     function normalizeMessages(d) {
       if (Array.isArray(d)) return d;
@@ -108,10 +200,17 @@
     }
 
     function collectToolCalls(m) {
-      var out = [];
-      if (m.tool_call) out.push(m.tool_call);
-      if (Array.isArray(m.tool_calls)) out = out.concat(m.tool_calls);
-      return out;
+      var all = [];
+      if (m.tool_call) all.push(m.tool_call);
+      if (Array.isArray(m.tool_calls)) all = all.concat(m.tool_calls);
+      var seen = {};
+      return all.filter(function(tc) {
+        if (!tc) return false;
+        var k = tc.tool_call_id || tc.id || ((tc.name || '') + '|' + (tc.arguments || ''));
+        if (seen[k]) return false;
+        seen[k] = true;
+        return true;
+      });
     }
 
     function toolReturnBodyHtml(val) {
@@ -175,7 +274,7 @@
       var wrap = document.createElement('div');
 
       if (mt === 'reasoning_message') {
-        wrap.className = 'chat-turn chat-turn--reasoning';
+        wrap.className = 'chat-turn chat-turn--reasoning chat-step';
         var src = m.source ? String(m.source).replace(/_/g, ' ') : '';
         var reasoning = m.reasoning != null ? String(m.reasoning) : '';
         var srcTag = src ? '<span class="chat-turn__label-tag">' + AC.escHtml(src) + '</span>' : '';
@@ -188,7 +287,7 @@
       }
 
       if (mt === 'hidden_reasoning_message') {
-        wrap.className = 'chat-turn chat-turn--hidden-reasoning';
+        wrap.className = 'chat-turn chat-turn--hidden-reasoning chat-step';
         var state = m.state ? String(m.state) : 'omitted';
         var stateTag = '<span class="chat-turn__label-tag">' + AC.escHtml(state) + '</span>';
         var inner;
@@ -205,7 +304,7 @@
       }
 
       if (mt === 'tool_call_message') {
-        wrap.className = 'chat-turn chat-turn--tool-call';
+        wrap.className = 'chat-turn chat-turn--tool-call chat-step';
         var callsTc = collectToolCalls(m);
         if (!callsTc.length) {
           wrap.innerHTML = '<div class="chat-turn__label">Tool call</div><p class="af-muted">(no tool_call payload)</p>';
@@ -227,7 +326,7 @@
       }
 
       if (mt === 'approval_request_message') {
-        wrap.className = 'chat-turn chat-turn--approval';
+        wrap.className = 'chat-turn chat-turn--approval chat-step';
         var callsAp = collectToolCalls(m);
         if (!callsAp.length) {
           wrap.innerHTML = '<div class="chat-turn__label">Approval required</div><p class="af-muted">(no tool_call payload)</p>';
@@ -250,7 +349,7 @@
 
       if (mt === 'tool_return_message') {
         var err = String(m.status || '').toLowerCase() === 'error';
-        wrap.className = 'chat-turn chat-turn--tool-return' + (err ? ' chat-turn--error' : '');
+        wrap.className = 'chat-turn chat-turn--tool-return chat-step' + (err ? ' chat-turn--error' : '');
         var tid = m.tool_call_id ? String(m.tool_call_id) : '';
         var st = m.status ? String(m.status) : '—';
         var tidShort = tid ? shortToolCallId(tid) : '';
@@ -275,7 +374,7 @@
       }
 
       if (mt === 'approval_response_message') {
-        wrap.className = 'chat-turn chat-turn--approval';
+        wrap.className = 'chat-turn chat-turn--approval chat-step';
         var ok = m.approve === true;
         var reason = m.reason ? '<div class="chat-md" style="margin-top:8px">' + AC.parseMarkdown(String(m.reason)) + '</div>' : '';
         wrap.innerHTML =
@@ -286,31 +385,27 @@
       }
 
       if (mt === 'user_message') {
-        wrap.className = 'chat-turn chat-turn--user';
         var ut = userFacingContent(m);
-        wrap.innerHTML = '<div class="chat-turn__label">You</div><div class="chat-md">' + AC.parseMarkdown(ut) + '</div>';
-        return wrap;
+        if (isInternalContext(ut)) return internalContextElement(ut);
+        return userRow('<div class="chat-md">' + AC.parseMarkdown(ut) + '</div>');
       }
 
       if (mt === 'assistant_message') {
-        wrap.className = 'chat-turn chat-turn--assistant';
         var at = assistantFacingContent(m);
-        wrap.innerHTML = '<div class="chat-turn__label">Assistant</div><div class="chat-md">' + AC.parseMarkdown(at) + '</div>';
-        return wrap;
+        if (!at.trim()) return null;
+        return assistantRow('<div class="chat-md">' + AC.parseMarkdown(at) + '</div>');
       }
 
       if (mt === 'system_message') {
         var sc = typeof m.content === 'string' ? m.content : '';
         if (!sc.trim()) return null;
-        wrap.className = 'chat-turn chat-turn--system';
-        wrap.innerHTML = '<div class="chat-turn__label">System</div><div class="chat-md">' + AC.parseMarkdown(sc) + '</div>';
-        return wrap;
+        return internalContextElement(sc);
       }
 
       /* Unknown type: best-effort single block */
       var flat = legacyFlatContent(m);
       if (!flat.trim()) return null;
-      wrap.className = 'chat-turn chat-turn--system';
+      wrap.className = 'chat-turn chat-turn--system chat-step';
       wrap.innerHTML =
         '<div class="chat-turn__label">' + AC.escHtml(mt.replace(/_/g, ' ')) + '</div><div class="chat-md">' + AC.parseMarkdown(flat) + '</div>';
       return wrap;
@@ -318,38 +413,49 @@
 
     function renderHistory(msgs) {
       messagesEl.innerHTML = '';
-      if (!msgs.length) {
-        messagesEl.innerHTML = '<p class="af-muted" style="margin:0">No messages yet — say hello below, or history may be unavailable from this API.</p>';
-        return;
-      }
+      var shown = 0;
       msgs.forEach(function(m) {
         if (isInternalUserMessage(m)) return;
         var el = createMessageElement(m);
-        if (el) messagesEl.appendChild(el);
+        if (el) { messagesEl.appendChild(el); shown++; }
       });
-      messagesEl.scrollTop = messagesEl.scrollHeight;
+      if (!shown) {
+        renderEmpty('No messages yet', 'Say hello below to start the conversation.');
+        return;
+      }
+      scrollToBottom();
+    }
+
+    function renderEmpty(title, text) {
+      var aid = currentAgentId();
+      messagesEl.innerHTML = '<div class="chat-empty">' +
+        (aid ? window.ADE.avatarHtml(currentAgentName(), 'lg') : '') +
+        '<h2>' + AC.escHtml(title) + '</h2><p>' + AC.escHtml(text) + '</p></div>';
     }
 
     function loadHistory(aid, opts) {
       opts = opts || {};
-      if (!aid) return Promise.resolve(false);
-      historyHint.style.display = 'block';
+      if (!aid) {
+        renderEmpty('No agent selected', 'Pick an agent from the sidebar to start chatting.');
+        return Promise.resolve(false);
+      }
       historyHint.textContent = 'Loading conversation…';
       return window.ADE.getAgentMessages(aid, { limit: '200' }).then(function(d) {
-        historyHint.textContent = 'History from API (up to 200 messages).';
-        renderHistory(normalizeMessages(d));
+        var msgs = normalizeMessages(d);
+        historyHint.textContent = msgs.length ? ('Showing last ' + msgs.length + ' messages') : '';
+        renderHistory(msgs);
         return true;
       }).catch(function() {
-        historyHint.textContent = 'Could not load history — chat still works for new messages.';
-        if (!opts.softFail) {
-          messagesEl.innerHTML = '<p class="af-muted" style="margin:0">History not available. Send a message to start.</p>';
-        }
+        historyHint.textContent = 'Could not load history — new messages still work.';
+        if (!opts.softFail) renderEmpty('History not available', 'Send a message to start.');
         return false;
       });
     }
 
     function onAgentContext(ev) {
       var id = ev && ev.detail && ev.detail.id != null ? ev.detail.id : currentAgentId();
+      if (ev && ev.detail && Array.isArray(ev.detail.agents)) knownAgents = ev.detail.agents;
+      updateHeader();
       errorEl.innerHTML = '';
       if (ev && ev.detail && ev.detail.error) {
         errorEl.innerHTML = '<div class="af-alert af-alert-danger" role="alert">Could not load agents for the sidebar.</div>';
@@ -371,12 +477,26 @@
     document.addEventListener('ade-agentselectready', updateAgentSetupLink);
 
     function addMsg(role, content) {
-      var synthetic = role === 'user'
-        ? { message_type: 'user_message', content: content }
-        : { message_type: 'assistant_message', content: content };
-      messagesEl.appendChild(createMessageElement(synthetic));
-      messagesEl.scrollTop = messagesEl.scrollHeight;
+      var empty = messagesEl.querySelector('.chat-empty');
+      if (empty) empty.remove();
+      var el = role === 'user'
+        ? userRow('<div class="chat-md">' + AC.parseMarkdown(content) + '</div>')
+        : assistantRow('<div class="chat-md">' + AC.parseMarkdown(content) + '</div>');
+      messagesEl.appendChild(el);
+      scrollToBottom();
     }
+
+    function autoGrow() {
+      inputEl.style.height = 'auto';
+      inputEl.style.height = Math.min(inputEl.scrollHeight, 200) + 'px';
+    }
+    inputEl.addEventListener('input', autoGrow);
+    inputEl.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+        e.preventDefault();
+        document.getElementById('send-form').requestSubmit();
+      }
+    });
 
     function extractAssistant(res) {
       if (!res) return '';
@@ -431,14 +551,14 @@
       var aid = currentAgentId();
       if (!text || !aid) return;
       inputEl.value = '';
+      autoGrow();
       addMsg('user', text);
       document.getElementById('send-btn').disabled = true;
       errorEl.innerHTML = '';
 
-      var streamWrap = document.createElement('div');
-      streamWrap.className = 'chat-turn chat-turn--assistant';
-      streamWrap.innerHTML = '<div class="chat-turn__label">Assistant</div><div class="chat-md" data-stream-body></div>';
+      var streamWrap = assistantRow('<div class="chat-md" data-stream-body><span class="chat-typing" aria-label="Agent is thinking"><i></i><i></i><i></i></span></div>');
       messagesEl.appendChild(streamWrap);
+      scrollToBottom();
       var bodyEl = streamWrap.querySelector('[data-stream-body]');
       var acc = '';
       var sawAssistant = false;
@@ -458,7 +578,7 @@
             var el = createMessageElement(obj);
             if (el) {
               messagesEl.insertBefore(el, streamWrap);
-              messagesEl.scrollTop = messagesEl.scrollHeight;
+              scrollToBottom();
             }
             return;
           }
@@ -467,7 +587,7 @@
           sawAssistant = true;
           acc += chunk;
           bodyEl.innerHTML = AC.parseMarkdown(acc);
-          messagesEl.scrollTop = messagesEl.scrollHeight;
+          scrollToBottom();
         },
         onDone: function() {
           if (!sawAssistant || !acc.trim()) {

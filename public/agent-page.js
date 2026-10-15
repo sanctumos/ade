@@ -388,27 +388,59 @@
 
   window.ADE.getAgent(id).then(function (a) {
     currentAgent = a;
-    document.getElementById('title').textContent = a.name || a.agent_name || id;
+    var agentName = a.name || a.agent_name || id;
+    document.getElementById('title').textContent = agentName;
+    document.title = agentName + ' — Letta ADE';
+    document.getElementById('agent-avatar').innerHTML = window.ADE.avatarHtml(agentName, 'lg');
+    var model = window.ADE.agentModelLabel(a);
+    document.getElementById('agent-sub').innerHTML =
+      (model ? '<span class="af-badge af-badge-accent">' + escHtml(model) + '</span>' : '') +
+      '<span class="af-badge af-badge-tools">' + (attachedToolIds ? attachedToolIds.length + ' tools' : '… tools') + '</span>' +
+      '<span class="af-badge af-mono" title="Agent id">' + escHtml(String(id)) + '</span>';
     document.getElementById('system').value = a.system || '';
     applyLlmFieldsFromAgent(a);
     syncDangerZoneDeleteName(a);
   }).catch(function (e) { showErr(e.message); });
 
-  Promise.all([window.ADE.listModels().catch(function () { return []; }), window.ADE.listTools().catch(function () { return []; })]).then(function (arr) {
+  /** Tool ids attached to the agent; null when unknown (then Save must not send tool_ids). */
+  var attachedToolIds = null;
+  function toolIdsFrom(list) {
+    if (!Array.isArray(list)) return [];
+    return list.map(function (t) { return t && typeof t === 'object' ? String(t.id != null ? t.id : t.tool_id) : String(t); });
+  }
+
+  Promise.all([
+    window.ADE.listModels().catch(function () { return []; }),
+    window.ADE.listTools().catch(function () { return []; }),
+    window.ADE.listAgentTools(id).catch(function () { return null; })
+  ]).then(function (arr) {
     var models = normList(arr[0]), tools = normList(arr[1]);
+    var agentToolsResp = arr[2];
     window.ADE.getAgent(id).then(function (a) {
       currentAgent = a;
       if (models.length) {
         document.getElementById('model-row').classList.remove('af-hidden');
         var modelSelect = document.getElementById('model');
-        modelSelect.innerHTML = '<option value="">—</option>' + models.map(function (m) {
-          return '<option value="' + escAttr(String(modelId(m))) + '">' + escHtml(String(modelLabel(m))) + '</option>';
-        }).join('');
-        modelSelect.value = a.model || (a.llm_config && a.llm_config.model) || a.handle || '';
+        var current = String(a.model || (a.llm_config && (a.llm_config.handle || a.llm_config.model)) || a.handle || '');
+        var known = models.some(function (m) { return String(modelId(m)) === current; });
+        modelSelect.innerHTML = '<option value="">—</option>' +
+          (current && !known ? '<option value="' + escAttr(current) + '">' + escHtml(current) + ' (current — not in server list)</option>' : '') +
+          models.map(function (m) {
+            return '<option value="' + escAttr(String(modelId(m))) + '">' + escHtml(String(modelLabel(m))) + '</option>';
+          }).join('');
+        modelSelect.value = current;
       }
-      var agentToolIds = a.tool_ids || a.tools || [];
-      if (!Array.isArray(agentToolIds)) agentToolIds = [];
-      mountAgentToolsList(tools, agentToolIds);
+      if (agentToolsResp != null) {
+        attachedToolIds = toolIdsFrom(normList(agentToolsResp));
+      } else if (Array.isArray(a.tool_ids) && a.tool_ids.length) {
+        attachedToolIds = toolIdsFrom(a.tool_ids);
+      } else {
+        attachedToolIds = null;
+        showErr("Could not load this agent's attached tools. Save will leave tools unchanged.");
+      }
+      var badge = document.querySelector('#agent-sub .af-badge-tools');
+      if (badge && attachedToolIds) badge.textContent = attachedToolIds.length + (attachedToolIds.length === 1 ? ' tool' : ' tools');
+      mountAgentToolsList(tools, attachedToolIds || []);
       applyLlmFieldsFromAgent(a);
       syncDangerZoneDeleteName(a);
     });
@@ -426,7 +458,12 @@
     if (!document.getElementById('model-row').classList.contains('af-hidden') && modelVal) body.model = modelVal;
     body.system = document.getElementById('system').value;
     var checked = [].map.call(document.querySelectorAll('input[name=tool]:checked'), function (c) { return c.value; });
-    body.tool_ids = checked;
+    if (attachedToolIds) {
+      var rendered = {};
+      [].forEach.call(document.querySelectorAll('input[name=tool]'), function (c) { rendered[c.value] = true; });
+      var offList = attachedToolIds.filter(function (t) { return !rendered[t]; });
+      body.tool_ids = checked.concat(offList);
+    }
 
     var llm = Object.assign({}, (currentAgent && currentAgent.llm_config) || {});
     var tv = document.getElementById('llm-temperature').value.trim();
@@ -442,10 +479,9 @@
     window.ADE.updateAgent(id, body).then(function (updated) {
       currentAgent = Object.assign({}, currentAgent || {}, updated);
       applyLlmFieldsFromAgent(currentAgent);
-      var synced = (updated && (updated.tool_ids || updated.tools)) || checked;
-      if (!Array.isArray(synced)) synced = checked;
-      if (lastRegisteredTools.length) {
-        mountAgentToolsList(lastRegisteredTools, synced);
+      if (body.tool_ids) attachedToolIds = body.tool_ids.slice();
+      if (lastRegisteredTools.length && attachedToolIds) {
+        mountAgentToolsList(lastRegisteredTools, attachedToolIds);
       }
       setSaveConfigDisabled(false);
     }).catch(function (e) {

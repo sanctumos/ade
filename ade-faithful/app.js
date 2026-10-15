@@ -5,27 +5,82 @@
    * ade-faithful: self-hosted Letta ADE (static HTML/CSS/JS, no Node, no Cloud).
    * Storage keys are namespaced so ade-simple and ade-faithful can coexist in one browser.
    */
+  function svgIcon(paths) {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + paths + '</svg>';
+  }
+  var ICONS = {
+    dashboard: svgIcon('<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>'),
+    projects: svgIcon('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'),
+    chat: svgIcon('<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>'),
+    agents: svgIcon('<rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 3v4M9 12h.01M15 12h.01M9.5 16h5"/>'),
+    tools: svgIcon('<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/>'),
+    mcp: svgIcon('<path d="M12 2v6M12 16v6M4.9 4.9l4.2 4.2M14.9 14.9l4.2 4.2M2 12h6M16 12h6"/><circle cx="12" cy="12" r="3"/>'),
+    settings: svgIcon('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'),
+    send: svgIcon('<path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/>'),
+    trash: svgIcon('<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>'),
+    sliders: svgIcon('<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>'),
+    plus: svgIcon('<path d="M12 5v14M5 12h14"/>'),
+    chevron: svgIcon('<path d="m6 9 6 6 6-6"/>'),
+    arrow: svgIcon('<path d="M5 12h14M13 6l6 6-6 6"/>')
+  };
+
+  function navLink(href, key, label) {
+    return '<a class="af-nav-link" href="' + href + '">' + ICONS[key] + '<span>' + label + '</span></a>';
+  }
+
   var ADE_NAV_SHELL_HTML =
     '<button type="button" class="af-backdrop" id="nav-backdrop" aria-label="Close menu"></button>' +
     '<aside class="af-sidebar">' +
-    '<div class="af-brand"><span class="af-brand-mark">Letta</span><span class="af-brand-sub">ADE · self-hosted</span></div>' +
+    '<div class="af-brand"><span class="af-brand-logo" aria-hidden="true">L</span>' +
+    '<span class="af-brand-text"><span class="af-brand-mark">Letta ADE</span><span class="af-brand-sub">ADE · self-hosted</span></span></div>' +
     '<nav class="af-nav">' +
-    '<a class="af-nav-link" href="index.html">Dashboard</a>' +
-    '<a class="af-nav-link" href="projects.html">Projects</a>' +
-    '<a class="af-nav-link" href="chat.html">Chat</a>' +
-    '<a class="af-nav-link" href="agents.html">Agents</a>' +
-    '<a class="af-nav-link" href="tools.html">Tools</a>' +
-    '<a class="af-nav-link" href="mcp.html">MCP</a>' +
-    '<a class="af-nav-link" href="settings.html">Settings</a>' +
+    '<div class="af-nav-section">Workspace</div>' +
+    navLink('index.html', 'dashboard', 'Dashboard') +
+    navLink('chat.html', 'chat', 'Chat') +
+    navLink('agents.html', 'agents', 'Agents') +
+    navLink('projects.html', 'projects', 'Projects') +
+    '<div class="af-nav-section" style="margin-top:14px">Server</div>' +
+    navLink('tools.html', 'tools', 'Tools') +
+    navLink('mcp.html', 'mcp', 'MCP') +
+    navLink('settings.html', 'settings', 'Settings') +
     '</nav>' +
     '<div class="af-sidebar-agent">' +
     '<label class="af-sidebar-label" for="ade-agent-select">Active agent</label>' +
     '<select id="ade-agent-select" class="af-select af-select-agent" aria-label="Active agent">' +
     '<option value="">Loading…</option>' +
     '</select>' +
+    '<p class="af-api-badge"><span class="af-dot" id="api-status-dot"></span>API <span id="api-base-display">…</span></p>' +
     '</div>' +
-    '<p class="af-api-badge">API <span id="api-base-display">…</span></p>' +
     '</aside>';
+
+  /** Stable hue + initials so each agent gets a recognizable avatar. */
+  function avatarHue(name) {
+    var s = String(name || ''), h = 0;
+    for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360;
+    return h;
+  }
+  function avatarInitials(name) {
+    var parts = String(name || '?').replace(/[_\-.]+/g, ' ').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return '?';
+    if (parts.length === 1) return parts[0].slice(0, 2);
+    return parts[0][0] + parts[1][0];
+  }
+  function avatarHtml(name, size) {
+    var cls = 'af-avatar' + (size ? ' af-avatar-' + size : '');
+    var esc = String(avatarInitials(name)).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    return '<span class="' + cls + '" style="--h:' + avatarHue(name) + '" aria-hidden="true">' + esc + '</span>';
+  }
+  function agentModelLabel(a) {
+    if (!a) return '';
+    var lc = a.llm_config || {};
+    return String(lc.handle || a.model || lc.model || '');
+  }
+  function setApiStatus(ok) {
+    var dot = document.getElementById('api-status-dot');
+    if (!dot) return;
+    dot.classList.toggle('is-ok', !!ok);
+    dot.classList.toggle('is-bad', !ok);
+  }
 
   var ADE_ACTIVE_NAV_HREF = {
     dashboard: 'index.html',
@@ -92,6 +147,10 @@
   }
 
   injectAdeShell();
+  [].forEach.call(document.querySelectorAll('[data-af-icon]'), function (el) {
+    var svg = ICONS[el.getAttribute('data-af-icon')];
+    if (svg) el.innerHTML = svg;
+  });
   bindNavToggle();
   fillApiBaseDisplay();
 
@@ -191,6 +250,7 @@
         return '<option value="' + escOptLabel(rowAgentId(a)) + '">' + escOptLabel(rowAgentName(a)) + '</option>';
       }).join('');
       sel.setAttribute('data-ade-populated', '1');
+      setApiStatus(true);
       bindAgentSelectOnce(sel);
       var chosen = pickResolvedAgentId(agents, opts);
       pendingAgentId = null;
@@ -201,6 +261,7 @@
     }).catch(function () {
       sel.innerHTML = '<option value="">Could not load agents</option>';
       sel.setAttribute('data-ade-populated', '1');
+      setApiStatus(false);
       document.dispatchEvent(new CustomEvent('ade-agentselectready', { detail: { id: '', agents: [], error: true } }));
       return '';
     });
@@ -372,6 +433,9 @@
   }
 
   window.ADE = {
+    icons: ICONS,
+    avatarHtml: avatarHtml,
+    agentModelLabel: agentModelLabel,
     getConfig: getConfig,
     setStoredBase: setStoredBase,
     setStoredKey: setStoredKey,

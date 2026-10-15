@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Dashboard — Letta ADE (local)</title>
+  <title>Dashboard — Letta ADE</title>
   <link rel="stylesheet" href="shell.css" />
 </head>
 <body>
@@ -11,33 +11,61 @@
     <span id="ade-nav-inject"></span>
     <main class="af-main">
       <button type="button" class="af-nav-toggle" id="nav-toggle" aria-label="Open menu">≡</button>
-      <h1>Dashboard</h1>
-      <p class="af-muted">Self-hosted Letta ADE — static UI; your Letta server is the only backend.</p>
+      <section class="af-hero">
+        <p class="af-eyebrow">Agent Development Environment</p>
+        <h1>Welcome back</h1>
+        <p class="af-lede">Build, configure, and talk to the agents on your own Letta server. Nothing here touches Letta Cloud.</p>
+        <div class="af-hero-actions">
+          <a class="af-btn af-btn-primary" href="chat.html"><span data-af-icon="chat"></span>Open chat</a>
+          <a class="af-btn af-btn-secondary" href="agents.html"><span data-af-icon="plus"></span>New agent</a>
+        </div>
+      </section>
+
       <div id="status"></div>
+      <div class="af-stats">
+        <div class="af-stat">
+          <div class="af-stat-label"><span class="af-dot" id="stat-dot"></span>Server</div>
+          <div class="af-stat-value is-text" id="stat-server">Checking…</div>
+        </div>
+        <div class="af-stat">
+          <div class="af-stat-label">Agents</div>
+          <div class="af-stat-value" id="stat-agents">—</div>
+        </div>
+        <div class="af-stat">
+          <div class="af-stat-label">Tools</div>
+          <div class="af-stat-value" id="stat-tools">—</div>
+        </div>
+        <div class="af-stat">
+          <div class="af-stat-label">Models</div>
+          <div class="af-stat-value" id="stat-models">—</div>
+        </div>
+      </div>
+
+      <h2 class="af-section-title">Jump to</h2>
       <div class="af-dash-grid">
-        <a class="af-dash-card" href="projects.html">
-          Projects
-          <span class="af-muted">Organize agents (when backend supports projects)</span>
-        </a>
         <a class="af-dash-card" href="chat.html">
-          Chat
-          <span class="af-muted">Talk to the active agent</span>
+          <span class="af-dash-icon" data-af-icon="chat"></span>
+          <span>Chat<span class="af-muted">Talk to the active agent, with reasoning and tool steps inline</span></span>
         </a>
         <a class="af-dash-card" href="agents.html">
-          Agents
-          <span class="af-muted">Create, model, tools, memory</span>
+          <span class="af-dash-icon" data-af-icon="agents"></span>
+          <span>Agents<span class="af-muted">Create agents; set model, tools, and memory</span></span>
+        </a>
+        <a class="af-dash-card" href="projects.html">
+          <span class="af-dash-icon" data-af-icon="projects"></span>
+          <span>Projects<span class="af-muted">Organize agents when the server supports projects</span></span>
         </a>
         <a class="af-dash-card" href="tools.html">
-          Tools
-          <span class="af-muted">Directory &amp; attach to agents</span>
+          <span class="af-dash-icon" data-af-icon="tools"></span>
+          <span>Tools<span class="af-muted">Browse the tool directory and attach to agents</span></span>
         </a>
         <a class="af-dash-card" href="mcp.html">
-          MCP
-          <span class="af-muted">Servers (HTTP, SSE, stdio)</span>
+          <span class="af-dash-icon" data-af-icon="mcp"></span>
+          <span>MCP<span class="af-muted">Connect MCP servers over HTTP, SSE, or stdio</span></span>
         </a>
         <a class="af-dash-card" href="settings.html">
-          Settings
-          <span class="af-muted">API base &amp; key</span>
+          <span class="af-dash-icon" data-af-icon="settings"></span>
+          <span>Settings<span class="af-muted">API base URL and bearer key for this browser</span></span>
         </a>
       </div>
     </main>
@@ -45,11 +73,24 @@
   <script src="config.js"></script>
   <script src="app.js"></script>
   <script>
+    function count(d, key) {
+      var arr = Array.isArray(d) ? d : (d && d.data) ? d.data : (d && d[key]) ? d[key] : [];
+      return arr.length;
+    }
     var statusEl = document.getElementById('status');
-    window.ADE.listAgents().then(function() { return { ok: true }; }).catch(function() { return { ok: false }; })
-      .then(function(h) {
-        statusEl.innerHTML = '<div class="af-alert ' + (h.ok ? 'af-alert-success' : 'af-alert-danger') + '"><strong>API</strong> — ' + (h.ok ? 'connected' : 'unreachable') + '</div>';
-      });
+    var dot = document.getElementById('stat-dot');
+    var server = document.getElementById('stat-server');
+    window.ADE.listAgents().then(function(d) {
+      dot.classList.add('is-ok');
+      server.textContent = 'Connected';
+      document.getElementById('stat-agents').textContent = count(d, 'agents');
+    }).catch(function() {
+      dot.classList.add('is-bad');
+      server.textContent = 'Unreachable';
+      statusEl.innerHTML = '<div class="af-alert af-alert-danger" role="alert"><strong>API unreachable.</strong> Check the base URL and key in <a href="settings.html">Settings</a>.</div>';
+    });
+    window.ADE.listTools().then(function(d) { document.getElementById('stat-tools').textContent = count(d, 'tools'); }).catch(function() {});
+    window.ADE.listModels().then(function(d) { document.getElementById('stat-models').textContent = count(d, 'models'); }).catch(function() {});
   </script>
 </body>
 </html>
