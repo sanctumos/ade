@@ -44,10 +44,11 @@
 }
 .chat-header-actions { display: flex; gap: 8px; flex-shrink: 0; }
 
-/* Context window usage bar (official ADE ContextWindowPreview) */
+/* Context window usage bar (official ADE ContextWindowPreview — hover tips, no legend) */
 .chat-context-bar {
+  position: relative;
   flex-shrink: 0;
-  padding: 10px 28px 12px;
+  padding: 8px 28px 10px;
   border-bottom: 1px solid var(--af-border-subtle);
   background: var(--af-bg-surface);
 }
@@ -56,7 +57,7 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 .chat-ctx-title {
   font-size: 11px;
@@ -75,30 +76,54 @@
 .chat-ctx-track {
   display: flex;
   width: 100%;
-  height: 10px;
+  height: 12px;
   border-radius: 999px;
   overflow: hidden;
   background: var(--af-bg-raised);
   border: 1px solid var(--af-border-subtle);
+  cursor: default;
 }
-.chat-ctx-seg { display: block; height: 100%; min-width: 0; }
+.chat-ctx-seg {
+  display: block;
+  height: 100%;
+  min-width: 0;
+  cursor: help;
+}
 .chat-ctx-seg--free { background: color-mix(in srgb, var(--af-text-dim) 12%, transparent); }
-.chat-ctx-legend {
+.chat-ctx-tip {
+  position: fixed;
+  z-index: 80;
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px 14px;
-  list-style: none;
-  margin: 8px 0 0;
-  padding: 0;
-  font-size: 11px;
+  align-items: center;
+  gap: 8px;
+  max-width: min(280px, calc(100vw - 16px));
+  padding: 7px 10px;
+  border-radius: var(--af-radius-sm);
+  border: 1px solid var(--af-border);
+  background: var(--af-bg-surface);
+  box-shadow: var(--af-shadow-lg);
+  font-size: 12px;
+  line-height: 1.25;
+  color: var(--af-text);
+  pointer-events: none;
+}
+.chat-ctx-tip[hidden] { display: none !important; }
+.chat-ctx-tip-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  border: 1px solid var(--af-border-subtle);
+}
+.chat-ctx-tip-label {
+  flex: 1;
+  min-width: 0;
   color: var(--af-text-muted);
 }
-.chat-ctx-legend li { display: inline-flex; align-items: center; gap: 6px; }
-.chat-ctx-legend em { font-style: normal; color: var(--af-text); font-variant-numeric: tabular-nums; }
-.chat-ctx-swatch {
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
+.chat-ctx-tip-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--af-text);
   flex-shrink: 0;
 }
 .chat-ctx-empty {
@@ -739,7 +764,6 @@ html[data-chat-memory="closed"] .chat-memory-collapse {
   .chat-header { padding: 10px 14px; }
   .chat-header-actions .af-btn span { display: none; }
   .chat-context-bar { padding: 8px 14px 10px; }
-  .chat-ctx-legend { gap: 4px 10px; }
   .chat-workspace { position: relative; }
   .chat-memory-panel {
     position: absolute;
@@ -768,7 +792,7 @@ html[data-chat-memory="closed"] .chat-memory-collapse {
   .chat-composer-meta .chat-kbd-hint { display: none; }
 }
 
-html[data-skin-comp="ledger"] :is(.chat-memory-collapse, .chat-memory-card, .chat-ctx-track, .chat-ctx-swatch),
-html[data-skin-comp="brutalist"] :is(.chat-memory-collapse, .chat-memory-card, .chat-ctx-track, .chat-ctx-swatch) {
+html[data-skin-comp="ledger"] :is(.chat-memory-collapse, .chat-memory-card, .chat-ctx-track, .chat-ctx-tip, .chat-ctx-tip-swatch),
+html[data-skin-comp="brutalist"] :is(.chat-memory-collapse, .chat-memory-card, .chat-ctx-track, .chat-ctx-tip, .chat-ctx-tip-swatch) {
   border-radius: 0;
 }
