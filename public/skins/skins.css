@@ -303,15 +303,3 @@ html[data-skin-comp="brutalist"] .af-skin-card,
 html[data-skin-comp="brutalist"] .af-skin-swatch {
   border-radius: 0;
 }
-
-.af-sidebar-skin {
-  margin-top: 10px;
-}
-.af-sidebar-skin .af-label {
-  display: block;
-  margin-bottom: 4px;
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--af-text-dim);
-}

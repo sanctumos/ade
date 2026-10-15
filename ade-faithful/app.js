@@ -47,15 +47,6 @@
     '<select id="ade-agent-select" class="af-select af-select-agent" aria-label="Active agent">' +
     '<option value="">Loading…</option>' +
     '</select>' +
-    '<div class="af-sidebar-skin">' +
-    '<label class="af-label" for="ade-skin-select">Skin</label>' +
-    '<select id="ade-skin-select" class="af-select" aria-label="Appearance skin">' +
-    '<option value="hey">HEY Bold</option>' +
-    '<option value="ledger">Ledger &amp; Ink</option>' +
-    '<option value="brutalist">Brutalist Signal</option>' +
-    '<option value="obsidian">Obsidian Focus</option>' +
-    '</select>' +
-    '</div>' +
     '<p class="af-api-badge"><span class="af-dot" id="api-status-dot"></span>API <span id="api-base-display">…</span></p>' +
     '</div>' +
     '</aside>';
@@ -110,7 +101,6 @@
       var link = layout.querySelector('.af-sidebar .af-nav-link[href="' + href + '"]');
       if (link) link.classList.add('is-active');
     }
-    wireSkinSelect();
   }
 
   var STORAGE_BASE = 'ade_faithful_base';
@@ -141,20 +131,12 @@
     slug = normalizeSkinSlug(slug);
     try { localStorage.setItem(STORAGE_SKIN, slug); } catch (e) { /* ignore */ }
     document.documentElement.setAttribute('data-skin-comp', slug);
-    var sel = document.getElementById('ade-skin-select');
-    if (sel && sel.value !== slug) sel.value = slug;
     document.querySelectorAll('.af-skin-card').forEach(function (card) {
       card.classList.toggle('is-active', card.getAttribute('data-slug') === slug);
       var input = card.querySelector('input[type=radio]');
       if (input) input.checked = card.getAttribute('data-slug') === slug;
     });
     return slug;
-  }
-  function wireSkinSelect() {
-    var sel = document.getElementById('ade-skin-select');
-    if (!sel) return;
-    sel.value = getSkin();
-    sel.addEventListener('change', function () { setSkin(sel.value); });
   }
 
   function getConfig() {
