@@ -16,6 +16,9 @@
       <header class="chat-header">
         <div class="chat-header-main">
           <button type="button" class="af-nav-toggle" id="nav-toggle" aria-label="Open menu">≡</button>
+          <button type="button" class="chat-memory-toggle" id="chat-memory-toggle" aria-controls="chat-memory-panel" aria-expanded="true" title="Hide memory blocks" aria-label="Hide memory blocks">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h14"/><rect x="14" y="9" width="6" height="10" rx="1"/></svg>
+          </button>
           <span id="chat-agent-avatar"></span>
           <div class="chat-header-title">
             <h1 class="chat-header-name" id="chat-agent-name">Chat</h1>
@@ -26,19 +29,37 @@
           <a href="agent.html" id="config-agent-link" class="af-btn af-btn-secondary af-btn-sm" title="Model, tools, core memory, archival"><span id="config-agent-icon"></span><span>Configure</span></a>
         </div>
       </header>
-      <div class="chat-body">
-        <div id="error"></div>
-        <div class="chat-messages-scroll" id="chat-scroll">
-          <div id="messages" class="chat-thread"></div>
-        </div>
-        <div class="chat-composer-wrap">
-          <form id="send-form" class="chat-composer">
-            <textarea id="input" rows="1" placeholder="Message the agent…" autocomplete="off" aria-label="Message"></textarea>
-            <button type="submit" class="af-btn af-btn-primary chat-send" id="send-btn" aria-label="Send"></button>
-          </form>
-          <div class="chat-composer-meta">
-            <p id="history-hint"></p>
-            <span class="chat-kbd-hint"><kbd>Enter</kbd> to send · <kbd>Shift</kbd>+<kbd>Enter</kbd> for a new line</span>
+      <div id="chat-context-bar" class="chat-context-bar" aria-live="polite">
+        <div class="chat-ctx-empty">Select an agent to see context usage</div>
+      </div>
+      <div class="chat-workspace">
+        <aside class="chat-memory-panel" id="chat-memory-panel" aria-label="Core memory blocks">
+          <div class="chat-memory-head">
+            <div>
+              <h2 class="chat-memory-title">Memory blocks</h2>
+              <p class="chat-memory-sub"><span id="chat-memory-count">0</span> attached · live</p>
+            </div>
+            <button type="button" class="chat-memory-close" id="chat-memory-close" aria-label="Hide memory blocks" title="Hide">×</button>
+          </div>
+          <div class="chat-memory-list" id="chat-memory-list">
+            <p class="chat-memory-empty">Select an agent.</p>
+          </div>
+          <p class="chat-memory-foot">Broca can attach or detach blocks mid-stream — this list refreshes automatically.</p>
+        </aside>
+        <div class="chat-body">
+          <div id="error"></div>
+          <div class="chat-messages-scroll" id="chat-scroll">
+            <div id="messages" class="chat-thread"></div>
+          </div>
+          <div class="chat-composer-wrap">
+            <form id="send-form" class="chat-composer">
+              <textarea id="input" rows="1" placeholder="Message the agent…" autocomplete="off" aria-label="Message"></textarea>
+              <button type="submit" class="af-btn af-btn-primary chat-send" id="send-btn" aria-label="Send"></button>
+            </form>
+            <div class="chat-composer-meta">
+              <p id="history-hint"></p>
+              <span class="chat-kbd-hint"><kbd>Enter</kbd> to send · <kbd>Shift</kbd>+<kbd>Enter</kbd> for a new line</span>
+            </div>
           </div>
         </div>
       </div>
@@ -49,6 +70,7 @@
   <script src="config.js"></script>
   <script src="app.js"></script>
   <script src="chat-markdown.js"></script>
+  <script src="chat-sidecar.js"></script>
   <script>
     var AC = window.ADE_CHAT;
     var messagesEl = document.getElementById('messages');
@@ -692,6 +714,7 @@
         if (state.thinkTimer) { clearInterval(state.thinkTimer); state.thinkTimer = null; }
         var hadContent = !!(state.sawAssistant && state.acc.trim());
         if (!hadContent) streamWrap.remove();
+        if (window.ADE_CHAT_SIDECAR) window.ADE_CHAT_SIDECAR.bump();
         return loadHistory(opts.aid, {
           softFail: true,
           quiet: !hadContent,
@@ -699,6 +722,7 @@
         }).then(function(loaded) {
           if (!loaded && hadContent) { /* keep streamed bubble */ }
           else if (!loaded && !hadContent && opts.fallbackEmpty) addMsg('assistant', '(no response)');
+          if (window.ADE_CHAT_SIDECAR) window.ADE_CHAT_SIDECAR.bump();
           return loaded;
         });
       }
@@ -758,8 +782,15 @@
       if (ev && ev.detail && ev.detail.error) {
         errorEl.innerHTML = '<div class="af-alert af-alert-danger" role="alert">Could not load agents for the sidebar.</div>';
         stopChatSync();
+        if (window.ADE_CHAT_SIDECAR) window.ADE_CHAT_SIDECAR.stop();
         return;
       }
+      if (!id) {
+        stopChatSync();
+        if (window.ADE_CHAT_SIDECAR) window.ADE_CHAT_SIDECAR.stop();
+        return;
+      }
+      if (window.ADE_CHAT_SIDECAR) window.ADE_CHAT_SIDECAR.startForAgent(id);
       loadHistory(id).then(function() { startChatSync(id); });
     }
     document.addEventListener('ade-agentselectready', onAgentContext);
