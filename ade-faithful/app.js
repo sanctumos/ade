@@ -47,6 +47,15 @@
     '<select id="ade-agent-select" class="af-select af-select-agent" aria-label="Active agent">' +
     '<option value="">Loading…</option>' +
     '</select>' +
+    '<div class="af-sidebar-skin">' +
+    '<label class="af-label" for="ade-skin-select">Skin</label>' +
+    '<select id="ade-skin-select" class="af-select" aria-label="Appearance skin">' +
+    '<option value="hey">HEY Bold</option>' +
+    '<option value="ledger">Ledger &amp; Ink</option>' +
+    '<option value="brutalist">Brutalist Signal</option>' +
+    '<option value="obsidian">Obsidian Focus</option>' +
+    '</select>' +
+    '</div>' +
     '<p class="af-api-badge"><span class="af-dot" id="api-status-dot"></span>API <span id="api-base-display">…</span></p>' +
     '</div>' +
     '</aside>';
@@ -101,12 +110,52 @@
       var link = layout.querySelector('.af-sidebar .af-nav-link[href="' + href + '"]');
       if (link) link.classList.add('is-active');
     }
+    wireSkinSelect();
   }
 
   var STORAGE_BASE = 'ade_faithful_base';
   var STORAGE_KEY = 'ade_faithful_key';
   var STORAGE_AGENT = 'ade_faithful_agent_id';
+  var STORAGE_SKIN = 'af-skin-comp';
+  var SKIN_SLUGS = ['hey', 'ledger', 'brutalist', 'obsidian'];
+  var SKIN_LABELS = {
+    hey: 'HEY Bold',
+    ledger: 'Ledger & Ink',
+    brutalist: 'Brutalist Signal',
+    obsidian: 'Obsidian Focus'
+  };
   var pendingAgentId = null;
+
+  function normalizeSkinSlug(slug) {
+    var s = String(slug || '').toLowerCase().trim();
+    return SKIN_SLUGS.indexOf(s) >= 0 ? s : 'hey';
+  }
+  function getSkin() {
+    try {
+      return normalizeSkinSlug(localStorage.getItem(STORAGE_SKIN));
+    } catch (e) {
+      return 'hey';
+    }
+  }
+  function setSkin(slug) {
+    slug = normalizeSkinSlug(slug);
+    try { localStorage.setItem(STORAGE_SKIN, slug); } catch (e) { /* ignore */ }
+    document.documentElement.setAttribute('data-skin-comp', slug);
+    var sel = document.getElementById('ade-skin-select');
+    if (sel && sel.value !== slug) sel.value = slug;
+    document.querySelectorAll('.af-skin-card').forEach(function (card) {
+      card.classList.toggle('is-active', card.getAttribute('data-slug') === slug);
+      var input = card.querySelector('input[type=radio]');
+      if (input) input.checked = card.getAttribute('data-slug') === slug;
+    });
+    return slug;
+  }
+  function wireSkinSelect() {
+    var sel = document.getElementById('ade-skin-select');
+    if (!sel) return;
+    sel.value = getSkin();
+    sel.addEventListener('change', function () { setSkin(sel.value); });
+  }
 
   function getConfig() {
     var c = window.ADE_CONFIG || {};
@@ -496,6 +545,10 @@
     setStoredKey: setStoredKey,
     apiBase: apiBase,
     fillApiBaseDisplay: fillApiBaseDisplay,
+    SKIN_SLUGS: SKIN_SLUGS,
+    SKIN_LABELS: SKIN_LABELS,
+    getSkin: getSkin,
+    setSkin: setSkin,
     getSelectedAgentId: getSelectedAgentId,
     setSelectedAgentId: setSelectedAgentId,
     refreshAgentSelect: refreshAgentSelect,

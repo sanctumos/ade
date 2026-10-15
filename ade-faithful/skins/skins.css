@@ -1,0 +1,317 @@
+/**
+ * Sanctum Skin Lab for ADE — same four slugs as Tasks / CRM / Docket.
+ * Remaps --af-* (and chat --ade-* aliases) via html[data-skin-comp].
+ * Fonts: system stacks only (ADE stays offline / no CDN fonts).
+ */
+
+/* ========== HEY Bold — light, high contrast, electric blue ========== */
+html[data-skin-comp="hey"] {
+  --af-bg: #e9edf3;
+  --af-bg-elevated: #ffffff;
+  --af-bg-surface: #ffffff;
+  --af-bg-raised: #f4f6fa;
+  --af-bg-input: #ffffff;
+  --af-border: rgba(0, 0, 0, 0.18);
+  --af-border-strong: #000000;
+  --af-border-subtle: rgba(0, 0, 0, 0.12);
+  --af-text: #000000;
+  --af-text-muted: #333333;
+  --af-text-dim: #555555;
+  --af-accent: #0047ff;
+  --af-accent-2: #0036cc;
+  --af-accent-strong: #0036cc;
+  --af-accent-dim: #e8f0ff;
+  --af-accent-ring: rgba(0, 71, 255, 0.35);
+  --af-grad: linear-gradient(135deg, #0047ff 0%, #5b8cff 100%);
+  --af-success: #0a7a3e;
+  --af-warn: #a15c00;
+  --af-danger: #c62828;
+  --af-radius: 12px;
+  --af-radius-sm: 8px;
+  --af-radius-lg: 16px;
+  --af-shadow: 2px 2px 0 rgba(0, 0, 0, 0.12);
+  --af-shadow-lg: 3px 3px 0 rgba(0, 0, 0, 0.14);
+  --af-font: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --af-mono: ui-monospace, "IBM Plex Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --af-sidebar-bg: #ffffff;
+  --af-hover-wash: rgba(0, 0, 0, 0.05);
+  --af-code-bg: #eef2f8;
+  --af-code-fg: #001a66;
+  --af-link-hover: #002bb8;
+  --af-scrollbar: rgba(0, 0, 0, 0.25);
+  --af-brand-mark-fg: #ffffff;
+  --af-glow-a: transparent;
+  --af-glow-b: transparent;
+  --ade-user-bubble: #e8f0ff;
+  --ade-user-border: #0047ff;
+  --ade-link: #0047ff;
+  color-scheme: light;
+}
+
+html[data-skin-comp="hey"] h1,
+html[data-skin-comp="hey"] .af-brand-mark,
+html[data-skin-comp="hey"] .chat-header-name {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+html[data-skin-comp="hey"] .af-panel,
+html[data-skin-comp="hey"] .af-card,
+html[data-skin-comp="hey"] .af-agent-card,
+html[data-skin-comp="hey"] .chat-composer {
+  border: 2px solid #000;
+  box-shadow: var(--af-shadow);
+}
+
+/* ========== Ledger & Ink — cream paper, editorial ========== */
+html[data-skin-comp="ledger"] {
+  --af-bg: #faf6ef;
+  --af-bg-elevated: #fffdf8;
+  --af-bg-surface: #fffdf8;
+  --af-bg-raised: #f5f0e6;
+  --af-bg-input: #fffdf8;
+  --af-border: rgba(26, 24, 20, 0.18);
+  --af-border-strong: rgba(26, 24, 20, 0.32);
+  --af-border-subtle: rgba(26, 24, 20, 0.12);
+  --af-text: #1a1814;
+  --af-text-muted: #3d3830;
+  --af-text-dim: #6b6458;
+  --af-accent: #1a1814;
+  --af-accent-2: #5c5346;
+  --af-accent-strong: #000000;
+  --af-accent-dim: #efe9dc;
+  --af-accent-ring: rgba(26, 24, 20, 0.28);
+  --af-grad: linear-gradient(135deg, #1a1814 0%, #5c5346 100%);
+  --af-success: #2f6b3a;
+  --af-warn: #8a5a12;
+  --af-danger: #8b2e2e;
+  --af-radius: 0;
+  --af-radius-sm: 0;
+  --af-radius-lg: 0;
+  --af-shadow: 0 1px 2px rgba(26, 24, 20, 0.08), 0 5px 14px rgba(26, 24, 20, 0.05);
+  --af-shadow-lg: 0 2px 4px rgba(26, 24, 20, 0.1), 0 8px 20px rgba(26, 24, 20, 0.06);
+  --af-font: Georgia, "Times New Roman", "Liberation Serif", serif;
+  --af-mono: ui-monospace, "Courier New", Courier, monospace;
+  --af-sidebar-bg: #f5f0e6;
+  --af-hover-wash: rgba(26, 24, 20, 0.06);
+  --af-code-bg: #efe9dc;
+  --af-code-fg: #1a1814;
+  --af-link-hover: #000000;
+  --af-scrollbar: rgba(26, 24, 20, 0.28);
+  --af-brand-mark-fg: #faf6ef;
+  --af-glow-a: transparent;
+  --af-glow-b: transparent;
+  --ade-user-bubble: #efe9dc;
+  --ade-user-border: #1a1814;
+  --ade-link: #1a1814;
+  color-scheme: light;
+}
+
+/* ========== Brutalist Signal — concrete, zero radius ========== */
+html[data-skin-comp="brutalist"] {
+  --af-bg: #d8d8d6;
+  --af-bg-elevated: #f2f2f0;
+  --af-bg-surface: #ececea;
+  --af-bg-raised: #cfcfcf;
+  --af-bg-input: #f2f2f0;
+  --af-border: #000000;
+  --af-border-strong: #000000;
+  --af-border-subtle: #000000;
+  --af-text: #000000;
+  --af-text-muted: #222222;
+  --af-text-dim: #333333;
+  --af-accent: #000000;
+  --af-accent-2: #333333;
+  --af-accent-strong: #000000;
+  --af-accent-dim: #c8c8c6;
+  --af-accent-ring: rgba(0, 0, 0, 0.4);
+  --af-grad: linear-gradient(135deg, #000 0%, #444 100%);
+  --af-success: #006600;
+  --af-warn: #664400;
+  --af-danger: #990000;
+  --af-radius: 0;
+  --af-radius-sm: 0;
+  --af-radius-lg: 0;
+  --af-shadow: none;
+  --af-shadow-lg: none;
+  --af-font: "Arial Narrow", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --af-mono: ui-monospace, "Courier New", Courier, monospace;
+  --af-sidebar-bg: #ececea;
+  --af-hover-wash: rgba(0, 0, 0, 0.08);
+  --af-code-bg: #cfcfcf;
+  --af-code-fg: #000000;
+  --af-link-hover: #000000;
+  --af-scrollbar: rgba(0, 0, 0, 0.35);
+  --af-brand-mark-fg: #ececea;
+  --af-glow-a: transparent;
+  --af-glow-b: transparent;
+  --ade-user-bubble: #c8c8c6;
+  --ade-user-border: #000000;
+  --ade-link: #000000;
+  color-scheme: light;
+}
+
+html[data-skin-comp="brutalist"] h1,
+html[data-skin-comp="brutalist"] .af-brand-mark,
+html[data-skin-comp="brutalist"] .chat-header-name,
+html[data-skin-comp="brutalist"] .af-nav-section {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+}
+
+html[data-skin-comp="brutalist"] .af-panel,
+html[data-skin-comp="brutalist"] .af-card,
+html[data-skin-comp="brutalist"] .af-agent-card,
+html[data-skin-comp="brutalist"] .chat-composer,
+html[data-skin-comp="brutalist"] .af-btn {
+  border: 2px solid #000 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+/* ========== Obsidian Focus — OLED dark, cream type, gold (closest to prior ADE default) ========== */
+html[data-skin-comp="obsidian"] {
+  --af-bg: #0a0b0f;
+  --af-bg-elevated: #14161c;
+  --af-bg-surface: #14161c;
+  --af-bg-raised: #1a1d24;
+  --af-bg-input: #101218;
+  --af-border: rgba(242, 235, 227, 0.12);
+  --af-border-strong: rgba(242, 235, 227, 0.22);
+  --af-border-subtle: rgba(242, 235, 227, 0.08);
+  --af-text: #f2ebe3;
+  --af-text-muted: #cfc5b8;
+  --af-text-dim: #8f877c;
+  --af-accent: #e8a838;
+  --af-accent-2: #f0b84a;
+  --af-accent-strong: #f0b84a;
+  --af-accent-dim: rgba(232, 168, 56, 0.14);
+  --af-accent-ring: rgba(232, 168, 56, 0.4);
+  --af-grad: linear-gradient(135deg, #e8a838 0%, #c47f1a 100%);
+  --af-success: #78b482;
+  --af-warn: #e8a838;
+  --af-danger: #e07070;
+  --af-radius: 10px;
+  --af-radius-sm: 8px;
+  --af-radius-lg: 14px;
+  --af-shadow: 0 1px 2px rgba(0, 0, 0, 0.55), 0 7px 18px rgba(0, 0, 0, 0.28);
+  --af-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.55);
+  --af-font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --af-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --af-sidebar-bg: #101218;
+  --af-hover-wash: rgba(242, 235, 227, 0.06);
+  --af-code-bg: rgba(242, 235, 227, 0.08);
+  --af-code-fg: #f2ebe3;
+  --af-link-hover: #f5c86a;
+  --af-scrollbar: rgba(242, 235, 227, 0.2);
+  --af-brand-mark-fg: #0a0b0f;
+  --af-glow-a: rgba(232, 168, 56, 0.08);
+  --af-glow-b: rgba(232, 168, 56, 0.04);
+  --ade-user-bubble: rgba(232, 168, 56, 0.18);
+  --ade-user-border: rgba(232, 168, 56, 0.45);
+  --ade-link: #f0b84a;
+  color-scheme: dark;
+}
+
+html[data-skin-comp="obsidian"] h1,
+html[data-skin-comp="obsidian"] .af-brand-mark,
+html[data-skin-comp="obsidian"] .chat-header-name {
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+/* Shared skin chrome */
+html[data-skin-comp] body {
+  font-family: var(--af-font);
+  background:
+    radial-gradient(900px 500px at 15% -10%, var(--af-glow-a, transparent), transparent 60%),
+    radial-gradient(700px 400px at 100% 0%, var(--af-glow-b, transparent), transparent 60%),
+    var(--af-bg);
+  background-attachment: fixed;
+  color: var(--af-text);
+}
+
+html[data-skin-comp] .af-sidebar {
+  background: var(--af-sidebar-bg);
+  border-right-color: var(--af-border-subtle);
+}
+
+html[data-skin-comp] a:hover { color: var(--af-link-hover); }
+html[data-skin-comp] code {
+  background: var(--af-code-bg);
+  color: var(--af-code-fg);
+  border-color: var(--af-border-subtle);
+}
+html[data-skin-comp] * { scrollbar-color: var(--af-scrollbar) transparent; }
+html[data-skin-comp] *::-webkit-scrollbar-thumb { background: var(--af-scrollbar); }
+html[data-skin-comp] .af-brand-logo { color: var(--af-brand-mark-fg); }
+
+html[data-skin-comp] .af-nav-link:hover,
+html[data-skin-comp] .af-btn-secondary:hover,
+html[data-skin-comp] .af-btn-ghost:hover,
+html[data-skin-comp] .af-tab:hover,
+html[data-skin-comp] .af-tool-row:hover,
+html[data-skin-comp] .chat-step:hover,
+html[data-skin-comp] .chat-msg-toolbar button:hover {
+  background: var(--af-hover-wash);
+}
+
+/* Settings skin picker cards */
+.af-skin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+  margin: 12px 0 8px;
+}
+.af-skin-card {
+  position: relative;
+  display: block;
+  border: 1px solid var(--af-border);
+  border-radius: var(--af-radius-sm);
+  background: var(--af-bg-surface);
+  padding: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.af-skin-card:hover { border-color: var(--af-border-strong); }
+.af-skin-card.is-active {
+  border-color: var(--af-accent);
+  box-shadow: 0 0 0 2px var(--af-accent-dim);
+}
+.af-skin-card input { position: absolute; opacity: 0; pointer-events: none; }
+.af-skin-swatch {
+  height: 36px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  border: 1px solid var(--af-border-subtle);
+  background: linear-gradient(90deg, var(--sw-a) 0 33%, var(--sw-b) 33% 66%, var(--sw-c) 66% 100%);
+}
+.af-skin-card strong { display: block; font-size: 13px; margin-bottom: 2px; }
+.af-skin-card span { display: block; font-size: 11.5px; color: var(--af-text-muted); line-height: 1.35; }
+
+.af-skin-card[data-slug="hey"] { --sw-a: #e9edf3; --sw-b: #0047ff; --sw-c: #ffffff; }
+.af-skin-card[data-slug="ledger"] { --sw-a: #faf6ef; --sw-b: #1a1814; --sw-c: #fffdf8; }
+.af-skin-card[data-slug="brutalist"] { --sw-a: #d8d8d6; --sw-b: #000000; --sw-c: #ececea; }
+.af-skin-card[data-slug="obsidian"] { --sw-a: #0a0b0f; --sw-b: #e8a838; --sw-c: #14161c; }
+
+html[data-skin-comp="hey"] .af-skin-card,
+html[data-skin-comp="brutalist"] .af-skin-card {
+  border-width: 2px;
+}
+html[data-skin-comp="brutalist"] .af-skin-card,
+html[data-skin-comp="brutalist"] .af-skin-swatch {
+  border-radius: 0;
+}
+
+.af-sidebar-skin {
+  margin-top: 10px;
+}
+.af-sidebar-skin .af-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--af-text-dim);
+}

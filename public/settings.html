@@ -2,9 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <script src="skin-boot.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Settings — Letta ADE (local)</title>
   <link rel="stylesheet" href="shell.css" />
+  <link rel="stylesheet" href="skins/skins.css" />
 </head>
 <body>
   <div class="af-layout" data-ade-nav="settings">
@@ -12,8 +14,16 @@
     <main class="af-main">
       <button type="button" class="af-nav-toggle" id="nav-toggle" aria-label="Open menu">≡</button>
       <h1>Settings</h1>
-      <p class="af-muted">API base and key from <code>config.js</code> or saved in this browser (overrides file).</p>
+      <p class="af-muted">API connection and appearance for this browser.</p>
+
+      <section class="af-panel" style="max-width:640px;margin-bottom:20px">
+        <h2 style="margin:0 0 6px;font-size:16px">Appearance</h2>
+        <p class="af-muted af-small" style="margin:0 0 4px">Same Sanctum skins as Tasks, CRM, and Docket. Stored in this browser only.</p>
+        <div class="af-skin-grid" id="skin-grid" role="radiogroup" aria-label="Skin"></div>
+      </section>
+
       <form id="form" class="af-panel" style="max-width:480px">
+        <h2 style="margin:0 0 12px;font-size:16px">API</h2>
         <label class="af-label" for="base">API base URL</label>
         <input type="text" class="af-input" id="base" autocomplete="url" style="margin-bottom:14px" />
         <label class="af-label" for="key">API key (optional)</label>
@@ -36,6 +46,30 @@
       window.ADE.fillApiBaseDisplay();
       alert('Saved. Reload any page to use the new values.');
     };
+
+    var blurbs = {
+      hey: 'Light, high-contrast, electric blue — Sanctum default.',
+      ledger: 'Cream paper and ink — softer on the eyes.',
+      brutalist: 'Concrete gray, bold borders, zero radius.',
+      obsidian: 'Dark OLED with cream type and gold accent.'
+    };
+    var grid = document.getElementById('skin-grid');
+    var current = window.ADE.getSkin();
+    window.ADE.SKIN_SLUGS.forEach(function(slug) {
+      var card = document.createElement('label');
+      card.className = 'af-skin-card' + (slug === current ? ' is-active' : '');
+      card.setAttribute('data-slug', slug);
+      card.innerHTML =
+        '<input type="radio" name="skin" value="' + slug + '"' + (slug === current ? ' checked' : '') + ' />' +
+        '<div class="af-skin-swatch" aria-hidden="true"></div>' +
+        '<strong>' + window.ADE.SKIN_LABELS[slug] + '</strong>' +
+        '<span>' + blurbs[slug] + '</span>';
+      card.addEventListener('click', function(ev) {
+        ev.preventDefault();
+        window.ADE.setSkin(slug);
+      });
+      grid.appendChild(card);
+    });
   </script>
 </body>
 </html>

@@ -47,3 +47,20 @@ def test_settings_and_shell_brand(page):
     assert "self-hosted" in brand.lower()
     page.fill("#base", "http://127.0.0.1:5055/api")
     page.click("button[type=submit]")
+
+
+def test_skin_picker_applies_data_skin_comp(page):
+    page.goto(f"{BASE}/settings.html", wait_until="domcontentloaded")
+    assert page.locator("html").get_attribute("data-skin-comp") in {
+        "hey",
+        "ledger",
+        "brutalist",
+        "obsidian",
+    }
+    page.locator('.af-skin-card[data-slug="obsidian"]').click()
+    assert page.locator("html").get_attribute("data-skin-comp") == "obsidian"
+    assert page.locator("#ade-skin-select").input_value() == "obsidian"
+    page.goto(f"{BASE}/chat.html", wait_until="domcontentloaded")
+    assert page.locator("html").get_attribute("data-skin-comp") == "obsidian"
+    page.locator("#ade-skin-select").select_option("hey")
+    assert page.locator("html").get_attribute("data-skin-comp") == "hey"
