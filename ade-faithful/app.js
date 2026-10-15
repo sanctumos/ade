@@ -10,7 +10,6 @@
   }
   var ICONS = {
     dashboard: svgIcon('<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>'),
-    projects: svgIcon('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'),
     chat: svgIcon('<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>'),
     agents: svgIcon('<rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 3v4M9 12h.01M15 12h.01M9.5 16h5"/>'),
     tools: svgIcon('<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/>'),
@@ -38,7 +37,6 @@
     navLink('index.html', 'dashboard', 'Dashboard') +
     navLink('chat.html', 'chat', 'Chat') +
     navLink('agents.html', 'agents', 'Agents') +
-    navLink('projects.html', 'projects', 'Projects') +
     '<div class="af-nav-section" style="margin-top:14px">Server</div>' +
     navLink('tools.html', 'tools', 'Tools') +
     navLink('mcp.html', 'mcp', 'MCP') +
@@ -84,7 +82,6 @@
 
   var ADE_ACTIVE_NAV_HREF = {
     dashboard: 'index.html',
-    projects: 'projects.html',
     chat: 'chat.html',
     agents: 'agents.html',
     tools: 'tools.html',
@@ -533,12 +530,7 @@
     getRunMessages: function (runId, params) { var q = params ? '?' + new URLSearchParams(params).toString() : ''; return apiFetch('/v1/runs/' + runId + '/messages' + q); },
     getRunUsage: function (runId) { return apiFetch('/v1/runs/' + runId + '/usage'); },
     getRunSteps: function (runId, params) { var q = params ? '?' + new URLSearchParams(params).toString() : ''; return apiFetch('/v1/runs/' + runId + '/steps' + q); },
-    listAgentTools: function (agentId) { return listAll('/v1/agents/' + agentId + '/tools'); },
-    listProjects: function () { return apiFetch('/v1/projects/'); },
-    createProject: function (body) { return apiFetch('/v1/projects/', { method: 'POST', body: JSON.stringify(body) }); },
-    getProject: function (id) { return apiFetch('/v1/projects/' + id); },
-    updateProject: function (id, body) { return apiFetch('/v1/projects/' + id, { method: 'PATCH', body: JSON.stringify(body) }); },
-    deleteProject: function (id) { return apiFetch('/v1/projects/' + id, { method: 'DELETE' }); }
+    listAgentTools: function (agentId) { return listAll('/v1/agents/' + agentId + '/tools'); }
   };
 
   refreshAgentSelect();

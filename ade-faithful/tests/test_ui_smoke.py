@@ -15,7 +15,6 @@ PAGES = [
     "tools.html",
     "mcp.html",
     "settings.html",
-    "projects.html",
 ]
 
 
