@@ -16,4 +16,11 @@
       document.documentElement.setAttribute('data-sidebar-collapsed', '1');
     }
   } catch (e2) { /* private mode */ }
+  try {
+    /* Default open; only force closed when user previously hid the panel. */
+    var mem = localStorage.getItem('af-chat-memory-open');
+    document.documentElement.setAttribute('data-chat-memory', mem === '0' ? 'closed' : 'open');
+  } catch (e3) {
+    document.documentElement.setAttribute('data-chat-memory', 'open');
+  }
 })();

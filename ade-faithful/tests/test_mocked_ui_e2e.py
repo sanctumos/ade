@@ -336,8 +336,23 @@ def test_chat_context_bar_and_memory_panel(page):
         "() => document.getElementById('chat-memory-count').textContent === '4'",
         timeout=8000,
     )
+    # Panel is on the right of the chat (official ADE placement).
+    assert page.evaluate(
+        """() => {
+          const ws = document.querySelector('.chat-workspace');
+          const panel = document.getElementById('chat-memory-panel');
+          const body = document.querySelector('.chat-body');
+          return ws && panel && body && panel.previousElementSibling === body;
+        }"""
+    )
     page.locator("#chat-memory-close").click()
     assert page.locator("html").get_attribute("data-chat-memory") == "closed"
     assert page.evaluate("() => localStorage.getItem('af-chat-memory-open')") == "0"
+    assert not page.locator("#chat-memory-panel").is_visible()
     page.locator("#chat-memory-toggle").click()
     assert page.locator("html").get_attribute("data-chat-memory") == "open"
+    assert page.locator("#chat-memory-panel").is_visible()
+    # Toggle again via header button (must not double-bind / no-op).
+    page.locator("#chat-memory-toggle").click()
+    assert page.locator("html").get_attribute("data-chat-memory") == "closed"
+    assert not page.locator("#chat-memory-panel").is_visible()

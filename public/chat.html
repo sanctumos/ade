@@ -33,19 +33,6 @@
         <div class="chat-ctx-empty">Select an agent to see context usage</div>
       </div>
       <div class="chat-workspace">
-        <aside class="chat-memory-panel" id="chat-memory-panel" aria-label="Core memory blocks">
-          <div class="chat-memory-head">
-            <div>
-              <h2 class="chat-memory-title">Memory blocks</h2>
-              <p class="chat-memory-sub"><span id="chat-memory-count">0</span> attached · live</p>
-            </div>
-            <button type="button" class="chat-memory-close" id="chat-memory-close" aria-label="Hide memory blocks" title="Hide">×</button>
-          </div>
-          <div class="chat-memory-list" id="chat-memory-list">
-            <p class="chat-memory-empty">Select an agent.</p>
-          </div>
-          <p class="chat-memory-foot">Broca can attach or detach blocks mid-stream — this list refreshes automatically.</p>
-        </aside>
         <div class="chat-body">
           <div id="error"></div>
           <div class="chat-messages-scroll" id="chat-scroll">
@@ -62,6 +49,19 @@
             </div>
           </div>
         </div>
+        <aside class="chat-memory-panel" id="chat-memory-panel" aria-label="Core memory blocks">
+          <div class="chat-memory-head">
+            <div>
+              <h2 class="chat-memory-title">Memory blocks</h2>
+              <p class="chat-memory-sub"><span id="chat-memory-count">0</span> attached · live</p>
+            </div>
+            <button type="button" class="chat-memory-close" id="chat-memory-close" aria-label="Hide memory blocks" title="Hide">×</button>
+          </div>
+          <div class="chat-memory-list" id="chat-memory-list">
+            <p class="chat-memory-empty">Select an agent.</p>
+          </div>
+          <p class="chat-memory-foot">Broca can attach or detach blocks mid-stream — this list refreshes automatically.</p>
+        </aside>
       </div>
     </main>
   </div>

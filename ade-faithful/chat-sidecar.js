@@ -81,6 +81,7 @@
     try { return localStorage.getItem(STORAGE_MEM) !== '0'; } catch (e) { return true; }
   }
   function setMemoryOpen(open) {
+    open = !!open;
     try {
       if (open) localStorage.setItem(STORAGE_MEM, '1');
       else localStorage.setItem(STORAGE_MEM, '0');
@@ -93,7 +94,10 @@
       btn.setAttribute('aria-label', open ? 'Hide memory blocks' : 'Show memory blocks');
     }
     var panel = document.getElementById('chat-memory-panel');
-    if (panel) panel.hidden = !open;
+    if (panel) {
+      panel.hidden = !open;
+      panel.setAttribute('aria-hidden', open ? 'false' : 'true');
+    }
   }
 
   function renderContextBar(ctx) {
@@ -257,17 +261,26 @@
     state.contextTimer = setInterval(refreshContext, 12000);
   }
 
+  var uiBound = false;
   function bindUi() {
+    if (uiBound) return;
+    uiBound = true;
     setMemoryOpen(isMemoryOpen());
     var toggle = document.getElementById('chat-memory-toggle');
     var closeBtn = document.getElementById('chat-memory-close');
     if (toggle) {
-      toggle.addEventListener('click', function () {
+      toggle.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
         setMemoryOpen(!isMemoryOpen());
       });
     }
     if (closeBtn) {
-      closeBtn.addEventListener('click', function () { setMemoryOpen(false); });
+      closeBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        setMemoryOpen(false);
+      });
     }
   }
 
@@ -299,8 +312,12 @@
     refreshContext();
   }
 
-  document.addEventListener('DOMContentLoaded', bindUi);
-  if (document.readyState !== 'loading') bindUi();
+  /* Bind once — dual DOMContentLoaded + readyState paths double-toggle (looks broken). */
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindUi);
+  } else {
+    bindUi();
+  }
 
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) {
