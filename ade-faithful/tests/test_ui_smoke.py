@@ -66,3 +66,28 @@ def test_skin_picker_applies_data_skin_comp(page):
     page.goto(f"{BASE}/settings.html", wait_until="domcontentloaded")
     page.locator('.af-skin-card[data-slug="hey"]').click()
     assert page.locator("html").get_attribute("data-skin-comp") == "hey"
+
+
+def test_sidebar_collapse_persists(page):
+    page.goto(f"{BASE}/index.html", wait_until="domcontentloaded")
+    page.evaluate("() => localStorage.removeItem('af-sidebar-collapsed')")
+    page.reload(wait_until="domcontentloaded")
+    assert page.locator("html").get_attribute("data-sidebar-collapsed") in (None, "")
+    btn = page.locator("#sidebar-collapse")
+    assert btn.count() == 1
+    assert btn.is_visible()
+    btn.click()
+    assert page.locator("html").get_attribute("data-sidebar-collapsed") == "1"
+    assert page.evaluate("() => localStorage.getItem('af-sidebar-collapsed')") == "1"
+    page.wait_for_function(
+        "() => document.querySelector('.af-sidebar').getBoundingClientRect().width < 80",
+        timeout=3000,
+    )
+    page.goto(f"{BASE}/chat.html", wait_until="domcontentloaded")
+    assert page.locator("html").get_attribute("data-sidebar-collapsed") == "1"
+    page.locator("#sidebar-collapse").click()
+    page.wait_for_function(
+        "() => !document.documentElement.getAttribute('data-sidebar-collapsed')",
+        timeout=3000,
+    )
+    assert page.evaluate("() => localStorage.getItem('af-sidebar-collapsed')") in (None, "")

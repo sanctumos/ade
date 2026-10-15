@@ -20,18 +20,26 @@
     sliders: svgIcon('<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>'),
     plus: svgIcon('<path d="M12 5v14M5 12h14"/>'),
     chevron: svgIcon('<path d="m6 9 6 6 6-6"/>'),
-    arrow: svgIcon('<path d="M5 12h14M13 6l6 6-6 6"/>')
+    arrow: svgIcon('<path d="M5 12h14M13 6l6 6-6 6"/>'),
+    panelCollapse: svgIcon('<path d="M15 18l-6-6 6-6"/><path d="M9 4v16"/>'),
+    panelExpand: svgIcon('<path d="M9 18l6-6-6-6"/><path d="M15 4v16"/>')
   };
 
   function navLink(href, key, label) {
-    return '<a class="af-nav-link" href="' + href + '">' + ICONS[key] + '<span>' + label + '</span></a>';
+    return '<a class="af-nav-link" href="' + href + '" title="' + label + '">' +
+      ICONS[key] + '<span>' + label + '</span></a>';
   }
 
   var ADE_NAV_SHELL_HTML =
     '<button type="button" class="af-backdrop" id="nav-backdrop" aria-label="Close menu"></button>' +
-    '<aside class="af-sidebar">' +
-    '<div class="af-brand"><span class="af-brand-logo" aria-hidden="true">L</span>' +
-    '<span class="af-brand-text"><span class="af-brand-mark">Letta ADE</span><span class="af-brand-sub">ADE · self-hosted</span></span></div>' +
+    '<aside class="af-sidebar" id="af-sidebar">' +
+    '<div class="af-brand">' +
+    '<span class="af-brand-logo" aria-hidden="true">L</span>' +
+    '<span class="af-brand-text"><span class="af-brand-mark">Letta ADE</span><span class="af-brand-sub">ADE · self-hosted</span></span>' +
+    '<button type="button" class="af-sidebar-collapse" id="sidebar-collapse" aria-controls="af-sidebar" aria-expanded="true" title="Collapse sidebar" aria-label="Collapse sidebar">' +
+    ICONS.panelCollapse +
+    '</button>' +
+    '</div>' +
     '<nav class="af-nav">' +
     '<div class="af-nav-section">Workspace</div>' +
     navLink('index.html', 'dashboard', 'Dashboard') +
@@ -47,7 +55,7 @@
     '<select id="ade-agent-select" class="af-select af-select-agent" aria-label="Active agent">' +
     '<option value="">Loading…</option>' +
     '</select>' +
-    '<p class="af-api-badge"><span class="af-dot" id="api-status-dot"></span>API <span id="api-base-display">…</span></p>' +
+    '<p class="af-api-badge" title="API status"><span class="af-dot" id="api-status-dot"></span><span class="af-api-badge-text">API <span id="api-base-display">…</span></span></p>' +
     '</div>' +
     '</aside>';
 
@@ -107,6 +115,7 @@
   var STORAGE_KEY = 'ade_faithful_key';
   var STORAGE_AGENT = 'ade_faithful_agent_id';
   var STORAGE_SKIN = 'af-skin-comp';
+  var STORAGE_SIDEBAR = 'af-sidebar-collapsed';
   var SKIN_SLUGS = ['hey', 'ledger', 'brutalist', 'obsidian'];
   var SKIN_LABELS = {
     hey: 'HEY Bold',
@@ -115,6 +124,39 @@
     obsidian: 'Obsidian Focus'
   };
   var pendingAgentId = null;
+
+  function getSidebarCollapsed() {
+    try {
+      return localStorage.getItem(STORAGE_SIDEBAR) === '1';
+    } catch (e) {
+      return document.documentElement.getAttribute('data-sidebar-collapsed') === '1';
+    }
+  }
+  function setSidebarCollapsed(collapsed) {
+    collapsed = !!collapsed;
+    try {
+      if (collapsed) localStorage.setItem(STORAGE_SIDEBAR, '1');
+      else localStorage.removeItem(STORAGE_SIDEBAR);
+    } catch (e) { /* ignore */ }
+    if (collapsed) document.documentElement.setAttribute('data-sidebar-collapsed', '1');
+    else document.documentElement.removeAttribute('data-sidebar-collapsed');
+    var btn = document.getElementById('sidebar-collapse');
+    if (btn) {
+      btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      btn.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+      btn.setAttribute('title', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+      btn.innerHTML = collapsed ? ICONS.panelExpand : ICONS.panelCollapse;
+    }
+    return collapsed;
+  }
+  function bindSidebarCollapse() {
+    var btn = document.getElementById('sidebar-collapse');
+    if (!btn) return;
+    setSidebarCollapsed(getSidebarCollapsed());
+    btn.addEventListener('click', function () {
+      setSidebarCollapsed(!getSidebarCollapsed());
+    });
+  }
 
   function normalizeSkinSlug(slug) {
     var s = String(slug || '').toLowerCase().trim();
@@ -180,6 +222,7 @@
     if (svg) el.innerHTML = svg;
   });
   bindNavToggle();
+  bindSidebarCollapse();
   fillApiBaseDisplay();
 
   function normAgentsResponse(d) {
@@ -531,6 +574,8 @@
     SKIN_LABELS: SKIN_LABELS,
     getSkin: getSkin,
     setSkin: setSkin,
+    getSidebarCollapsed: getSidebarCollapsed,
+    setSidebarCollapsed: setSidebarCollapsed,
     getSelectedAgentId: getSelectedAgentId,
     setSelectedAgentId: setSelectedAgentId,
     refreshAgentSelect: refreshAgentSelect,

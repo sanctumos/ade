@@ -182,10 +182,10 @@ html[data-skin-comp="brutalist"] .af-btn {
 
 /* Square-corner skins: components with fixed radii in shell.css / chat.css */
 html[data-skin-comp="ledger"] :is(code, kbd, .af-brand-logo, .af-avatar, .af-dash-icon, .af-tabs, .af-tab,
-  .af-badge, .af-check, .chat-turn, .chat-step, .chat-turn__label-tag, .chat-tool-status, .chat-md pre,
+  .af-badge, .af-check, .af-sidebar-collapse, .chat-turn, .chat-step, .chat-turn__label-tag, .chat-tool-status, .chat-md pre,
   .chat-json, .chat-composer, .chat-send, .chat-msg-toolbar button),
 html[data-skin-comp="brutalist"] :is(code, kbd, .af-brand-logo, .af-avatar, .af-dash-icon, .af-tabs, .af-tab,
-  .af-badge, .af-check, .chat-turn, .chat-step, .chat-turn__label-tag, .chat-tool-status, .chat-md pre,
+  .af-badge, .af-check, .af-sidebar-collapse, .chat-turn, .chat-step, .chat-turn__label-tag, .chat-tool-status, .chat-md pre,
   .chat-json, .chat-composer, .chat-send, .chat-msg-toolbar button) {
   border-radius: 0;
 }

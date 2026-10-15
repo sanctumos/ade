@@ -125,6 +125,7 @@ code {
   top: 0;
   height: 100vh;
   backdrop-filter: blur(12px);
+  transition: width 0.2s ease, padding 0.2s ease;
 }
 
 .af-brand {
@@ -148,7 +149,7 @@ code {
   box-shadow: var(--af-shadow);
   flex-shrink: 0;
 }
-.af-brand-text { display: flex; flex-direction: column; line-height: 1.15; }
+.af-brand-text { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; flex: 1; }
 .af-brand-mark {
   font-weight: 700;
   font-size: 16px;
@@ -161,6 +162,74 @@ code {
   color: var(--af-text-dim);
   text-transform: uppercase;
   letter-spacing: 0.08em;
+}
+.af-sidebar-collapse {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-left: auto;
+  padding: 0;
+  border: 1px solid var(--af-border-subtle);
+  border-radius: var(--af-radius-sm);
+  background: var(--af-bg-surface);
+  color: var(--af-text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.af-sidebar-collapse:hover {
+  background: var(--af-hover-wash);
+  color: var(--af-text);
+  border-color: var(--af-border);
+}
+.af-sidebar-collapse svg { width: 15px; height: 15px; }
+.af-api-badge-text { min-width: 0; }
+
+/* Desktop only: icon rail when collapsed (persisted via data-sidebar-collapsed) */
+@media (min-width: 769px) {
+  html[data-sidebar-collapsed="1"] .af-sidebar {
+    --af-sidebar-w: 64px;
+    width: 64px;
+    padding: 14px 8px;
+    align-items: stretch;
+  }
+  html[data-sidebar-collapsed="1"] .af-brand {
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 0 14px;
+    margin-bottom: 14px;
+  }
+  html[data-sidebar-collapsed="1"] .af-brand-text { display: none; }
+  html[data-sidebar-collapsed="1"] .af-sidebar-collapse { margin-left: 0; }
+  html[data-sidebar-collapsed="1"] .af-nav-section { display: none; }
+  html[data-sidebar-collapsed="1"] .af-nav-link {
+    justify-content: center;
+    padding: 10px 8px;
+    gap: 0;
+  }
+  html[data-sidebar-collapsed="1"] .af-nav-link span { display: none; }
+  html[data-sidebar-collapsed="1"] .af-nav-link.is-active::before {
+    left: -8px;
+    top: 10px;
+    bottom: 10px;
+  }
+  html[data-sidebar-collapsed="1"] .af-sidebar-label,
+  html[data-sidebar-collapsed="1"] .af-select-agent,
+  html[data-sidebar-collapsed="1"] .af-api-badge-text { display: none; }
+  html[data-sidebar-collapsed="1"] .af-sidebar-agent {
+    padding: 10px 0;
+    display: flex;
+    justify-content: center;
+    background: transparent;
+    border-color: transparent;
+  }
+  html[data-sidebar-collapsed="1"] .af-api-badge {
+    margin: 0;
+    justify-content: center;
+  }
 }
 
 .af-nav-section {
@@ -300,6 +369,7 @@ code {
 
 @media (max-width: 768px) {
   .af-nav-toggle { display: inline-flex; }
+  .af-sidebar-collapse { display: none; }
   .af-main { padding: 18px 16px 40px; }
   .af-sidebar {
     position: fixed;
