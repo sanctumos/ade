@@ -6,6 +6,9 @@
 
 /* ========== HEY Bold — light, high contrast, electric blue ========== */
 html[data-skin-comp="hey"] {
+  --af-header-bg: rgba(255, 255, 255, 0.88);
+  --af-pre-bg: #f4f6fa;
+  --af-pre-fg: #0b1020;
   --af-bg: #e9edf3;
   --af-bg-elevated: #ffffff;
   --af-bg-surface: #ffffff;
@@ -24,7 +27,7 @@ html[data-skin-comp="hey"] {
   --af-accent-ring: rgba(0, 71, 255, 0.35);
   --af-grad: linear-gradient(135deg, #0047ff 0%, #5b8cff 100%);
   --af-success: #0a7a3e;
-  --af-warn: #a15c00;
+  --af-warn: #8a4b00;
   --af-danger: #c62828;
   --af-radius: 12px;
   --af-radius-sm: 8px;
@@ -66,6 +69,9 @@ html[data-skin-comp="hey"] .chat-composer {
 
 /* ========== Ledger & Ink — cream paper, editorial ========== */
 html[data-skin-comp="ledger"] {
+  --af-header-bg: rgba(250, 246, 239, 0.9);
+  --af-pre-bg: #f5f0e6;
+  --af-pre-fg: #1a1814;
   --af-bg: #faf6ef;
   --af-bg-elevated: #fffdf8;
   --af-bg-surface: #fffdf8;
@@ -110,6 +116,9 @@ html[data-skin-comp="ledger"] {
 
 /* ========== Brutalist Signal — concrete, zero radius ========== */
 html[data-skin-comp="brutalist"] {
+  --af-header-bg: #ececea;
+  --af-pre-bg: #e2e2e0;
+  --af-pre-fg: #000000;
   --af-bg: #d8d8d6;
   --af-bg-elevated: #f2f2f0;
   --af-bg-surface: #ececea;
@@ -171,8 +180,21 @@ html[data-skin-comp="brutalist"] .af-btn {
   box-shadow: none !important;
 }
 
+/* Square-corner skins: components with fixed radii in shell.css / chat.css */
+html[data-skin-comp="ledger"] :is(code, kbd, .af-brand-logo, .af-avatar, .af-dash-icon, .af-tabs, .af-tab,
+  .af-badge, .af-check, .chat-turn, .chat-step, .chat-turn__label-tag, .chat-tool-status, .chat-md pre,
+  .chat-json, .chat-composer, .chat-send, .chat-msg-toolbar button),
+html[data-skin-comp="brutalist"] :is(code, kbd, .af-brand-logo, .af-avatar, .af-dash-icon, .af-tabs, .af-tab,
+  .af-badge, .af-check, .chat-turn, .chat-step, .chat-turn__label-tag, .chat-tool-status, .chat-md pre,
+  .chat-json, .chat-composer, .chat-send, .chat-msg-toolbar button) {
+  border-radius: 0;
+}
+
 /* ========== Obsidian Focus — OLED dark, cream type, gold (closest to prior ADE default) ========== */
 html[data-skin-comp="obsidian"] {
+  --af-header-bg: rgba(10, 11, 15, 0.78);
+  --af-pre-bg: #07080c;
+  --af-pre-fg: #dfe3ee;
   --af-bg: #0a0b0f;
   --af-bg-elevated: #14161c;
   --af-bg-surface: #14161c;
