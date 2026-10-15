@@ -313,6 +313,90 @@
   }
 
   /**
+   * Consume an SSE (or JSON one-shot) Response. Shared by message send + run hitch.
+   * handlers: { onEvent(obj), onDone(data?), onError(err) }
+   */
+  function consumeSseResponse(res, handlers) {
+    handlers = handlers || {};
+    var ct = (res.headers.get('content-type') || '').toLowerCase();
+    if (!res.ok) {
+      return res.text().then(function (t) {
+        var err = new Error('API ' + res.status + ': ' + (t || res.statusText));
+        if (handlers.onError) handlers.onError(err);
+        throw err;
+      });
+    }
+    /* Some servers ignore streaming and return JSON — treat as one-shot done. */
+    if (ct.indexOf('application/json') !== -1) {
+      return res.json().then(function (data) {
+        if (handlers.onEvent) handlers.onEvent({ message_type: '_json_response', data: data });
+        if (handlers.onDone) handlers.onDone(data);
+        return data;
+      });
+    }
+    if (!res.body || !res.body.getReader) {
+      return res.text().then(function (t) {
+        if (handlers.onDone) handlers.onDone(t);
+        return t;
+      });
+    }
+    var reader = res.body.getReader();
+    var decoder = new TextDecoder();
+    var buffer = '';
+    function emitSseBlock(block) {
+      var lines = block.split('\n');
+      var dataLines = [];
+      var eventName = '';
+      for (var i = 0; i < lines.length; i++) {
+        var line = lines[i];
+        if (line.indexOf('event:') === 0) eventName = line.slice(6).trim();
+        else if (line.indexOf('data:') === 0) dataLines.push(line.slice(5).replace(/^ /, ''));
+      }
+      if (!dataLines.length) return;
+      var raw = dataLines.join('\n');
+      if (raw === '[DONE]') return;
+      try {
+        var obj = JSON.parse(raw);
+        if (eventName && obj && typeof obj === 'object' && !obj.event) obj._sse_event = eventName;
+        if (handlers.onEvent) handlers.onEvent(obj);
+      } catch (e) {
+        if (handlers.onEvent) handlers.onEvent({ message_type: '_raw', content: raw, _sse_event: eventName });
+      }
+    }
+    function pump() {
+      return reader.read().then(function (result) {
+        if (result.done) {
+          if (buffer.trim()) emitSseBlock(buffer);
+          if (handlers.onDone) handlers.onDone();
+          return;
+        }
+        buffer += decoder.decode(result.value, { stream: true });
+        var parts = buffer.split('\n\n');
+        buffer = parts.pop() || '';
+        for (var j = 0; j < parts.length; j++) {
+          if (parts[j].trim()) emitSseBlock(parts[j]);
+        }
+        return pump();
+      });
+    }
+    return pump().catch(function (err) {
+      if (handlers.onError) handlers.onError(err);
+      throw err;
+    });
+  }
+
+  function sseFetch(url, payload, handlers, fetchOpts) {
+    handlers = handlers || {};
+    var headers = { 'Content-Type': 'application/json', Accept: 'text/event-stream' };
+    var key = getConfig().key;
+    if (key) headers.Authorization = 'Bearer ' + key;
+    var init = Object.assign({ method: 'POST', headers: headers, body: JSON.stringify(payload || {}) }, fetchOpts || {});
+    return fetch(url, init).then(function (res) {
+      return consumeSseResponse(res, handlers);
+    });
+  }
+
+  /**
    * POST /v1/agents/:id/messages with streaming=true (SSE).
    * handlers: { onEvent(obj), onDone(), onError(err) }
    * Falls back to non-stream sendMessage if the server rejects streaming.
@@ -324,77 +408,27 @@
       stream_tokens: body && body.stream_tokens === false ? false : true,
       include_pings: true
     }));
-    var url = apiUrl('/v1/agents/' + agentId + '/messages');
-    var headers = { 'Content-Type': 'application/json', Accept: 'text/event-stream' };
-    var key = getConfig().key;
-    if (key) headers.Authorization = 'Bearer ' + key;
+    return sseFetch(apiUrl('/v1/agents/' + agentId + '/messages'), payload, handlers);
+  }
 
-    return fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(payload) }).then(function (res) {
-      var ct = (res.headers.get('content-type') || '').toLowerCase();
-      if (!res.ok) {
-        return res.text().then(function (t) {
-          var err = new Error('API ' + res.status + ': ' + (t || res.statusText));
-          if (handlers.onError) handlers.onError(err);
-          throw err;
-        });
-      }
-      /* Some servers ignore streaming and return JSON — treat as one-shot done. */
-      if (ct.indexOf('application/json') !== -1) {
-        return res.json().then(function (data) {
-          if (handlers.onEvent) handlers.onEvent({ message_type: '_json_response', data: data });
-          if (handlers.onDone) handlers.onDone(data);
-          return data;
-        });
-      }
-      if (!res.body || !res.body.getReader) {
-        return res.text().then(function (t) {
-          if (handlers.onDone) handlers.onDone(t);
-          return t;
-        });
-      }
-      var reader = res.body.getReader();
-      var decoder = new TextDecoder();
-      var buffer = '';
-      function emitSseBlock(block) {
-        var lines = block.split('\n');
-        var dataLines = [];
-        var eventName = '';
-        for (var i = 0; i < lines.length; i++) {
-          var line = lines[i];
-          if (line.indexOf('event:') === 0) eventName = line.slice(6).trim();
-          else if (line.indexOf('data:') === 0) dataLines.push(line.slice(5).replace(/^ /, ''));
-        }
-        if (!dataLines.length) return;
-        var raw = dataLines.join('\n');
-        if (raw === '[DONE]') return;
-        try {
-          var obj = JSON.parse(raw);
-          if (eventName && obj && typeof obj === 'object' && !obj.event) obj._sse_event = eventName;
-          if (handlers.onEvent) handlers.onEvent(obj);
-        } catch (e) {
-          if (handlers.onEvent) handlers.onEvent({ message_type: '_raw', content: raw, _sse_event: eventName });
-        }
-      }
-      function pump() {
-        return reader.read().then(function (result) {
-          if (result.done) {
-            if (buffer.trim()) emitSseBlock(buffer);
-            if (handlers.onDone) handlers.onDone();
-            return;
-          }
-          buffer += decoder.decode(result.value, { stream: true });
-          var parts = buffer.split('\n\n');
-          buffer = parts.pop() || '';
-          for (var j = 0; j < parts.length; j++) {
-            if (parts[j].trim()) emitSseBlock(parts[j]);
-          }
-          return pump();
-        });
-      }
-      return pump().catch(function (err) {
-        if (handlers.onError) handlers.onError(err);
-        throw err;
-      });
+  /**
+   * Hitch onto an in-flight run (e.g. Broca-started). POST /v1/runs/:id/stream.
+   * body: RetrieveStreamRequest — starting_after, include_pings, poll_interval, batch_size.
+   */
+  function streamRun(runId, body, handlers, fetchOpts) {
+    var payload = Object.assign({ include_pings: true, starting_after: 0 }, body || {});
+    return sseFetch(apiUrl('/v1/runs/' + encodeURIComponent(runId) + '/stream'), payload, handlers || {}, fetchOpts);
+  }
+
+  /** GET /v1/runs/active — optional agent_id / background query params. */
+  function listActiveRuns(params) {
+    var q = '';
+    if (params && Object.keys(params).length) q = '?' + new URLSearchParams(params).toString();
+    return apiFetch('/v1/runs/active' + q).then(function (d) {
+      if (Array.isArray(d)) return d;
+      if (d && Array.isArray(d.data)) return d.data;
+      if (d && Array.isArray(d.runs)) return d.runs;
+      return [];
     });
   }
 
@@ -526,8 +560,10 @@
     runMcpTool: function (serverId, toolId, body) { return apiFetch('/v1/mcp-servers/' + serverId + '/tools/' + toolId + '/run', { method: 'POST', body: JSON.stringify(body || {}) }); },
     listEmbeddingModels: function () { return apiFetch('/v1/models/embedding/'); },
     listRuns: function (params) { var q = params ? '?' + new URLSearchParams(params).toString() : ''; return apiFetch('/v1/runs/' + q); },
+    listActiveRuns: listActiveRuns,
     getRun: function (id) { return apiFetch('/v1/runs/' + id); },
     getRunMessages: function (runId, params) { var q = params ? '?' + new URLSearchParams(params).toString() : ''; return apiFetch('/v1/runs/' + runId + '/messages' + q); },
+    streamRun: streamRun,
     getRunUsage: function (runId) { return apiFetch('/v1/runs/' + runId + '/usage'); },
     getRunSteps: function (runId, params) { var q = params ? '?' + new URLSearchParams(params).toString() : ''; return apiFetch('/v1/runs/' + runId + '/steps' + q); },
     listAgentTools: function (agentId) { return listAll('/v1/agents/' + agentId + '/tools'); }

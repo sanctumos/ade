@@ -523,18 +523,186 @@
         renderEmpty('No agent selected', 'Pick an agent from the sidebar to start chatting.');
         return Promise.resolve(false);
       }
-      historyHint.textContent = 'Loading conversation…';
+      if (!opts.softFail && !opts.quiet) historyHint.textContent = 'Loading conversation…';
       return window.ADE.getAgentMessages(aid, { limit: '200' }).then(function(d) {
         var msgs = normalizeMessages(d);
         historyHint.textContent = msgs.length ? ('Showing last ' + msgs.length + ' messages') : '';
         renderHistory(msgs);
         return true;
       }).catch(function() {
-        historyHint.textContent = 'Could not load history — new messages still work.';
+        if (!opts.quiet) historyHint.textContent = 'Could not load history — new messages still work.';
         if (!opts.softFail) renderEmpty('History not available', 'Send a message to start.');
         return false;
       });
     }
+
+    /* --- Outside-event sync: Broca / Telegram / other clients start runs; hitch their SSE --- */
+    var chatSync = {
+      agentId: null,
+      pollTimer: null,
+      idleTimer: null,
+      ownSendActive: false,
+      hitching: false,
+      ignoreRunIds: {},
+      hitchedRunIds: {},
+      hitchAbort: null
+    };
+
+    function stopChatSync() {
+      if (chatSync.pollTimer) { clearInterval(chatSync.pollTimer); chatSync.pollTimer = null; }
+      if (chatSync.idleTimer) { clearInterval(chatSync.idleTimer); chatSync.idleTimer = null; }
+      if (chatSync.hitchAbort) {
+        try { chatSync.hitchAbort.abort(); } catch (e) { /* ignore */ }
+        chatSync.hitchAbort = null;
+      }
+      chatSync.hitching = false;
+      chatSync.agentId = null;
+      chatSync.ignoreRunIds = {};
+      chatSync.hitchedRunIds = {};
+    }
+
+    function startChatSync(agentId) {
+      stopChatSync();
+      chatSync.agentId = agentId || null;
+      if (!agentId) return;
+      scheduleActivePoll();
+      chatSync.idleTimer = setInterval(function() {
+        if (document.hidden || chatSync.ownSendActive || chatSync.hitching) return;
+        if (!chatSync.agentId) return;
+        loadHistory(chatSync.agentId, { softFail: true, quiet: true });
+      }, 20000);
+    }
+
+    function scheduleActivePoll() {
+      if (chatSync.pollTimer) { clearInterval(chatSync.pollTimer); chatSync.pollTimer = null; }
+      if (!chatSync.agentId || document.hidden) return;
+      chatSync.pollTimer = setInterval(tickActiveRuns, 2500);
+      tickActiveRuns();
+    }
+
+    function markOwnSend(active) {
+      chatSync.ownSendActive = !!active;
+      if (!active || !chatSync.agentId) return;
+      /* Snapshot runs already active when we send so we don't hitch our own. */
+      window.ADE.listActiveRuns({ agent_id: chatSync.agentId }).then(function(runs) {
+        (runs || []).forEach(function(r) {
+          if (r && r.id != null) chatSync.ignoreRunIds[String(r.id)] = true;
+        });
+      }).catch(function() { /* ignore */ });
+    }
+
+    function tickActiveRuns() {
+      if (!chatSync.agentId || document.hidden || chatSync.ownSendActive || chatSync.hitching) return;
+      window.ADE.listActiveRuns({ agent_id: chatSync.agentId }).then(function(runs) {
+        if (!Array.isArray(runs) || !runs.length) return;
+        for (var i = 0; i < runs.length; i++) {
+          var r = runs[i];
+          if (!r || r.id == null) continue;
+          var rid = String(r.id);
+          if (chatSync.ignoreRunIds[rid] || chatSync.hitchedRunIds[rid]) continue;
+          var status = String(r.status || '').toLowerCase();
+          if (status && status !== 'running' && status !== 'created' && status !== 'pending') continue;
+          hitchExternalRun(rid);
+          return;
+        }
+      }).catch(function() { /* poll miss is fine */ });
+    }
+
+    function attachStreamUi(opts) {
+      opts = opts || {};
+      var empty = messagesEl.querySelector('.chat-empty');
+      if (empty) empty.remove();
+      var streamWrap = assistantRow('<div class="chat-md" data-stream-body><span class="chat-shimmer" data-shimmer-text="Thinking…">Thinking…</span></div>');
+      messagesEl.appendChild(streamWrap);
+      scrollToBottom();
+      var bodyEl = streamWrap.querySelector('[data-stream-body]');
+      var state = { acc: '', sawAssistant: false, thinkTimer: null };
+      var thinkStart = Date.now();
+      state.thinkTimer = setInterval(function() {
+        if (state.sawAssistant) { clearInterval(state.thinkTimer); return; }
+        var secs = Math.floor((Date.now() - thinkStart) / 1000);
+        var label = secs >= 3 ? ('Thinking for ' + secs + 's') : 'Thinking…';
+        var sh = bodyEl.querySelector('.chat-shimmer');
+        if (sh) { sh.textContent = label; sh.setAttribute('data-shimmer-text', label); }
+      }, 1000);
+      function onEvent(obj) {
+        if (!obj) return;
+        if (obj.message_type === '_json_response') {
+          var fb = extractAssistant(obj.data);
+          if (fb) { state.acc = fb; state.sawAssistant = true; bodyEl.innerHTML = AC.parseMarkdown(state.acc); }
+          return;
+        }
+        var mt = String(obj.message_type || obj.type || '').toLowerCase();
+        if (mt && mt !== 'assistant_message' && mt !== 'assistant' && mt !== '_raw' && !obj.delta && !obj.token) {
+          if (mt === 'ping' || mt === 'keepalive') return;
+          var el = createMessageElement(obj);
+          if (el) {
+            if (mt === 'tool_call_message' && !el.dataset.dotState) el.dataset.dotState = 'running';
+            messagesEl.insertBefore(el, streamWrap);
+            scrollToBottom();
+          }
+          return;
+        }
+        var chunk = streamContentFromEvent(obj);
+        if (!chunk) return;
+        state.sawAssistant = true;
+        state.acc += chunk;
+        bodyEl.innerHTML = AC.parseMarkdown(state.acc);
+        scrollToBottom();
+      }
+      function finish(ok) {
+        if (state.thinkTimer) { clearInterval(state.thinkTimer); state.thinkTimer = null; }
+        if (!state.sawAssistant || !state.acc.trim()) streamWrap.remove();
+        return loadHistory(opts.aid, { softFail: true }).then(function(loaded) {
+          if (!loaded && state.sawAssistant && state.acc) { /* keep streamed bubble */ }
+          else if (!loaded && !state.sawAssistant && opts.fallbackEmpty) addMsg('assistant', '(no response)');
+          return loaded;
+        });
+      }
+      function fail() {
+        if (state.thinkTimer) { clearInterval(state.thinkTimer); state.thinkTimer = null; }
+        streamWrap.remove();
+      }
+      return { onEvent: onEvent, finish: finish, fail: fail, state: state, streamWrap: streamWrap };
+    }
+
+    function hitchExternalRun(runId) {
+      if (!chatSync.agentId || chatSync.hitching) return;
+      chatSync.hitching = true;
+      chatSync.hitchedRunIds[runId] = true;
+      var aid = chatSync.agentId;
+      var ui = attachStreamUi({ aid: aid });
+      var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      chatSync.hitchAbort = ctrl;
+      window.ADE.streamRun(runId, { include_pings: true }, {
+        onEvent: ui.onEvent,
+        onDone: function() {
+          chatSync.hitchAbort = null;
+          ui.finish(true).finally(function() { chatSync.hitching = false; });
+        },
+        onError: function() {
+          chatSync.hitchAbort = null;
+          ui.fail();
+          loadHistory(aid, { softFail: true, quiet: true }).finally(function() { chatSync.hitching = false; });
+        }
+      }, ctrl ? { signal: ctrl.signal } : undefined).catch(function() {
+        chatSync.hitchAbort = null;
+        ui.fail();
+        loadHistory(aid, { softFail: true, quiet: true }).finally(function() { chatSync.hitching = false; });
+      });
+    }
+
+    document.addEventListener('visibilitychange', function() {
+      if (document.hidden) {
+        if (chatSync.pollTimer) { clearInterval(chatSync.pollTimer); chatSync.pollTimer = null; }
+        return;
+      }
+      if (!chatSync.agentId) return;
+      scheduleActivePoll();
+      if (!chatSync.ownSendActive && !chatSync.hitching) {
+        loadHistory(chatSync.agentId, { softFail: true, quiet: true });
+      }
+    });
 
     function onAgentContext(ev) {
       var id = ev && ev.detail && ev.detail.id != null ? ev.detail.id : currentAgentId();
@@ -543,9 +711,10 @@
       errorEl.innerHTML = '';
       if (ev && ev.detail && ev.detail.error) {
         errorEl.innerHTML = '<div class="af-alert af-alert-danger" role="alert">Could not load agents for the sidebar.</div>';
+        stopChatSync();
         return;
       }
-      loadHistory(id);
+      loadHistory(id).then(function() { startChatSync(id); });
     }
     document.addEventListener('ade-agentselectready', onAgentContext);
     document.addEventListener('ade-agentchange', onAgentContext);
@@ -639,77 +808,27 @@
       addMsg('user', text);
       document.getElementById('send-btn').disabled = true;
       errorEl.innerHTML = '';
+      markOwnSend(true);
 
-      var streamWrap = assistantRow('<div class="chat-md" data-stream-body><span class="chat-shimmer" data-shimmer-text="Thinking…">Thinking…</span></div>');
-      messagesEl.appendChild(streamWrap);
-      scrollToBottom();
-      var bodyEl = streamWrap.querySelector('[data-stream-body]');
-      var acc = '';
-      var sawAssistant = false;
-      /* "Thinking…" → "Thinking for Xs" after 3s, until first content arrives. */
-      var thinkStart = Date.now();
-      var thinkTimer = setInterval(function() {
-        if (sawAssistant) { clearInterval(thinkTimer); return; }
-        var secs = Math.floor((Date.now() - thinkStart) / 1000);
-        var label = secs >= 3 ? ('Thinking for ' + secs + 's') : 'Thinking…';
-        var sh = bodyEl.querySelector('.chat-shimmer');
-        if (sh) { sh.textContent = label; sh.setAttribute('data-shimmer-text', label); }
-      }, 1000);
+      var ui = attachStreamUi({ aid: aid, fallbackEmpty: true });
 
       window.ADE.sendMessagePreferStream(aid, { input: text }, {
-        onEvent: function(obj) {
-          if (!obj) return;
-          if (obj.message_type === '_json_response') {
-            var fb = extractAssistant(obj.data);
-            if (fb) { acc = fb; sawAssistant = true; bodyEl.innerHTML = AC.parseMarkdown(acc); }
-            return;
-          }
-          var mt = String(obj.message_type || obj.type || '').toLowerCase();
-          /* Live-render non-assistant lanes from stream when complete step objects arrive */
-          if (mt && mt !== 'assistant_message' && mt !== 'assistant' && mt !== '_raw' && !obj.delta && !obj.token) {
-            if (mt === 'ping' || mt === 'keepalive') return;
-            var el = createMessageElement(obj);
-            if (el) {
-              /* A freshly-streamed tool call has no return yet — show it running. */
-              if (mt === 'tool_call_message' && !el.dataset.dotState) el.dataset.dotState = 'running';
-              messagesEl.insertBefore(el, streamWrap);
-              scrollToBottom();
-            }
-            return;
-          }
-          var chunk = streamContentFromEvent(obj);
-          if (!chunk) return;
-          sawAssistant = true;
-          acc += chunk;
-          bodyEl.innerHTML = AC.parseMarkdown(acc);
-          scrollToBottom();
-        },
+        onEvent: ui.onEvent,
         onDone: function() {
-          clearInterval(thinkTimer);
-          if (!sawAssistant || !acc.trim()) {
-            streamWrap.remove();
-          }
-          loadHistory(aid, { softFail: true }).then(function(ok) {
-            if (!ok && sawAssistant && acc) {
-              /* history failed; keep streamed bubble */
-            } else if (ok) {
-              /* history replaced thread */
-            } else if (!sawAssistant) {
-              addMsg('assistant', '(no response)');
-            }
-          }).finally(function() {
+          ui.finish(true).finally(function() {
+            markOwnSend(false);
             document.getElementById('send-btn').disabled = false;
           });
         },
         onError: function(err) {
-          clearInterval(thinkTimer);
-          streamWrap.remove();
+          ui.fail();
+          markOwnSend(false);
           errorEl.innerHTML = '<div class="af-alert af-alert-danger" role="alert">' + (err && err.message ? err.message : err) + '</div>';
           document.getElementById('send-btn').disabled = false;
         }
       }).catch(function(err) {
-        clearInterval(thinkTimer);
-        streamWrap.remove();
+        ui.fail();
+        markOwnSend(false);
         errorEl.innerHTML = '<div class="af-alert af-alert-danger" role="alert">' + err.message + '</div>';
         document.getElementById('send-btn').disabled = false;
       });

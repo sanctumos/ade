@@ -31,6 +31,8 @@ class MockLetta:
         self.agent_tools_ok = agent_tools_ok
         self.patches: list[dict] = []
         self.posts: list[dict] = []
+        self.stream_runs: list[str] = []
+        self.active_runs: list[dict] = []
         self.messages = [
             {"id": "m1", "message_type": "user_message", "content": REMINDER},
             {"id": "m2", "message_type": "user_message", "content": "hello there"},
@@ -72,6 +74,23 @@ class MockLetta:
             return self._json(route, DIRECTORY[: int(limit or 50)])
         if path.rstrip("/") == "/v1/models":
             return self._json(route, [{"handle": "openai-proxy/other-model"}])
+        if path.rstrip("/") == "/v1/runs/active" and method == "GET":
+            return self._json(route, list(self.active_runs))
+        if path.startswith("/v1/runs/") and path.endswith("/stream") and method == "POST":
+            run_id = path[len("/v1/runs/") : -len("/stream")]
+            self.stream_runs.append(run_id)
+            self.active_runs = [r for r in self.active_runs if r.get("id") != run_id]
+            self.messages.append(
+                {"id": "ext-user", "message_type": "user_message", "content": "from broca"}
+            )
+            self.messages.append(
+                {"id": "ext-asst", "message_type": "assistant_message", "content": "external pong"}
+            )
+            sse = (
+                'data: {"message_type":"assistant_message","content":"external pong"}\n\n'
+                "data: [DONE]\n\n"
+            )
+            return route.fulfill(status=200, headers={"content-type": "text/event-stream"}, body=sse)
         if path == f"/v1/agents/{AGENT_ID}/messages" and method == "GET":
             return self._json(route, self.messages)
         if path == f"/v1/agents/{AGENT_ID}/messages" and method == "POST":
@@ -181,3 +200,23 @@ def test_shift_enter_does_not_send(page):
     page.wait_for_timeout(300)
     assert not mock.posts
     assert "\n" in page.locator("#input").input_value()
+
+
+def test_chat_hitches_external_active_run(page):
+    """Broca-style: an outside client starts a run; chat polls /runs/active and hitch-streams it."""
+    mock = MockLetta()
+    _boot(page, mock)
+    errors: list[str] = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    page.goto(f"{BASE}/chat.html?agent={AGENT_ID}", wait_until="networkidle")
+    page.wait_for_selector("#messages .chat-row--assistant", timeout=15000)
+
+    mock.active_runs = [{"id": "run-ext-1", "status": "running", "agent_id": AGENT_ID}]
+    page.wait_for_function(
+        "() => [...document.querySelectorAll('#messages .chat-turn--assistant')]"
+        ".some(e => e.innerText.includes('external pong'))",
+        timeout=15000,
+    )
+    assert mock.stream_runs == ["run-ext-1"], mock.stream_runs
+    assert page.locator("#messages .chat-turn--user").filter(has_text="from broca").count() == 1
+    assert not errors, errors
