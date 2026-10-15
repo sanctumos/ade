@@ -118,7 +118,9 @@
     }
     var url = '';
     try {
-      url = new URLSearchParams(location.search).get('agent') || '';
+      var qs = new URLSearchParams(location.search);
+      /* chat.html?agent=… and agent.html?id=… both count as selection hints */
+      url = qs.get('agent') || qs.get('id') || '';
     } catch (e) {}
     var stored = (typeof localStorage !== 'undefined' && localStorage.getItem(STORAGE_AGENT)) || '';
     var prefer = opts.preferId != null && opts.preferId !== '' ? String(opts.preferId) : '';

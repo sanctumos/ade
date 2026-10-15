@@ -36,7 +36,10 @@
 
   document.getElementById('agent-editor').classList.remove('af-hidden');
   window.ADE.setSelectedAgentId(id);
-  document.getElementById('chat-link').href = 'chat.html';
+  document.getElementById('chat-link').setAttribute(
+    'href',
+    'chat.html?agent=' + encodeURIComponent(id)
+  );
 
   if (location.hash === '#tools') {
     var toolsTab = document.querySelector('.af-tab[data-tab="tools"]');
@@ -269,7 +272,7 @@
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'af-btn af-btn-secondary af-btn-sm af-mt';
-      btn.textContent = 'Save “‘ + label + '”';
+      btn.textContent = 'Save "' + label + '"';
       (function (blockLabel, textarea, button) {
         button.onclick = function () {
           button.disabled = true;
