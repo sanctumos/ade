@@ -49,6 +49,28 @@ def test_settings_and_shell_brand(page):
     page.click("button[type=submit]")
 
 
+def test_af_tips_cph_pattern(page):
+    """Shared ADE_TIP "?" bubbles portal to body like HMG CPH."""
+    page.goto(f"{BASE}/settings.html", wait_until="domcontentloaded")
+    assert page.evaluate("() => typeof window.ADE_TIP === 'object' && !!window.ADE_TIP.markup")
+    assert page.locator(".af-tip-btn").count() >= 3
+    assert page.locator("#af-tip-settings-base").count() == 1
+    btn = page.locator('button.af-tip-btn[aria-controls="af-tip-settings-base"]')
+    btn.click()
+    tip = page.locator("#af-tip-settings-base")
+    tip.wait_for(state="visible", timeout=3000)
+    assert tip.evaluate("e => e.parentElement === document.body")
+    assert "af-tip-fixed" in (tip.get_attribute("class") or "")
+    assert "Letta" in tip.inner_text() or "proxy" in tip.inner_text().lower()
+    page.locator("h1").click()
+    assert tip.is_hidden()
+    # Sidebar tip after shell inject
+    page.locator('button.af-tip-btn[aria-controls="af-tip-sidebar-agent"]').click()
+    side = page.locator("#af-tip-sidebar-agent")
+    side.wait_for(state="visible", timeout=3000)
+    assert "af-tip-fixed" in (side.get_attribute("class") or "")
+
+
 def test_skin_picker_applies_data_skin_comp(page):
     page.goto(f"{BASE}/settings.html", wait_until="domcontentloaded")
     assert page.locator("html").get_attribute("data-skin-comp") in {

@@ -51,11 +51,28 @@
     navLink('settings.html', 'settings', 'Settings') +
     '</nav>' +
     '<div class="af-sidebar-agent">' +
-    '<label class="af-sidebar-label" for="ade-agent-select">Active agent</label>' +
+    '<label class="af-sidebar-label" for="ade-agent-select">' +
+    (window.ADE_TIP
+      ? window.ADE_TIP.markup(
+        'Active agent',
+        'Which agent Chat and Configure use. Switch here anytime — it is saved in this browser.',
+        'sidebar-agent'
+      )
+      : 'Active agent') +
+    '</label>' +
     '<select id="ade-agent-select" class="af-select af-select-agent" aria-label="Active agent">' +
     '<option value="">Loading…</option>' +
     '</select>' +
-    '<p class="af-api-badge" title="API status"><span class="af-dot" id="api-status-dot"></span><span class="af-api-badge-text">API <span id="api-base-display">…</span></span></p>' +
+    '<p class="af-api-badge">' +
+    '<span class="af-dot" id="api-status-dot"></span>' +
+    (window.ADE_TIP
+      ? window.ADE_TIP.markup(
+        'API',
+        'Base URL for your self-hosted Letta server. Change it under Settings if the green/red status looks wrong.',
+        'sidebar-api'
+      )
+      : '<span class="af-api-badge-text">API</span>') +
+    ' <span class="af-api-badge-text" id="api-base-display">…</span></p>' +
     '</div>' +
     '</aside>';
 

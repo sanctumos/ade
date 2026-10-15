@@ -13,13 +13,25 @@
     <span id="ade-nav-inject"></span>
     <main class="af-main">
       <button type="button" class="af-nav-toggle" id="nav-toggle" aria-label="Open menu">≡</button>
-      <h1>MCP servers</h1>
+      <h1>
+        <span class="af-tip">
+          <span class="af-tip-label">MCP servers</span>
+          <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-mcp-page" aria-label="Explain: MCP servers">?</button>
+          <span id="af-tip-mcp-page" role="tooltip" class="af-tip-bubble" hidden>Model Context Protocol servers expose extra tools to Letta. Register one here, then attach its tools on an agent’s Tools tab.</span>
+        </span>
+      </h1>
       <p class="af-muted">Register MCP servers (<code>streamable_http</code>, <code>sse</code>, or <code>stdio</code>). Their tools become available to attach to agents.</p>
       <div id="error"></div>
       <form id="create-form" class="af-panel" style="max-width:42rem">
         <h2>Add MCP server</h2>
         <div class="af-field">
-          <label class="af-label" for="mcp-transport">Transport</label>
+          <label class="af-label" for="mcp-transport">
+            <span class="af-tip">
+              <span class="af-tip-label">Transport</span>
+              <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-mcp-transport" aria-label="Explain: Transport">?</button>
+              <span id="af-tip-mcp-transport" role="tooltip" class="af-tip-bubble" hidden>How Letta talks to the MCP server: Streamable HTTP, SSE, or a local stdio command. Must match what the MCP server actually speaks.</span>
+            </span>
+          </label>
           <select class="af-select" id="mcp-transport">
             <option value="streamable_http">Streamable HTTP</option>
             <option value="sse">SSE (Server-Sent Events)</option>
@@ -67,6 +79,7 @@
     </main>
   </div>
   <script src="config.js"></script>
+  <script src="tip.js"></script>
   <script src="app.js"></script>
   <script>
     var listEl = document.getElementById('list');

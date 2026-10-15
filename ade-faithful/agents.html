@@ -27,15 +27,33 @@
         <summary><h2>Create agent</h2><span class="af-summary-chev" data-af-icon="chevron"></span></summary>
       <form id="create-form" style="max-width:42rem">
         <div class="af-field">
-          <label class="af-label" for="name">Name *</label>
+          <label class="af-label" for="name">
+            <span class="af-tip">
+              <span class="af-tip-label">Name *</span>
+              <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agents-name" aria-label="Explain: Name">?</button>
+              <span id="af-tip-agents-name" role="tooltip" class="af-tip-bubble" hidden>Display name for the agent on the server. You can change it later from the agent page.</span>
+            </span>
+          </label>
           <input type="text" class="af-input" id="name" placeholder="Agent name" />
         </div>
         <div class="af-field af-hidden" id="model-row">
-          <label class="af-label" for="model">Model</label>
+          <label class="af-label" for="model">
+            <span class="af-tip">
+              <span class="af-tip-label">Model</span>
+              <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agents-model" aria-label="Explain: Model">?</button>
+              <span id="af-tip-agents-model" role="tooltip" class="af-tip-bubble" hidden>Starting LLM handle. You can change it after create on the agent Configure page.</span>
+            </span>
+          </label>
           <select class="af-select" id="model"></select>
         </div>
         <div class="af-field">
-          <label class="af-label" for="system">System prompt</label>
+          <label class="af-label" for="system">
+            <span class="af-tip">
+              <span class="af-tip-label">System prompt</span>
+              <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agents-system" aria-label="Explain: System prompt">?</button>
+              <span id="af-tip-agents-system" role="tooltip" class="af-tip-bubble" hidden>Optional standing instructions baked into the new agent. Editable later.</span>
+            </span>
+          </label>
           <textarea class="af-input af-input-wide" id="system" placeholder="Instructions for the agent…" rows="4"></textarea>
         </div>
         <div class="af-field af-hidden" id="tools-row">
@@ -49,6 +67,7 @@
     </main>
   </div>
   <script src="config.js"></script>
+  <script src="tip.js"></script>
   <script src="app.js"></script>
   <script>
     var listEl = document.getElementById('list');

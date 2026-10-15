@@ -113,158 +113,45 @@
   }
 
   function segTipAttrs(label, tokens, pct, color) {
-    /* Official ADE chart tooltip payload: "Label (N%)" + raw token count + color. */
     return ' data-ctx-label="' + esc(label) + ' (' + pct + '%)"' +
       ' data-ctx-value="' + esc(String(tokens)) + '"' +
       ' data-ctx-color="' + esc(color) + '"' +
       ' role="button" tabindex="0" aria-expanded="false"';
   }
 
-  /* HMG CPH tooltip pattern: portal to body + fixed place + arrow (cph.php placeTip). */
-  var ctxTipAnchor = null;
-
-  function ensureCtxTip() {
-    var tip = document.getElementById('chat-ctx-tip');
-    if (tip) return tip;
-    tip = document.createElement('div');
-    tip.id = 'chat-ctx-tip';
-    tip.className = 'chat-ctx-tip-bubble';
-    tip.setAttribute('role', 'tooltip');
-    tip.hidden = true;
-    tip.innerHTML =
-      '<span class="chat-ctx-tip-swatch" aria-hidden="true"></span>' +
-      '<span class="chat-ctx-tip-body">' +
-        '<span class="chat-ctx-tip-label"></span>' +
-        '<span class="chat-ctx-tip-value"></span>' +
-      '</span>';
-    document.body.appendChild(tip);
-    tip._afTipHome = document.body;
-    return tip;
-  }
-
-  function resetCtxTip() {
-    var tip = document.getElementById('chat-ctx-tip');
-    if (!tip) return;
-    tip.hidden = true;
-    tip.classList.remove('chat-ctx-tip-fixed', 'chat-ctx-tip-above');
-    tip.style.left = '';
-    tip.style.right = '';
-    tip.style.top = '';
-    tip.style.bottom = '';
-    tip.style.removeProperty('--chat-ctx-tip-arrow-left');
-    if (tip._afTipHome && tip.parentNode !== tip._afTipHome) {
-      tip._afTipHome.appendChild(tip);
-    }
-    if (ctxTipAnchor) {
-      ctxTipAnchor.setAttribute('aria-expanded', 'false');
-      ctxTipAnchor = null;
-    }
-  }
-
-  function fillCtxTip(seg) {
-    var tip = ensureCtxTip();
-    var sw = tip.querySelector('.chat-ctx-tip-swatch');
-    var lab = tip.querySelector('.chat-ctx-tip-label');
-    var val = tip.querySelector('.chat-ctx-tip-value');
+  function segRichHtml(seg) {
     var color = seg.getAttribute('data-ctx-color') || 'transparent';
-    if (sw) sw.style.background = color === 'transparent' ? 'var(--af-border)' : color;
-    if (lab) lab.textContent = seg.getAttribute('data-ctx-label') || '';
-    if (val) val.textContent = seg.getAttribute('data-ctx-value') || '';
-    return tip;
+    var bg = color === 'transparent' ? 'var(--af-border)' : color;
+    return '<span class="af-tip-swatch" style="background:' + esc(bg) + '" aria-hidden="true"></span>' +
+      '<span class="af-tip-rich-body">' +
+        '<span class="af-tip-rich-label">' + esc(seg.getAttribute('data-ctx-label') || '') + '</span>' +
+        '<span class="af-tip-rich-value">' + esc(seg.getAttribute('data-ctx-value') || '') + '</span>' +
+      '</span>';
   }
 
-  function placeCtxTip(anchor, tip) {
-    if (!anchor || !tip) return;
-    if (!tip._afTipHome) tip._afTipHome = tip.parentNode || document.body;
-    if (tip.parentNode !== document.body) document.body.appendChild(tip);
-    tip.hidden = false;
-    tip.classList.add('chat-ctx-tip-fixed');
-    tip.classList.remove('chat-ctx-tip-above');
-    tip.style.left = '0px';
-    tip.style.top = '0px';
-    tip.style.right = 'auto';
-    tip.style.bottom = 'auto';
-    var br = anchor.getBoundingClientRect();
-    var gap = 8;
-    var pad = 12;
-    var tw = tip.offsetWidth;
-    var th = tip.offsetHeight;
-    var vw = window.innerWidth;
-    var vh = window.innerHeight;
-    var left = br.left;
-    if (left + tw > vw - pad) left = vw - pad - tw;
-    if (left < pad) left = pad;
-    var openAbove = br.bottom + gap + th > vh - pad && br.top - gap - th >= pad;
-    var top = openAbove ? (br.top - gap - th) : (br.bottom + gap);
-    if (top < pad) top = pad;
-    if (top + th > vh - pad) top = Math.max(pad, vh - pad - th);
-    tip.style.left = Math.round(left) + 'px';
-    tip.style.top = Math.round(top) + 'px';
-    tip.classList.toggle('chat-ctx-tip-above', openAbove);
-    var arrowLeft = Math.round(br.left + br.width / 2 - left - 5);
-    arrowLeft = Math.max(10, Math.min(tw - 20, arrowLeft));
-    tip.style.setProperty('--chat-ctx-tip-arrow-left', arrowLeft + 'px');
-  }
-
-  function openCtxTip(seg) {
-    if (!seg) return;
-    if (ctxTipAnchor && ctxTipAnchor !== seg) {
-      ctxTipAnchor.setAttribute('aria-expanded', 'false');
-    }
-    var tip = fillCtxTip(seg);
-    ctxTipAnchor = seg;
-    seg.setAttribute('aria-expanded', 'true');
-    placeCtxTip(seg, tip);
-  }
-
-  function toggleCtxTip(seg) {
-    if (!seg) return;
-    if (ctxTipAnchor === seg) {
-      resetCtxTip();
-      return;
-    }
-    openCtxTip(seg);
-  }
-
-  function repositionCtxTip() {
-    if (!ctxTipAnchor) return;
-    var tip = document.getElementById('chat-ctx-tip');
-    if (tip && !tip.hidden) placeCtxTip(ctxTipAnchor, tip);
-  }
-
-  function bindCtxTip() {
-    if (document.documentElement.getAttribute('data-ctx-tip-bound') === '1') return;
-    document.documentElement.setAttribute('data-ctx-tip-bound', '1');
-    ensureCtxTip();
+  function bindCtxSegTips() {
+    if (document.documentElement.getAttribute('data-ctx-seg-tip-bound') === '1') return;
+    document.documentElement.setAttribute('data-ctx-seg-tip-bound', '1');
     document.addEventListener('click', function (e) {
       var seg = e.target && e.target.closest ? e.target.closest('.chat-ctx-seg') : null;
       var host = document.getElementById('chat-context-bar');
-      if (seg && host && host.contains(seg)) {
-        e.preventDefault();
-        e.stopPropagation();
-        toggleCtxTip(seg);
-        return;
-      }
-      if (!e.target.closest || (!e.target.closest('#chat-ctx-tip') && !e.target.closest('.chat-ctx-seg'))) {
-        resetCtxTip();
-      }
+      if (!seg || !host || !host.contains(seg) || !window.ADE_TIP) return;
+      e.preventDefault();
+      e.stopPropagation();
+      window.ADE_TIP.toggleFloating(seg, segRichHtml(seg));
     });
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') resetCtxTip();
-      if ((e.key === 'Enter' || e.key === ' ') && e.target && e.target.classList &&
-          e.target.classList.contains('chat-ctx-seg')) {
-        e.preventDefault();
-        toggleCtxTip(e.target);
-      }
+      if ((e.key !== 'Enter' && e.key !== ' ') || !e.target || !e.target.classList ||
+          !e.target.classList.contains('chat-ctx-seg') || !window.ADE_TIP) return;
+      e.preventDefault();
+      window.ADE_TIP.toggleFloating(e.target, segRichHtml(e.target));
     });
-    window.addEventListener('resize', repositionCtxTip);
-    window.addEventListener('scroll', repositionCtxTip, true);
   }
 
   function renderContextBar(ctx) {
     var host = document.getElementById('chat-context-bar');
     if (!host) return;
-    resetCtxTip();
+    if (window.ADE_TIP) window.ADE_TIP.closeFloating();
     if (!ctx) {
       host.innerHTML = '<div class="chat-ctx-empty">Context usage unavailable</div>';
       return;
@@ -292,9 +179,17 @@
         segTipAttrs('Remaining', remaining, pctOf(remaining, max), 'transparent') + '></span>';
     }
 
+    var titleHtml = window.ADE_TIP
+      ? window.ADE_TIP.markup(
+        'Context window',
+        'How full the model’s context is right now. Click a colored segment for that slice’s tokens and share of the window.',
+        'chat-context'
+      )
+      : 'Context window';
+
     host.innerHTML =
       '<div class="chat-ctx-top">' +
-        '<div class="chat-ctx-title">Context window</div>' +
+        '<div class="chat-ctx-title">' + titleHtml + '</div>' +
         '<div class="chat-ctx-stats">' +
           '<strong>' + fmtTokens(used) + '</strong> / ' + fmtTokens(max) +
           ' · <span class="chat-ctx-free">' + pctFree + '% free</span>' +
@@ -302,7 +197,7 @@
       '</div>' +
       '<div class="chat-ctx-track" role="group" aria-label="Context usage ' + pctUsed +
         '% used. Click a segment for details.">' + bars + '</div>';
-    bindCtxTip();
+    bindCtxSegTips();
   }
 
   function renderMemoryBlocks(blocks) {
@@ -426,7 +321,7 @@
     if (uiBound) return;
     uiBound = true;
     setMemoryOpen(isMemoryOpen());
-    bindCtxTip();
+    bindCtxSegTips();
     var btn = document.getElementById('chat-memory-collapse');
     if (btn) {
       btn.addEventListener('click', function (e) {

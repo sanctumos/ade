@@ -218,7 +218,8 @@ code {
   }
   html[data-sidebar-collapsed="1"] .af-sidebar-label,
   html[data-sidebar-collapsed="1"] .af-select-agent,
-  html[data-sidebar-collapsed="1"] .af-api-badge-text { display: none; }
+  html[data-sidebar-collapsed="1"] .af-api-badge-text,
+  html[data-sidebar-collapsed="1"] .af-sidebar-agent .af-tip { display: none; }
   html[data-sidebar-collapsed="1"] .af-sidebar-agent {
     padding: 10px 0;
     display: flex;
@@ -396,6 +397,132 @@ code {
 }
 .af-page-head-main { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .af-page-head .af-nav-toggle { margin-bottom: 0; }
+/* Tooltips — HMG CPH pattern (portal + diamond arrow). See tip.js */
+.af-tip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+}
+.af-tip-label { line-height: 1.2; }
+.af-tip-btn {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--af-border);
+  background: transparent;
+  color: var(--af-text-dim);
+  font: 600 10px/1 var(--af-font);
+  cursor: help;
+  opacity: 0.55;
+}
+.af-tip:hover .af-tip-btn,
+.af-tip-btn:hover,
+.af-tip-btn:focus-visible {
+  opacity: 1;
+  color: var(--af-accent-strong);
+  border-color: color-mix(in srgb, var(--af-accent) 40%, var(--af-border));
+  background: color-mix(in srgb, var(--af-accent) 10%, var(--af-bg-surface));
+  outline: 2px solid color-mix(in srgb, var(--af-accent) 35%, transparent);
+  outline-offset: 1px;
+}
+.af-tip-btn[aria-expanded="true"] {
+  opacity: 1;
+  background: var(--af-accent);
+  color: #fff;
+  border-color: transparent;
+}
+.af-tip-bubble {
+  position: absolute;
+  z-index: 40;
+  left: 0;
+  top: calc(100% + 8px);
+  min-width: 220px;
+  max-width: min(320px, 82vw);
+  padding: 10px 12px;
+  border-radius: var(--af-radius-sm);
+  border: 1px solid var(--af-border);
+  background: var(--af-bg-surface);
+  color: var(--af-text);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.45;
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: normal;
+}
+.af-tip-bubble.af-tip-fixed {
+  position: fixed;
+  z-index: 120;
+  margin: 0;
+  max-width: min(320px, calc(100vw - 24px));
+}
+.af-tip-bubble::before {
+  content: "";
+  position: absolute;
+  left: var(--af-tip-arrow-left, 14px);
+  top: -6px;
+  width: 10px;
+  height: 10px;
+  background: var(--af-bg-surface);
+  border-left: 1px solid var(--af-border);
+  border-top: 1px solid var(--af-border);
+  transform: rotate(45deg);
+}
+.af-tip-bubble.af-tip-above::before {
+  top: auto;
+  bottom: -6px;
+  transform: rotate(225deg);
+}
+.af-tip-bubble[hidden] { display: none !important; }
+.af-tip-bubble--rich {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 180px;
+}
+.af-tip-swatch {
+  width: 10px;
+  height: 10px;
+  margin-top: 3px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  border: 1px solid var(--af-border-subtle);
+}
+.af-tip-rich-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+  min-width: 0;
+}
+.af-tip-rich-label { color: var(--af-text-muted); font-weight: 500; }
+.af-tip-rich-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--af-text);
+}
+.af-label .af-tip,
+.af-stat-label .af-tip,
+.chat-ctx-title .af-tip,
+.chat-memory-title .af-tip {
+  font-size: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  font-weight: inherit;
+  color: inherit;
+}
+html[data-skin-comp="ledger"] .af-tip-bubble,
+html[data-skin-comp="brutalist"] .af-tip-bubble,
+html[data-skin-comp="ledger"] .af-tip-btn,
+html[data-skin-comp="brutalist"] .af-tip-btn {
+  border-radius: 0;
+}
+
 .af-eyebrow {
   font-size: 11px;
   font-weight: 600;

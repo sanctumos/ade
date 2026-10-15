@@ -26,19 +26,44 @@
       <div id="status"></div>
       <div class="af-stats">
         <div class="af-stat">
-          <div class="af-stat-label"><span class="af-dot" id="stat-dot"></span>Server</div>
+          <div class="af-stat-label">
+            <span class="af-dot" id="stat-dot"></span>
+            <span class="af-tip">
+              <span class="af-tip-label">Server</span>
+              <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-dash-server" aria-label="Explain: Server">?</button>
+              <span id="af-tip-dash-server" role="tooltip" class="af-tip-bubble" hidden>Whether this browser can reach the Letta API base URL from Settings.</span>
+            </span>
+          </div>
           <div class="af-stat-value is-text" id="stat-server">Checking…</div>
         </div>
         <div class="af-stat">
-          <div class="af-stat-label">Agents</div>
+          <div class="af-stat-label">
+            <span class="af-tip">
+              <span class="af-tip-label">Agents</span>
+              <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-dash-agents" aria-label="Explain: Agents">?</button>
+              <span id="af-tip-dash-agents" role="tooltip" class="af-tip-bubble" hidden>How many agents exist on your Letta server right now.</span>
+            </span>
+          </div>
           <div class="af-stat-value" id="stat-agents">—</div>
         </div>
         <div class="af-stat">
-          <div class="af-stat-label">Tools</div>
+          <div class="af-stat-label">
+            <span class="af-tip">
+              <span class="af-tip-label">Tools</span>
+              <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-dash-tools" aria-label="Explain: Tools">?</button>
+              <span id="af-tip-dash-tools" role="tooltip" class="af-tip-bubble" hidden>Tools registered on the server (built-in, custom, and from MCP). Attach them per agent.</span>
+            </span>
+          </div>
           <div class="af-stat-value" id="stat-tools">—</div>
         </div>
         <div class="af-stat">
-          <div class="af-stat-label">Models</div>
+          <div class="af-stat-label">
+            <span class="af-tip">
+              <span class="af-tip-label">Models</span>
+              <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-dash-models" aria-label="Explain: Models">?</button>
+              <span id="af-tip-dash-models" role="tooltip" class="af-tip-bubble" hidden>LLM handles your server can use. Pick one when creating or editing an agent.</span>
+            </span>
+          </div>
           <div class="af-stat-value" id="stat-models">—</div>
         </div>
       </div>
@@ -69,6 +94,7 @@
     </main>
   </div>
   <script src="config.js"></script>
+  <script src="tip.js"></script>
   <script src="app.js"></script>
   <script>
     function count(d, key) {

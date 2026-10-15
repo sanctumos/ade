@@ -23,7 +23,11 @@
           </div>
         </div>
         <div class="chat-header-actions">
-          <a href="agent.html" id="config-agent-link" class="af-btn af-btn-secondary af-btn-sm" title="Model, tools, core memory, archival"><span id="config-agent-icon"></span><span>Configure</span></a>
+          <span class="af-tip">
+            <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-chat-configure" aria-label="Explain: Configure">?</button>
+            <span id="af-tip-chat-configure" role="tooltip" class="af-tip-bubble" hidden>Opens this agent’s model, tools, core memory, and archival settings.</span>
+          </span>
+          <a href="agent.html" id="config-agent-link" class="af-btn af-btn-secondary af-btn-sm"><span id="config-agent-icon"></span><span>Configure</span></a>
         </div>
       </header>
       <div id="chat-context-bar" class="chat-context-bar" aria-live="polite">
@@ -49,7 +53,13 @@
         <aside class="chat-memory-panel" id="chat-memory-panel" aria-label="Core memory blocks">
           <div class="chat-memory-head">
             <div class="chat-memory-head-text">
-              <h2 class="chat-memory-title">Memory blocks</h2>
+              <h2 class="chat-memory-title">
+                <span class="af-tip">
+                  <span class="af-tip-label">Memory blocks</span>
+                  <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-chat-memory" aria-label="Explain: Memory blocks">?</button>
+                  <span id="af-tip-chat-memory" role="tooltip" class="af-tip-bubble" hidden>Core memory attached to this agent. Broca can attach or detach blocks mid-stream — this list refreshes on its own.</span>
+                </span>
+              </h2>
               <p class="chat-memory-sub"><span id="chat-memory-count">0</span> attached · live</p>
             </div>
             <button type="button" class="chat-memory-collapse" id="chat-memory-collapse" aria-controls="chat-memory-panel" aria-expanded="true" title="Collapse memory panel" aria-label="Collapse memory panel">
@@ -67,6 +77,7 @@
   <script src="vendor/marked.min.js"></script>
   <script src="vendor/purify.min.js"></script>
   <script src="config.js"></script>
+  <script src="tip.js"></script>
   <script src="app.js"></script>
   <script src="chat-markdown.js"></script>
   <script src="chat-sidecar.js"></script>

@@ -317,20 +317,27 @@ def test_chat_context_bar_and_memory_panel(page):
     assert "context window" in bar
     assert "85% free" in bar or "free" in bar
     assert page.locator("#chat-context-bar .chat-ctx-seg").count() >= 3
-    # Legend removed — segment details use HMG CPH-style click tip (portal + arrow).
+    # Legend removed — segment details use shared ADE_TIP floating bubble (CPH pattern).
     assert page.locator("#chat-context-bar .chat-ctx-legend").count() == 0
+    assert page.locator("#chat-context-bar .af-tip-btn").count() >= 1
     msg_seg = page.locator('#chat-context-bar .chat-ctx-seg[data-ctx-label*="Messages"]')
     assert msg_seg.count() == 1
     msg_seg.click()
-    tip = page.locator("#chat-ctx-tip")
+    tip = page.locator("#af-tip-float")
     tip.wait_for(state="visible", timeout=3000)
-    assert "chat-ctx-tip-fixed" in (tip.get_attribute("class") or "")
+    assert "af-tip-fixed" in (tip.get_attribute("class") or "")
     tip_text = tip.inner_text()
     assert "Messages" in tip_text
     assert "%" in tip_text
     # Click outside closes (CPH pattern).
-    page.locator(".chat-ctx-title").click()
+    page.locator(".chat-header-name").click()
     assert tip.is_hidden()
+    # "?" tip on Memory blocks (shared ADE_TIP / CPH pattern).
+    page.locator(".chat-memory-title .af-tip-btn").click()
+    mem_tip = page.locator("#af-tip-chat-memory")
+    mem_tip.wait_for(state="visible", timeout=3000)
+    assert "af-tip-fixed" in (mem_tip.get_attribute("class") or "")
+    assert "Broca" in mem_tip.inner_text()
     assert page.locator("#chat-memory-panel").is_visible()
     assert page.locator("#chat-memory-count").inner_text() == "3"
     assert page.locator('.chat-memory-card[data-label="persona"]').count() == 1

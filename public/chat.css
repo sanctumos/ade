@@ -42,9 +42,14 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.chat-header-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.chat-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
 
-/* Context window usage bar — segment tips use HMG CPH tooltip pattern (portal + arrow) */
+/* Context window usage bar — segment clicks open shared ADE_TIP floating bubble */
 .chat-context-bar {
   position: relative;
   flex-shrink: 0;
@@ -100,77 +105,6 @@
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--af-text) 25%, transparent);
 }
 .chat-ctx-seg--free { background: color-mix(in srgb, var(--af-text-dim) 12%, transparent); }
-
-/* Same geometry as HMG .cph-tip-bubble — fixed portal + diamond arrow */
-.chat-ctx-tip-bubble {
-  position: absolute;
-  z-index: 40;
-  left: 0;
-  top: calc(100% + 8px);
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  min-width: 180px;
-  max-width: min(320px, 82vw);
-  padding: 10px 12px;
-  border-radius: var(--af-radius-sm);
-  border: 1px solid var(--af-border);
-  background: var(--af-bg-surface);
-  color: var(--af-text);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1.45;
-  white-space: normal;
-}
-.chat-ctx-tip-bubble.chat-ctx-tip-fixed {
-  position: fixed;
-  z-index: 120;
-  margin: 0;
-  max-width: min(320px, calc(100vw - 24px));
-}
-.chat-ctx-tip-bubble::before {
-  content: "";
-  position: absolute;
-  left: var(--chat-ctx-tip-arrow-left, 14px);
-  top: -6px;
-  width: 10px;
-  height: 10px;
-  background: var(--af-bg-surface);
-  border-left: 1px solid var(--af-border);
-  border-top: 1px solid var(--af-border);
-  transform: rotate(45deg);
-}
-.chat-ctx-tip-bubble.chat-ctx-tip-above::before {
-  top: auto;
-  bottom: -6px;
-  transform: rotate(225deg);
-}
-.chat-ctx-tip-bubble[hidden] { display: none !important; }
-.chat-ctx-tip-swatch {
-  width: 10px;
-  height: 10px;
-  margin-top: 3px;
-  border-radius: 2px;
-  flex-shrink: 0;
-  border: 1px solid var(--af-border-subtle);
-}
-.chat-ctx-tip-body {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 6px 10px;
-  min-width: 0;
-}
-.chat-ctx-tip-label {
-  color: var(--af-text-muted);
-  font-weight: 500;
-}
-.chat-ctx-tip-value {
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  color: var(--af-text);
-}
 .chat-ctx-empty {
   font-size: 12px;
   color: var(--af-text-dim);
@@ -837,7 +771,7 @@ html[data-chat-memory="closed"] .chat-memory-collapse {
   .chat-composer-meta .chat-kbd-hint { display: none; }
 }
 
-html[data-skin-comp="ledger"] :is(.chat-memory-collapse, .chat-memory-card, .chat-ctx-track, .chat-ctx-tip-bubble, .chat-ctx-tip-swatch),
-html[data-skin-comp="brutalist"] :is(.chat-memory-collapse, .chat-memory-card, .chat-ctx-track, .chat-ctx-tip-bubble, .chat-ctx-tip-swatch) {
+html[data-skin-comp="ledger"] :is(.chat-memory-collapse, .chat-memory-card, .chat-ctx-track),
+html[data-skin-comp="brutalist"] :is(.chat-memory-collapse, .chat-memory-card, .chat-ctx-track) {
   border-radius: 0;
 }

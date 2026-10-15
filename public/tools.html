@@ -13,13 +13,20 @@
     <span id="ade-nav-inject"></span>
     <main class="af-main">
       <button type="button" class="af-nav-toggle" id="nav-toggle" aria-label="Open menu">≡</button>
-      <h1>Tools</h1>
+      <h1>
+        <span class="af-tip">
+          <span class="af-tip-label">Tools</span>
+          <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-tools-page" aria-label="Explain: Tools">?</button>
+          <span id="af-tip-tools-page" role="tooltip" class="af-tip-bubble" hidden>Directory of every tool on your Letta server. Attach tools to an agent from that agent’s Tools tab — this page is browse-only.</span>
+        </span>
+      </h1>
       <p class="af-muted">All tools available to agents. Attach them when creating or editing an agent.</p>
       <div id="error"></div>
       <ul id="list" class="af-list"></ul>
     </main>
   </div>
   <script src="config.js"></script>
+  <script src="tip.js"></script>
   <script src="app.js"></script>
   <script>
     var listEl = document.getElementById('list');

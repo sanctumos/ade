@@ -40,22 +40,46 @@
           <p class="af-muted af-mb">Model, <code>llm_config</code>, and <code>system</code> prompt. <strong>Save</strong> also persists tool choices from the Tools tab.</p>
           <div id="config-form">
             <div class="af-field af-hidden" id="model-row">
-              <label class="af-label" for="model">Model</label>
+              <label class="af-label" for="model">
+                <span class="af-tip">
+                  <span class="af-tip-label">Model</span>
+                  <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-model" aria-label="Explain: Model">?</button>
+                  <span id="af-tip-agent-model" role="tooltip" class="af-tip-bubble" hidden>Which LLM handle this agent uses. List comes from your Letta server’s /v1/models.</span>
+                </span>
+              </label>
               <select class="af-select" id="model"></select>
             </div>
             <div class="af-grid-2 af-mb" id="llm-advanced">
               <div>
-                <label class="af-label" for="llm-temperature">Temperature</label>
+                <label class="af-label" for="llm-temperature">
+                  <span class="af-tip">
+                    <span class="af-tip-label">Temperature</span>
+                    <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-temp" aria-label="Explain: Temperature">?</button>
+                    <span id="af-tip-agent-temp" role="tooltip" class="af-tip-bubble" hidden>How random replies are. Lower is steadier; higher is more creative. Saved in llm_config.</span>
+                  </span>
+                </label>
                 <input type="number" class="af-input" id="llm-temperature" step="0.05" min="0" max="2" placeholder="e.g. 0.7" />
               </div>
               <div>
-                <label class="af-label" for="llm-max-tokens">Max tokens</label>
+                <label class="af-label" for="llm-max-tokens">
+                  <span class="af-tip">
+                    <span class="af-tip-label">Max tokens</span>
+                    <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-maxtok" aria-label="Explain: Max tokens">?</button>
+                    <span id="af-tip-agent-maxtok" role="tooltip" class="af-tip-bubble" hidden>Optional cap on tokens the model may generate per turn. Leave blank to use the server default.</span>
+                  </span>
+                </label>
                 <input type="number" class="af-input" id="llm-max-tokens" min="1" step="1" placeholder="optional" />
               </div>
             </div>
             <p class="af-hint af-mb">Saved into <code>llm_config</code>. Leave blank to omit a field.</p>
             <div class="af-field">
-              <label class="af-label" for="system">System prompt</label>
+              <label class="af-label" for="system">
+                <span class="af-tip">
+                  <span class="af-tip-label">System prompt</span>
+                  <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-system" aria-label="Explain: System prompt">?</button>
+                  <span id="af-tip-agent-system" role="tooltip" class="af-tip-bubble" hidden>Standing instructions for the agent. Lives in the agent’s system field and counts toward context usage.</span>
+                </span>
+              </label>
               <textarea class="af-input af-input-wide" id="system" rows="5"></textarea>
             </div>
           </div>
@@ -63,7 +87,13 @@
         </div>
 
         <div class="af-tab-pane" data-pane="tools" role="tabpanel">
-          <p class="af-muted af-mb">Which registered tools this agent may call. Saved as <code>tool_ids</code>.</p>
+          <p class="af-muted af-mb">
+            <span class="af-tip">
+              <span class="af-tip-label">Tools for this agent</span>
+              <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-tools" aria-label="Explain: Tools for this agent">?</button>
+              <span id="af-tip-agent-tools" role="tooltip" class="af-tip-bubble" hidden>Which registered tools this agent may call. Saved as tool_ids. Add more tools from the Tools directory or MCP servers first.</span>
+            </span>
+          </p>
           <div id="tools-section" class="af-panel af-hidden">
             <div class="af-spread af-mb">
               <div>
@@ -87,12 +117,24 @@
         </div>
 
         <div class="af-tab-pane" data-pane="memory" role="tabpanel">
-          <p class="af-muted af-mb">Core memory blocks from <code>GET …/core-memory/blocks</code>. Each block saves on its own button.</p>
+          <p class="af-muted af-mb">
+            <span class="af-tip">
+              <span class="af-tip-label">Core memory</span>
+              <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-memory" aria-label="Explain: Core memory">?</button>
+              <span id="af-tip-agent-memory" role="tooltip" class="af-tip-bubble" hidden>Editable memory blocks always in the agent’s context. Each block saves on its own button. Same blocks show live in Chat.</span>
+            </span>
+          </p>
           <div id="memory-blocks">Loading blocks…</div>
         </div>
 
         <div class="af-tab-pane" data-pane="archival" role="tabpanel">
-          <p class="af-muted af-mb">Archival memory passages (<code>/v1/agents/{id}/archival-memory</code>). Self-hosted Letta only.</p>
+          <p class="af-muted af-mb">
+            <span class="af-tip">
+              <span class="af-tip-label">Archival memory</span>
+              <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-archival" aria-label="Explain: Archival memory">?</button>
+              <span id="af-tip-agent-archival" role="tooltip" class="af-tip-bubble" hidden>Long-term passages the agent can search. Not always in context — the agent retrieves them when needed. Self-hosted Letta only.</span>
+            </span>
+          </p>
           <form id="archival-add" class="af-panel">
             <label class="af-label" for="archival-text">New passage</label>
             <textarea class="af-input af-input-wide" id="archival-text" rows="3" placeholder="Text to store in archival memory…"></textarea>
@@ -122,6 +164,7 @@
     </main>
   </div>
   <script src="config.js"></script>
+  <script src="tip.js"></script>
   <script src="app.js"></script>
   <script src="agent-page.js"></script>
 </body>

@@ -17,16 +17,34 @@
       <p class="af-muted">API connection and appearance for this browser.</p>
 
       <section class="af-panel" style="max-width:640px;margin-bottom:20px">
-        <h2 style="margin:0 0 6px;font-size:16px">Appearance</h2>
-        <p class="af-muted af-small" style="margin:0 0 4px">Same Sanctum skins as Tasks, CRM, and Docket. Your choice is saved in this browser and applies across ADE.</p>
+        <h2 style="margin:0 0 6px;font-size:16px">
+          <span class="af-tip">
+            <span class="af-tip-label">Appearance</span>
+            <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-settings-skin" aria-label="Explain: Appearance">?</button>
+            <span id="af-tip-settings-skin" role="tooltip" class="af-tip-bubble" hidden>Same Sanctum skins as Tasks, CRM, and Docket. Your choice is saved in this browser and applies across ADE.</span>
+          </span>
+        </h2>
+        <p class="af-muted af-small" style="margin:0 0 4px">Pick a skin for this browser.</p>
         <div class="af-skin-grid" id="skin-grid" role="radiogroup" aria-label="Skin"></div>
       </section>
 
       <form id="form" class="af-panel" style="max-width:480px">
         <h2 style="margin:0 0 12px;font-size:16px">API</h2>
-        <label class="af-label" for="base">API base URL</label>
+        <label class="af-label" for="base">
+          <span class="af-tip">
+            <span class="af-tip-label">API base URL</span>
+            <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-settings-base" aria-label="Explain: API base URL">?</button>
+            <span id="af-tip-settings-base" role="tooltip" class="af-tip-bubble" hidden>Root URL of your self-hosted Letta server (or the ADE proxy). Example: https://ade.example.com/proxy.php — not Letta Cloud.</span>
+          </span>
+        </label>
         <input type="text" class="af-input" id="base" autocomplete="url" style="margin-bottom:14px" />
-        <label class="af-label" for="key">API key (optional)</label>
+        <label class="af-label" for="key">
+          <span class="af-tip">
+            <span class="af-tip-label">API key (optional)</span>
+            <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-settings-key" aria-label="Explain: API key">?</button>
+            <span id="af-tip-settings-key" role="tooltip" class="af-tip-bubble" hidden>Bearer token if your Letta server requires one. Stored only in this browser’s localStorage — never sent to us.</span>
+          </span>
+        </label>
         <input type="text" class="af-input" id="key" placeholder="Bearer token" autocomplete="off" style="margin-bottom:16px" />
         <button type="submit" class="af-btn af-btn-primary">Save in this browser</button>
       </form>
@@ -34,6 +52,7 @@
     </main>
   </div>
   <script src="config.js"></script>
+  <script src="tip.js"></script>
   <script src="app.js"></script>
   <script>
     var c = window.ADE.getConfig();
