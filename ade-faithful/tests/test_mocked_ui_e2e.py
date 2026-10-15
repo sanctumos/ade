@@ -41,6 +41,13 @@ class MockLetta:
                 "tool_call": {"name": "memory", "arguments": "{}", "tool_call_id": "call-1"},
                 "tool_calls": [{"name": "memory", "arguments": "{}", "tool_call_id": "call-1"}],
             },
+            {
+                "id": "m3c",
+                "message_type": "tool_return_message",
+                "tool_call_id": "call-1",
+                "status": "success",
+                "tool_return": {"ok": True},
+            },
             {"id": "m4", "message_type": "assistant_message", "content": "**Hi** back"},
         ]
 
@@ -144,7 +151,14 @@ def test_chat_lanes_and_enter_to_send(page):
     assert user_text == ["hello there"], user_text
     assert page.locator("#messages .chat-turn--reasoning.chat-step").count() == 1
     assert page.locator("#messages .chat-row--assistant .af-avatar").count() == 1
-    assert page.locator("#messages .chat-turn--tool-call .chat-tool-meta").count() == 1, "duplicate tool call rendered"
+    # Tool return is merged into the call card; no standalone tool-return row.
+    call_card = page.locator("#messages .chat-turn--tool-call")
+    assert call_card.locator(".chat-tool-meta").count() == 2, "call meta + merged result meta"
+    assert call_card.locator(".chat-tool-status--ok").count() == 1, "success status pill on merged result"
+    assert page.locator("#messages .chat-turn--tool-return").count() == 0, "standalone tool return not folded in"
+    # Hover toolbar on message rows.
+    assert page.locator("#messages .chat-row--user .chat-msg-toolbar").count() == 1
+    assert page.locator("#messages .chat-row--assistant .chat-msg-toolbar").count() >= 1
 
     page.fill("#input", "ping")
     page.press("#input", "Enter")

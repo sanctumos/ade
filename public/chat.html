@@ -95,19 +95,50 @@
       document.title = nm + ' — Chat — Letta ADE';
     }
 
-    function assistantRow(innerHtml) {
+    /* Timestamp like the ADE: time-only within 24h, else date+time. */
+    function fmtMsgTime(dateIso) {
+      var d = dateIso ? new Date(dateIso) : new Date();
+      if (isNaN(d)) return '';
+      var now = Date.now();
+      if (now - d.getTime() < 86400000) {
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+      return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' +
+        d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    /* Per-message hover toolbar: copy + timestamp. Copies the visible text of the bubble. */
+    function msgToolbar(bubbleSel, dateIso) {
+      var tb = document.createElement('div');
+      tb.className = 'chat-msg-toolbar';
+      var ts = '<span class="chat-ts">' + fmtMsgTime(dateIso) + '</span>';
+      tb.innerHTML = '<button type="button" data-copy title="Copy">Copy</button>' + ts;
+      tb.querySelector('[data-copy]').addEventListener('click', function() {
+        var bubble = tb.parentElement ? tb.parentElement.querySelector(bubbleSel) : null;
+        var text = bubble ? bubble.innerText : '';
+        if (navigator.clipboard && text) navigator.clipboard.writeText(text).catch(function() {});
+        var btn = tb.querySelector('[data-copy]');
+        btn.textContent = 'Copied';
+        setTimeout(function() { btn.textContent = 'Copy'; }, 1200);
+      });
+      return tb;
+    }
+
+    function assistantRow(innerHtml, dateIso) {
       var row = document.createElement('div');
       row.className = 'chat-row chat-row--assistant';
       var nm = currentAgentName();
       row.innerHTML = window.ADE.avatarHtml(nm) +
         '<div class="chat-row-body"><div class="chat-row-name">' + AC.escHtml(nm) + '</div>' +
         '<div class="chat-turn chat-turn--assistant">' + innerHtml + '</div></div>';
+      row.querySelector('.chat-row-body').appendChild(msgToolbar('.chat-turn--assistant', dateIso));
       return row;
     }
-    function userRow(innerHtml) {
+    function userRow(innerHtml, dateIso) {
       var row = document.createElement('div');
       row.className = 'chat-row chat-row--user';
       row.innerHTML = '<div class="chat-row-body"><div class="chat-turn chat-turn--user">' + innerHtml + '</div></div>';
+      row.querySelector('.chat-row-body').appendChild(msgToolbar('.chat-turn--user', dateIso));
       return row;
     }
 
@@ -259,6 +290,46 @@
         '<span class="chat-turn__label-tag">+' + (names.length - 1) + ' more</span>';
     }
 
+    /** Compact status pill shown on a merged tool card. */
+    function statusTag(text, kind) {
+      return '<span class="chat-tool-status chat-tool-status--' + kind + '">' + AC.escHtml(text) + '</span>';
+    }
+
+    /** Map of tool_call_id -> tool_return_message, used to merge returns into the call card. */
+    var toolReturnsByCallId = {};
+    function indexToolReturns(msgs) {
+      toolReturnsByCallId = {};
+      (msgs || []).forEach(function(m) {
+        if (messageTypeOf(m) !== 'tool_return_message') return;
+        var ids = [];
+        if (m.tool_call_id) ids.push(String(m.tool_call_id));
+        if (Array.isArray(m.tool_returns)) {
+          m.tool_returns.forEach(function(tr) { if (tr && tr.tool_call_id) ids.push(String(tr.tool_call_id)); });
+        }
+        ids.forEach(function(id) { toolReturnsByCallId[id] = m; });
+      });
+    }
+    function returnForCall(tc) {
+      if (!tc) return null;
+      var id = tc.tool_call_id || tc.id;
+      return id ? toolReturnsByCallId[String(id)] || null : null;
+    }
+
+    /** Reason for a step dot: running | success | error | approval | idle */
+    function stepDotState(m, ret) {
+      var mt = messageTypeOf(m);
+      if (mt === 'approval_request_message') return 'approval';
+      if (mt === 'tool_return_message') {
+        return String(m.status || '').toLowerCase() === 'error' ? 'error' : 'success';
+      }
+      if (mt === 'tool_call_message' || mt === 'approval_request_message') {
+        if (ret) return String(ret.status || '').toLowerCase() === 'error' ? 'error' : 'success';
+        return 'running';
+      }
+      if (mt === 'run_error_message') return 'error';
+      return 'idle';
+    }
+
     /**
      * One DOM node per API message — matches Letta message_type lanes.
      */
@@ -275,6 +346,7 @@
 
       if (mt === 'reasoning_message') {
         wrap.className = 'chat-turn chat-turn--reasoning chat-step';
+        wrap.dataset.dotState = 'idle';
         var src = m.source ? String(m.source).replace(/_/g, ' ') : '';
         var reasoning = m.reasoning != null ? String(m.reasoning) : '';
         var srcTag = src ? '<span class="chat-turn__label-tag">' + AC.escHtml(src) + '</span>' : '';
@@ -310,14 +382,25 @@
           wrap.innerHTML = '<div class="chat-turn__label">Tool call</div><p class="af-muted">(no tool_call payload)</p>';
           return wrap;
         }
+        /* Merge the paired tool_return into each call card (Letta hides the separate return row). */
+        var anyRet = null;
         var bodyTc = callsTc.map(function(tc) {
+          var ret = returnForCall(tc);
+          if (ret) anyRet = ret;
           var nm = (tc && tc.name) || 'tool';
           var args = (tc && tc.arguments) != null ? tc.arguments : '';
           var tid = (tc && tc.tool_call_id) ? String(tc.tool_call_id) : '';
-          return '<div class="chat-tool-meta"><strong>' + AC.escHtml(nm) + '</strong>' +
-            (tid ? ' · <code>' + AC.escHtml(tid) + '</code>' : '') +
-            '</div><pre class="chat-json">' + AC.formatJsonMaybe(args) + '</pre>';
+          var out = '<div class="chat-tool-meta"><strong>' + AC.escHtml(nm) + '</strong>' +
+            (tid ? ' · <code>' + AC.escHtml(tid) + '</code>' : '') + '</div>' +
+            '<pre class="chat-json">' + AC.formatJsonMaybe(args) + '</pre>';
+          if (ret) {
+            var st = String(ret.status || '').toLowerCase();
+            var stTag = statusTag(st === 'error' ? 'error' : 'success', st === 'error' ? 'error' : 'ok');
+            out += '<div class="chat-tool-meta" style="margin-top:8px">' + stTag + ' result</div>' + toolReturnBodyHtml(ret.tool_return);
+          }
+          return out;
         }).join('');
+        wrap.dataset.dotState = stepDotState(m, anyRet);
         wrap.innerHTML =
           '<details class="chat-details">' +
           chatCollapsibleSummary('Tool call', toolCallSummaryTags(callsTc)) +
@@ -327,6 +410,7 @@
 
       if (mt === 'approval_request_message') {
         wrap.className = 'chat-turn chat-turn--approval chat-step';
+        wrap.dataset.dotState = 'approval';
         var callsAp = collectToolCalls(m);
         if (!callsAp.length) {
           wrap.innerHTML = '<div class="chat-turn__label">Approval required</div><p class="af-muted">(no tool_call payload)</p>';
@@ -348,28 +432,18 @@
       }
 
       if (mt === 'tool_return_message') {
+        /* Paired returns render inside the tool_call card; only a lone return (no matching call) shows standalone. */
+        var loneTid = m.tool_call_id ? String(m.tool_call_id) : '';
         var err = String(m.status || '').toLowerCase() === 'error';
         wrap.className = 'chat-turn chat-turn--tool-return chat-step' + (err ? ' chat-turn--error' : '');
-        var tid = m.tool_call_id ? String(m.tool_call_id) : '';
+        wrap.dataset.dotState = stepDotState(m, null);
         var st = m.status ? String(m.status) : '—';
-        var tidShort = tid ? shortToolCallId(tid) : '';
-        var tagsTr = '';
-        if (tidShort) {
-          tagsTr += '<span class="chat-turn__label-tag" title="' + AC.escHtml(tid) + '">' + AC.escHtml(tidShort) + '</span>';
-        }
-        tagsTr += '<span class="chat-turn__label-tag">' + AC.escHtml(st) + '</span>';
-        var body = toolReturnBodyHtml(m.tool_return);
-        var extra = '';
-        if (Array.isArray(m.stdout) && m.stdout.length) {
-          extra += '<div class="chat-tool-meta" style="margin-top:10px">stdout</div><pre class="chat-json">' + AC.escHtml(m.stdout.join('\n')) + '</pre>';
-        }
-        if (Array.isArray(m.stderr) && m.stderr.length) {
-          extra += '<div class="chat-tool-meta" style="margin-top:10px">stderr</div><pre class="chat-json">' + AC.escHtml(m.stderr.join('\n')) + '</pre>';
-        }
+        var tagsTr = '<span class="chat-turn__label-tag">' + AC.escHtml(st) + '</span>';
         wrap.innerHTML =
           '<details class="chat-details">' +
           chatCollapsibleSummary('Tool result', tagsTr) +
-          '<div class="chat-details-body">' + body + extra + '</div></details>';
+          '<div class="chat-details-body">' + toolReturnBodyHtml(m.tool_return) + '</div></details>';
+        wrap.dataset.loneReturn = '1';
         return wrap;
       }
 
@@ -387,13 +461,13 @@
       if (mt === 'user_message') {
         var ut = userFacingContent(m);
         if (isInternalContext(ut)) return internalContextElement(ut);
-        return userRow('<div class="chat-md">' + AC.parseMarkdown(ut) + '</div>');
+        return userRow('<div class="chat-md">' + AC.parseMarkdown(ut) + '</div>', m.date || m.created_at);
       }
 
       if (mt === 'assistant_message') {
         var at = assistantFacingContent(m);
         if (!at.trim()) return null;
-        return assistantRow('<div class="chat-md">' + AC.parseMarkdown(at) + '</div>');
+        return assistantRow('<div class="chat-md">' + AC.parseMarkdown(at) + '</div>', m.date || m.created_at);
       }
 
       if (mt === 'system_message') {
@@ -413,11 +487,21 @@
 
     function renderHistory(msgs) {
       messagesEl.innerHTML = '';
+      indexToolReturns(msgs);
       var shown = 0;
       msgs.forEach(function(m) {
         if (isInternalUserMessage(m)) return;
+        var mt = messageTypeOf(m);
+        if (mt === 'ping' || mt === 'keepalive' || mt === 'usage_statistics' || mt === 'stop_reason') return;
         var el = createMessageElement(m);
-        if (el) { messagesEl.appendChild(el); shown++; }
+        if (!el) return;
+        /* Drop standalone returns whose call card already folded them in. */
+        if (el.dataset.loneReturn) {
+          var tid = m.tool_call_id ? String(m.tool_call_id) : '';
+          if (tid && toolReturnsByCallId[tid]) return;
+        }
+        messagesEl.appendChild(el);
+        shown++;
       });
       if (!shown) {
         renderEmpty('No messages yet', 'Say hello below to start the conversation.');
@@ -556,12 +640,21 @@
       document.getElementById('send-btn').disabled = true;
       errorEl.innerHTML = '';
 
-      var streamWrap = assistantRow('<div class="chat-md" data-stream-body><span class="chat-typing" aria-label="Agent is thinking"><i></i><i></i><i></i></span></div>');
+      var streamWrap = assistantRow('<div class="chat-md" data-stream-body><span class="chat-shimmer" data-shimmer-text="Thinking…">Thinking…</span></div>');
       messagesEl.appendChild(streamWrap);
       scrollToBottom();
       var bodyEl = streamWrap.querySelector('[data-stream-body]');
       var acc = '';
       var sawAssistant = false;
+      /* "Thinking…" → "Thinking for Xs" after 3s, until first content arrives. */
+      var thinkStart = Date.now();
+      var thinkTimer = setInterval(function() {
+        if (sawAssistant) { clearInterval(thinkTimer); return; }
+        var secs = Math.floor((Date.now() - thinkStart) / 1000);
+        var label = secs >= 3 ? ('Thinking for ' + secs + 's') : 'Thinking…';
+        var sh = bodyEl.querySelector('.chat-shimmer');
+        if (sh) { sh.textContent = label; sh.setAttribute('data-shimmer-text', label); }
+      }, 1000);
 
       window.ADE.sendMessagePreferStream(aid, { input: text }, {
         onEvent: function(obj) {
@@ -577,6 +670,8 @@
             if (mt === 'ping' || mt === 'keepalive') return;
             var el = createMessageElement(obj);
             if (el) {
+              /* A freshly-streamed tool call has no return yet — show it running. */
+              if (mt === 'tool_call_message' && !el.dataset.dotState) el.dataset.dotState = 'running';
               messagesEl.insertBefore(el, streamWrap);
               scrollToBottom();
             }
@@ -590,6 +685,7 @@
           scrollToBottom();
         },
         onDone: function() {
+          clearInterval(thinkTimer);
           if (!sawAssistant || !acc.trim()) {
             streamWrap.remove();
           }
@@ -606,11 +702,13 @@
           });
         },
         onError: function(err) {
+          clearInterval(thinkTimer);
           streamWrap.remove();
           errorEl.innerHTML = '<div class="af-alert af-alert-danger" role="alert">' + (err && err.message ? err.message : err) + '</div>';
           document.getElementById('send-btn').disabled = false;
         }
       }).catch(function(err) {
+        clearInterval(thinkTimer);
         streamWrap.remove();
         errorEl.innerHTML = '<div class="af-alert af-alert-danger" role="alert">' + err.message + '</div>';
         document.getElementById('send-btn').disabled = false;

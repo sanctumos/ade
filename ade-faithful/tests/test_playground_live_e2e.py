@@ -83,7 +83,7 @@ def test_live_chat_round_trip(page, playground):
     page.press("#input", "Enter")
     page.wait_for_function(
         f"() => document.querySelectorAll('#messages .chat-turn--assistant').length > {before} "
-        "&& !document.querySelector('#messages .chat-typing') && !document.getElementById('send-btn').disabled",
+        "&& !document.querySelector('#messages .chat-shimmer') && !document.getElementById('send-btn').disabled",
         timeout=120000,
     )
     last = page.locator("#messages .chat-turn--assistant").last.inner_text()
