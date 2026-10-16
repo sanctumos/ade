@@ -294,6 +294,11 @@ html[data-chat-memory="closed"] .chat-memory-collapse {
 .chat-memory-card.is-readonly .chat-memory-meter-fill {
   background: var(--af-text-dim);
 }
+.chat-memory-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 10px 10px;
+}
 
 .chat-body {
   flex: 1;

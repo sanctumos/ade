@@ -229,8 +229,40 @@
         '</summary>' +
         desc +
         '<pre class="chat-memory-value">' + esc(val || '(empty)') + '</pre>' +
+        '<div class="chat-memory-actions">' +
+          '<button type="button" class="af-btn af-btn-ghost af-btn-sm" data-mem-expand="' + esc(label) + '">' +
+            (ro ? 'View larger' : 'Larger editor') +
+          '</button>' +
+        '</div>' +
         '</details>';
     }).join('');
+
+    state.blocks = blocks;
+    host.querySelectorAll('[data-mem-expand]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var label = btn.getAttribute('data-mem-expand');
+        var block = null;
+        for (var i = 0; i < state.blocks.length; i++) {
+          var candidate = state.blocks[i].label || String(state.blocks[i].id || 'block');
+          if (candidate === label) { block = state.blocks[i]; break; }
+        }
+        if (!block || !window.ADE_MEMORY_EDITOR || !state.agentId) return;
+        window.ADE_MEMORY_EDITOR.open({
+          agentId: state.agentId,
+          label: label,
+          value: blockValue(block),
+          description: block.description,
+          limit: block.limit,
+          readOnly: !!block.read_only,
+          onSaved: function () {
+            state.blocksFp = '';
+            refreshBlocks();
+          }
+        });
+      });
+    });
 
     host.querySelectorAll('details.chat-memory-card').forEach(function (el) {
       el.addEventListener('toggle', function () {

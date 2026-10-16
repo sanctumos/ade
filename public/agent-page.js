@@ -269,11 +269,17 @@
       ta.rows = Math.min(14, Math.max(6, Math.ceil(blockValue(b).length / 80) + 2));
       ta.value = blockValue(b);
       wrap.appendChild(ta);
+      var actions = document.createElement('div');
+      actions.className = 'af-memory-actions';
       var btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'af-btn af-btn-secondary af-btn-sm af-mt';
+      btn.className = 'af-btn af-btn-secondary af-btn-sm';
       btn.textContent = 'Save "' + label + '"';
-      (function (blockLabel, textarea, button) {
+      var expand = document.createElement('button');
+      expand.type = 'button';
+      expand.className = 'af-btn af-btn-ghost af-btn-sm';
+      expand.textContent = b.read_only ? 'View larger' : 'Larger editor';
+      (function (blockLabel, textarea, button, expandBtn, block) {
         button.onclick = function () {
           button.disabled = true;
           errorEl.innerHTML = '';
@@ -284,8 +290,24 @@
             button.disabled = false;
           });
         };
-      })(label, ta, btn);
-      wrap.appendChild(btn);
+        expandBtn.onclick = function () {
+          if (!window.ADE_MEMORY_EDITOR) return;
+          window.ADE_MEMORY_EDITOR.open({
+            agentId: id,
+            label: blockLabel,
+            value: textarea.value,
+            description: block.description,
+            limit: block.limit,
+            readOnly: !!block.read_only,
+            onSaved: function (value) {
+              textarea.value = value;
+            }
+          });
+        };
+      })(label, ta, btn, expand, b);
+      actions.appendChild(btn);
+      actions.appendChild(expand);
+      wrap.appendChild(actions);
       host.appendChild(wrap);
     });
   }

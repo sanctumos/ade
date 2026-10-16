@@ -121,7 +121,7 @@
             <span class="af-tip">
               <span class="af-tip-label">Core memory</span>
               <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-memory" aria-label="Explain: Core memory">?</button>
-              <span id="af-tip-agent-memory" role="tooltip" class="af-tip-bubble" hidden>Editable memory blocks always in the agent’s context. Each block saves on its own button. Same blocks show live in Chat.</span>
+              <span id="af-tip-agent-memory" role="tooltip" class="af-tip-bubble" hidden>Editable memory blocks always in the agent’s context. Short changes stay in the box and save on that block’s button. Larger editor opens a wide window, with full screen, for longer rewrites. Same blocks show live in Chat.</span>
             </span>
           </p>
           <div id="memory-blocks">Loading blocks…</div>
@@ -166,6 +166,7 @@
   <script src="config.js"></script>
   <script src="tip.js"></script>
   <script src="app.js"></script>
+  <script src="memory-editor.js"></script>
   <script src="agent-page.js"></script>
 </body>
 </html>
