@@ -34,7 +34,7 @@
     '<button type="button" class="af-backdrop" id="nav-backdrop" aria-label="Close menu"></button>' +
     '<aside class="af-sidebar" id="af-sidebar">' +
     '<div class="af-brand">' +
-    '<span class="af-brand-logo" aria-hidden="true">S</span>' +
+    '<img class="af-brand-logo" src="assets/sanctum-logo.svg" alt="Sanctum" width="32" height="32">' +
     '<span class="af-brand-text"><span class="af-brand-mark">Sanctum ADE</span><span class="af-brand-sub">v1 · self-hosted</span></span>' +
     '<button type="button" class="af-sidebar-collapse" id="sidebar-collapse" aria-controls="af-sidebar" aria-expanded="true" title="Collapse sidebar" aria-label="Collapse sidebar">' +
     ICONS.panelCollapse +

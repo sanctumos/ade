@@ -267,7 +267,7 @@ html[data-skin-comp] code {
 }
 html[data-skin-comp] * { scrollbar-color: var(--af-scrollbar) transparent; }
 html[data-skin-comp] *::-webkit-scrollbar-thumb { background: var(--af-scrollbar); }
-html[data-skin-comp] .af-brand-logo { color: var(--af-brand-mark-fg); }
+html[data-skin-comp] .af-brand-logo { background: #fff; }
 
 html[data-skin-comp] .af-nav-link:hover,
 html[data-skin-comp] .af-btn-secondary:hover,

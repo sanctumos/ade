@@ -139,13 +139,10 @@ code {
 .af-brand-logo {
   width: 32px;
   height: 32px;
-  border-radius: 9px;
-  background: var(--af-grad);
-  display: grid;
-  place-items: center;
-  color: var(--af-brand-mark-fg);
-  font-weight: 800;
-  font-size: 16px;
+  border-radius: 8px;
+  display: block;
+  object-fit: cover;
+  background: #fff;
   box-shadow: var(--af-shadow);
   flex-shrink: 0;
 }
