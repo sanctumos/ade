@@ -80,22 +80,15 @@
   function toolId(t) { return t.id != null ? t.id : t.tool_id || t.name; }
   function toolName(t) { return t.name != null ? t.name : t.tool_id || t.id; }
 
-  var ADE_TOOL_GROUPS = ['builtin', 'mcp', 'other'];
-  var ADE_TOOL_GROUP_LABEL = { builtin: 'Built-in & core', mcp: 'MCP & external', other: 'Other' };
-
   function escHtml(s) {
-    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    return (window.ADE_TOOLS_UI && window.ADE_TOOLS_UI.escHtml)
+      ? window.ADE_TOOLS_UI.escHtml(s)
+      : String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
   function escAttr(s) {
-    return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-  }
-
-  function toolGroupKey(t) {
-    var raw = String((t && (t.tool_type != null ? t.tool_type : t.type)) || '').toLowerCase();
-    if (!raw) return 'other';
-    if (raw.indexOf('mcp') !== -1) return 'mcp';
-    if (raw.indexOf('letta') !== -1 || raw.indexOf('builtin') !== -1 || raw.indexOf('core') !== -1) return 'builtin';
-    return 'other';
+    return (window.ADE_TOOLS_UI && window.ADE_TOOLS_UI.escAttr)
+      ? window.ADE_TOOLS_UI.escAttr(s)
+      : String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
   }
 
   function agentHasToolId(agentToolIds, tid) {
@@ -131,7 +124,7 @@
     var el = document.getElementById('tools-count-badge');
     if (!el) return;
     if (!all.length) { el.textContent = '0 tools'; return; }
-    el.textContent = sel.length + ' / ' + all.length + ' enabled';
+    el.textContent = sel.length + ' / ' + all.length + ' attached';
   }
 
   function applyToolsFilter() {
@@ -146,11 +139,13 @@
     document.querySelectorAll('[data-ade-tool-group]').forEach(function (g) {
       var any = g.querySelector('.af-tool-row:not(.af-hidden)');
       g.classList.toggle('af-hidden', !any);
+      if (q && any && g.tagName === 'DETAILS') g.open = true;
     });
   }
 
   function mountAgentToolsList(tools, agentToolIds) {
     lastRegisteredTools = Array.isArray(tools) ? tools : [];
+    var UI = window.ADE_TOOLS_UI;
     var section = document.getElementById('tools-section');
     var mount = document.getElementById('tools-list-mount');
     var toolbar = document.getElementById('tools-toolbar');
@@ -175,46 +170,70 @@
     en.disabled = false;
     dis.disabled = false;
 
-    var byGroup = { builtin: [], mcp: [], other: [] };
-    tools.forEach(function (t) {
-      var k = toolGroupKey(t);
-      if (!byGroup[k]) byGroup[k] = [];
-      byGroup[k].push(t);
-    });
-    ADE_TOOL_GROUPS.forEach(function (gk) {
-      (byGroup[gk] || []).sort(function (a, b) {
-        return String(toolName(a)).toLowerCase().localeCompare(String(toolName(b)).toLowerCase());
-      });
-    });
+    if (!UI) {
+      mount.innerHTML = '<p class="af-alert af-alert-warn" style="margin:12px">tools-ui.js failed to load.</p>';
+      return;
+    }
 
+    var grouped = UI.groupTools(tools, agentToolIds);
+    var attachedIds = {};
+    grouped.attached.forEach(function (t) { attachedIds[String(UI.toolId(t))] = true; });
     var idx = 0;
     var html = '';
-    ADE_TOOL_GROUPS.forEach(function (gk) {
-      var list = byGroup[gk] || [];
-      if (!list.length) return;
-      var gh = ADE_TOOL_GROUP_LABEL[gk] || gk;
-      html += '<div data-ade-tool-group="' + escAttr(gk) + '">';
-      html += '<div class="af-tool-group-header">' + escHtml(gh) + ' · ' + list.length + '</div>';
-      list.forEach(function (t) {
-        var tid = toolId(t);
-        var nm = toolName(t);
-        var typ = (t.tool_type != null ? t.tool_type : t.type) || '—';
-        var desc = (t.description && String(t.description).trim()) ? String(t.description).trim() : '';
-        if (desc.length > 220) desc = desc.slice(0, 217) + '…';
-        var searchBlob = [nm, tid, typ, desc].join(' ').toLowerCase();
-        var cbId = 'ade-tool-cb-' + idx;
-        var checked = agentHasToolId(agentToolIds, tid) ? ' checked' : '';
-        html += '<div class="af-tool-row" data-ade-tool-search="' + encodeURIComponent(searchBlob) + '">';
-        html += '<input class="af-switch" type="checkbox" name="tool" id="' + cbId + '" value="' + escAttr(String(tid)) + '"' + checked + ' />';
-        html += '<div class="af-grow"><label for="' + cbId + '" style="font-weight:500;cursor:pointer">' + escHtml(String(nm)) +
-          ' <span class="af-badge">' + escHtml(String(typ)) + '</span></label>';
-        if (desc) html += '<div class="af-meta" style="margin-top:4px">' + escHtml(desc) + '</div>';
-        html += '<code class="af-meta" style="display:block;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + escAttr(String(tid)) + '">' + escHtml(String(tid)) + '</code>';
-        html += '</div></div>';
+
+    if (grouped.mcpRetired.length) {
+      var retiredCount = grouped.mcpRetired.reduce(function (n, b) { return n + b.tools.length; }, 0);
+      html += '<p class="af-tool-note">Names like <code>tasks.disabled.…__…</code> are from a <strong>retired MCP server id</strong>, not the attach checkbox. Prefer the live server (e.g. <code>q_vernal_tasks</code>). ' +
+        retiredCount + ' tools sit under Retired below.</p>';
+    }
+
+    function rowsFor(list, skipAttached) {
+      return list.filter(function (t) {
+        if (!skipAttached) return true;
+        return !attachedIds[String(UI.toolId(t))];
+      }).map(function (t) {
+        var tid = UI.toolId(t);
+        var row = UI.toolRowHtml(t, {
+          checkbox: true,
+          cbId: 'ade-tool-cb-' + idx,
+          checked: agentHasToolId(agentToolIds, tid)
+        });
         idx++;
-      });
-      html += '</div>';
+        return row;
+      }).join('');
+    }
+
+    if (grouped.attached.length) {
+      html += UI.detailsHtml('Attached to this agent', grouped.attached.length, rowsFor(grouped.attached, false), true);
+    }
+    var builtinRows = rowsFor(grouped.builtin, true);
+    if (builtinRows) {
+      html += UI.detailsHtml('Built-in & core', grouped.builtin.filter(function (t) { return !attachedIds[String(UI.toolId(t))]; }).length, builtinRows, grouped.builtin.length <= 24);
+    }
+    grouped.mcpActive.forEach(function (bucket) {
+      var body = rowsFor(bucket.tools, true);
+      var n = bucket.tools.filter(function (t) { return !attachedIds[String(UI.toolId(t))]; }).length;
+      if (!body) return;
+      html += UI.detailsHtml('MCP · ' + bucket.server, n, body, false);
     });
+    var otherRows = rowsFor(grouped.other, true);
+    if (otherRows) {
+      html += UI.detailsHtml('Other', grouped.other.filter(function (t) { return !attachedIds[String(UI.toolId(t))]; }).length, otherRows, false);
+    }
+    if (grouped.mcpRetired.length) {
+      var retiredParts = [];
+      var retiredLeft = 0;
+      grouped.mcpRetired.forEach(function (bucket) {
+        var body = rowsFor(bucket.tools, true);
+        var n = bucket.tools.filter(function (t) { return !attachedIds[String(UI.toolId(t))]; }).length;
+        if (!body) return;
+        retiredLeft += n;
+        retiredParts.push(UI.detailsHtml('Retired · ' + bucket.server, n, body, false));
+      });
+      if (retiredParts.length) {
+        html += UI.detailsHtml('Retired MCP servers', retiredLeft, retiredParts.join(''), false);
+      }
+    }
 
     mount.innerHTML = html;
     applyToolsFilter();

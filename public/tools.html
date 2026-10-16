@@ -17,34 +17,88 @@
         <span class="af-tip">
           <span class="af-tip-label">Tools</span>
           <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-tools-page" aria-label="Explain: Tools">?</button>
-          <span id="af-tip-tools-page" role="tooltip" class="af-tip-bubble" hidden>Directory of every tool on your Letta server. Attach tools to an agent from that agent’s Tools tab — this page is browse-only.</span>
+          <span id="af-tip-tools-page" role="tooltip" class="af-tip-bubble" hidden>Directory of every tool on your Letta server. Grouped like the agent Tools tab: short tool name, MCP server as a section. Attach tools on an agent’s Tools tab — this page is browse-only.</span>
         </span>
       </h1>
-      <p class="af-muted">All tools available to agents. Attach them when creating or editing an agent.</p>
+      <p class="af-muted">Browse tools by MCP server. Attach them from an agent’s Tools tab.</p>
+      <div id="tools-dir-toolbar" class="af-inline af-mb af-hidden">
+        <span id="tools-dir-count" class="af-badge af-badge-accent">—</span>
+        <input type="search" id="tools-dir-filter" class="af-input af-input-sm" placeholder="Search tool or server…" autocomplete="off" aria-label="Filter tools" />
+      </div>
       <div id="error"></div>
-      <ul id="list" class="af-list"></ul>
+      <div id="list" class="af-tools-scroll af-tools-scroll--tall"></div>
     </main>
   </div>
   <script src="config.js"></script>
   <script src="tip.js"></script>
   <script src="app.js"></script>
+  <script src="tools-ui.js"></script>
   <script>
     var listEl = document.getElementById('list');
     var errorEl = document.getElementById('error');
+    var toolbar = document.getElementById('tools-dir-toolbar');
+    var countEl = document.getElementById('tools-dir-count');
+    var filter = document.getElementById('tools-dir-filter');
     function norm(d) { return Array.isArray(d) ? d : (d && d.data) ? d.data : (d && d.tools) ? d.tools : []; }
-    function tid(t) { return t.id != null ? t.id : t.tool_id || t.name; }
-    function tname(t) { return t.name != null ? t.name : t.tool_id || t.id; }
-    function ttype(t) { return t.tool_type != null ? t.tool_type : t.type || '—'; }
-    function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
-    window.ADE.listTools().then(function(d) {
+
+    function applyFilter() {
+      var q = (filter.value || '').trim().toLowerCase();
+      listEl.querySelectorAll('.af-tool-row').forEach(function (row) {
+        var enc = row.getAttribute('data-ade-tool-search') || '';
+        var blob = '';
+        try { blob = decodeURIComponent(enc); } catch (e) { blob = ''; }
+        row.classList.toggle('af-hidden', !(!q || blob.indexOf(q) !== -1));
+      });
+      listEl.querySelectorAll('[data-ade-tool-group]').forEach(function (g) {
+        var any = g.querySelector('.af-tool-row:not(.af-hidden)');
+        g.classList.toggle('af-hidden', !any);
+        if (q && any && g.tagName === 'DETAILS') g.open = true;
+      });
+    }
+
+    filter.addEventListener('input', applyFilter);
+
+    window.ADE.listTools().then(function (d) {
+      var UI = window.ADE_TOOLS_UI;
       var tools = norm(d);
-      listEl.innerHTML = tools.length ? tools.map(function(t) {
-        return '<li class="af-card"><div class="af-card-title">' + esc(tname(t)) + '</div>' +
-          '<div class="af-meta">ID: ' + esc(tid(t)) + ' · Type: ' + esc(ttype(t)) + '</div>' +
-          (t.description ? '<p class="af-muted af-mb" style="margin-top:8px">' + esc(t.description) + '</p>' : '') +
-          '</li>';
-      }).join('') : '<li class="af-muted">No tools yet. Add MCP servers or create server tools.</li>';
-    }).catch(function(e) {
+      if (!UI) {
+        listEl.innerHTML = '<p class="af-alert af-alert-warn">tools-ui.js failed to load.</p>';
+        return;
+      }
+      if (!tools.length) {
+        listEl.innerHTML = '<p class="af-muted" style="padding:12px">No tools yet. Add MCP servers or create server tools.</p>';
+        return;
+      }
+      toolbar.classList.remove('af-hidden');
+      countEl.textContent = tools.length + ' tools';
+      var grouped = UI.groupTools(tools, null);
+      var html = '';
+      if (grouped.mcpRetired.length) {
+        var retiredCount = grouped.mcpRetired.reduce(function (n, b) { return n + b.tools.length; }, 0);
+        html += '<p class="af-tool-note">Retired MCP server prefixes (e.g. <code>tasks.disabled.…</code>) are leftovers in the Letta registry — not a live “disabled” toggle. ' +
+          retiredCount + ' such tools are under Retired.</p>';
+      }
+      function rows(list) {
+        return list.map(function (t) { return UI.toolRowHtml(t, { checkbox: false }); }).join('');
+      }
+      if (grouped.builtin.length) {
+        html += UI.detailsHtml('Built-in & core', grouped.builtin.length, rows(grouped.builtin), grouped.builtin.length <= 24);
+      }
+      grouped.mcpActive.forEach(function (bucket) {
+        html += UI.detailsHtml('MCP · ' + bucket.server, bucket.tools.length, rows(bucket.tools), false);
+      });
+      if (grouped.other.length) {
+        html += UI.detailsHtml('Other', grouped.other.length, rows(grouped.other), false);
+      }
+      if (grouped.mcpRetired.length) {
+        var retiredBody = grouped.mcpRetired.map(function (bucket) {
+          return UI.detailsHtml('Retired · ' + bucket.server, bucket.tools.length, rows(bucket.tools), false);
+        }).join('');
+        html += UI.detailsHtml('Retired MCP servers', grouped.mcpRetired.reduce(function (n, b) { return n + b.tools.length; }, 0), retiredBody, false);
+      }
+      listEl.innerHTML = html;
+      applyFilter();
+    }).catch(function (e) {
       errorEl.innerHTML = '<div class="af-alert af-alert-danger" role="alert">' + e.message + '</div>';
     });
   </script>

@@ -91,14 +91,14 @@
             <span class="af-tip">
               <span class="af-tip-label">Tools for this agent</span>
               <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-tools" aria-label="Explain: Tools for this agent">?</button>
-              <span id="af-tip-agent-tools" role="tooltip" class="af-tip-bubble" hidden>Which registered tools this agent may call. Saved as tool_ids. Add more tools from the Tools directory or MCP servers first.</span>
+              <span id="af-tip-agent-tools" role="tooltip" class="af-tip-bubble" hidden>Which tools this agent may call. Checkboxes attach or detach a tool for this agent (saved with Save configuration). MCP tools are listed by server; the short name is the tool, the badge is the MCP server. A name like tasks.disabled.… is a retired server id in the registry — not the attach toggle.</span>
             </span>
           </p>
           <div id="tools-section" class="af-panel af-hidden">
             <div class="af-spread af-mb">
               <div>
                 <h2 style="margin:0">Tools for this agent</h2>
-                <p class="af-hint">Pick by group. Use directory links to add more on the server first.</p>
+                <p class="af-hint">Attached tools first, then built-in, then each MCP server. Retired servers (names with “disabled”) stay collapsed at the bottom.</p>
               </div>
               <div class="af-inline">
                 <a href="tools.html" class="af-btn af-btn-sm af-btn-secondary">Tools directory</a>
@@ -107,9 +107,9 @@
             </div>
             <div id="tools-toolbar" class="af-inline af-mb af-hidden">
               <span id="tools-count-badge" class="af-badge af-badge-accent">—</span>
-              <input type="search" id="tools-filter" class="af-input af-input-sm" disabled placeholder="Filter…" autocomplete="off" aria-label="Filter tools" />
-              <button type="button" id="tools-enable-visible" class="af-btn af-btn-sm af-btn-secondary" disabled>Enable visible</button>
-              <button type="button" id="tools-disable-visible" class="af-btn af-btn-sm af-btn-secondary" disabled>Disable visible</button>
+              <input type="search" id="tools-filter" class="af-input af-input-sm" disabled placeholder="Search tool or server…" autocomplete="off" aria-label="Filter tools" />
+              <button type="button" id="tools-enable-visible" class="af-btn af-btn-sm af-btn-secondary" disabled>Attach visible</button>
+              <button type="button" id="tools-disable-visible" class="af-btn af-btn-sm af-btn-secondary" disabled>Detach visible</button>
             </div>
             <div id="tools-list-mount" class="af-tools-scroll"></div>
           </div>
@@ -166,6 +166,7 @@
   <script src="config.js"></script>
   <script src="tip.js"></script>
   <script src="app.js"></script>
+  <script src="tools-ui.js"></script>
   <script src="memory-editor.js"></script>
   <script src="agent-page.js"></script>
 </body>

@@ -946,6 +946,41 @@ details[open] > summary .af-summary-chev { transform: rotate(180deg); }
   border-radius: var(--af-radius-sm);
   background: var(--af-bg-input);
 }
+.af-tools-scroll--tall { max-height: min(70vh, 720px); }
+.af-tool-note {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--af-text-muted);
+  background: color-mix(in srgb, var(--af-accent) 8%, var(--af-bg-surface));
+  border-bottom: 1px solid var(--af-border-subtle);
+}
+.af-tool-note code {
+  font-size: 11.5px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--af-code-bg);
+  color: var(--af-code-fg);
+}
+.af-tool-server {
+  border-bottom: 1px solid var(--af-border-subtle);
+}
+.af-tool-server:last-child { border-bottom: none; }
+.af-tool-server > summary.af-tool-group-header {
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+}
+.af-tool-server > summary.af-tool-group-header::-webkit-details-marker { display: none; }
+.af-tool-server > summary.af-tool-group-header::before {
+  content: "▸";
+  display: inline-block;
+  width: 1em;
+  margin-right: 4px;
+  transition: transform 0.12s;
+}
+.af-tool-server[open] > summary.af-tool-group-header::before { transform: rotate(90deg); }
 .af-tool-group-header {
   padding: 8px 12px;
   font-size: 10.5px;
@@ -959,6 +994,10 @@ details[open] > summary .af-summary-chev { transform: rotate(180deg); }
   top: 0;
   z-index: 1;
 }
+.af-tool-server-body .af-tool-server > summary.af-tool-group-header {
+  background: var(--af-bg-raised);
+  padding-left: 22px;
+}
 .af-tool-row {
   display: flex;
   align-items: flex-start;
@@ -969,6 +1008,25 @@ details[open] > summary .af-summary-chev { transform: rotate(180deg); }
 }
 .af-tool-row:hover { background: var(--af-hover-wash); }
 .af-tool-row:last-child { border-bottom: none; }
+.af-tool-name {
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--af-text);
+  cursor: pointer;
+  word-break: break-word;
+}
+.af-tool-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 5px;
+}
+.af-tool-desc { margin-top: 4px; }
+.af-badge-warn {
+  background: color-mix(in srgb, var(--af-danger) 14%, transparent);
+  color: var(--af-danger);
+  border-color: color-mix(in srgb, var(--af-danger) 35%, transparent);
+}
 .af-switch {
   width: 17px;
   height: 17px;
