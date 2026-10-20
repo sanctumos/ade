@@ -40,6 +40,8 @@ class MockLetta:
         self.agent_tools_ok = agent_tools_ok
         self.patches: list[dict] = []
         self.posts: list[dict] = []
+        self.message_headers: list[dict] = []
+        self.get_agent_headers: list[dict] = []
         self.stream_runs: list[str] = []
         self.active_runs: list[dict] = []
         self.active_polls = 0
@@ -112,6 +114,7 @@ class MockLetta:
         if path.rstrip("/") == "/v1/agents" and method == "GET":
             return self._json(route, [AGENT])
         if path == f"/v1/agents/{AGENT_ID}" and method == "GET":
+            self.get_agent_headers.append({k.lower(): v for k, v in request.headers.items()})
             return self._json(route, AGENT)
         if path == f"/v1/agents/{AGENT_ID}" and method == "PATCH":
             body = json.loads(request.post_data or "{}")
@@ -153,6 +156,7 @@ class MockLetta:
         if path == f"/v1/agents/{AGENT_ID}/messages" and method == "POST":
             body = json.loads(request.post_data or "{}")
             self.posts.append(body)
+            self.message_headers.append({k.lower(): v for k, v in request.headers.items()})
             self.messages.append({"id": "u9", "message_type": "user_message", "content": body.get("input", "")})
             self.messages.append({"id": "a9", "message_type": "assistant_message", "content": "pong"})
             sse = 'data: {"message_type":"assistant_message","content":"pong"}\n\ndata: [DONE]\n\n'
@@ -327,6 +331,12 @@ def test_chat_lanes_and_enter_to_send(page):
         timeout=15000,
     )
     assert mock.posts and mock.posts[0]["input"] == "ping"
+    assert mock.posts[0].get("streaming") is True
+    assert mock.message_headers, "chat send captured no request headers"
+    assert mock.message_headers[0].get("x-stainless-package-version") == "1.0.0"
+    assert all(
+        h.get("x-stainless-package-version") != "1.0.0" for h in mock.get_agent_headers
+    ), "SDK v1 header must not ride ordinary GET /agents (empties include_relationships)"
     assert page.locator("#input").input_value() == ""
     assert not errors, errors
 

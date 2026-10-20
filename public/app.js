@@ -388,6 +388,14 @@
     return base + p;
   }
 
+  /**
+   * Letta 0.16+ rejects streaming=true unless it thinks the caller is SDK v1.0+.
+   * It checks X-Stainless-Package-Version, or User-Agent letta-client/1.x.
+   * Browsers cannot set User-Agent — send the stainless header on stream requests only.
+   * Do not attach it to ordinary GETs: SDK v1 empties default include_relationships.
+   */
+  var LETTA_SDK_V1_HEADERS = { 'X-Stainless-Package-Version': '1.0.0' };
+
   function apiFetch(path, options) {
     options = options || {};
     var url = apiUrl(path);
@@ -478,10 +486,15 @@
 
   function sseFetch(url, payload, handlers, fetchOpts) {
     handlers = handlers || {};
-    var headers = { 'Content-Type': 'application/json', Accept: 'text/event-stream' };
+    var headers = Object.assign({
+      'Content-Type': 'application/json',
+      Accept: 'text/event-stream'
+    }, LETTA_SDK_V1_HEADERS);
     var key = getConfig().key;
     if (key) headers.Authorization = 'Bearer ' + key;
-    var init = Object.assign({ method: 'POST', headers: headers, body: JSON.stringify(payload || {}) }, fetchOpts || {});
+    var extra = fetchOpts || {};
+    var init = Object.assign({ method: 'POST', body: JSON.stringify(payload || {}) }, extra);
+    init.headers = Object.assign({}, headers, extra.headers || {});
     return fetch(url, init).then(function (res) {
       return consumeSseResponse(res, handlers);
     });
