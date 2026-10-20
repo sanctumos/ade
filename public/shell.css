@@ -368,7 +368,8 @@ code {
 @media (max-width: 768px) {
   .af-nav-toggle { display: inline-flex; }
   .af-sidebar-collapse { display: none; }
-  .af-main { padding: 18px 16px 40px; }
+  .af-layout { overflow-x: hidden; }
+  .af-main { padding: 18px 16px 40px; width: 100%; max-width: none; }
   .af-sidebar {
     position: fixed;
     left: 0;
@@ -376,10 +377,17 @@ code {
     bottom: 0;
     z-index: 50;
     transform: translateX(-100%);
-    transition: transform 0.22s ease;
+    transition: transform 0.22s ease, visibility 0.22s ease;
     box-shadow: none;
+    visibility: hidden;
+    pointer-events: none;
   }
-  body.nav-open .af-sidebar { transform: translateX(0); box-shadow: var(--af-shadow-lg); }
+  body.nav-open .af-sidebar {
+    transform: translateX(0);
+    box-shadow: var(--af-shadow-lg);
+    visibility: visible;
+    pointer-events: auto;
+  }
   body.nav-open .af-backdrop { display: block; }
 }
 
@@ -754,6 +762,7 @@ textarea.af-input { max-width: 42rem; min-height: 100px; resize: vertical; line-
   letter-spacing: 0.08em;
   color: var(--af-text-dim);
   margin: 0 0 12px;
+  padding-right: 0.12em;
 }
 
 .af-dash-grid {
@@ -887,10 +896,34 @@ details[open] > summary .af-summary-chev { transform: rotate(180deg); }
   grid-template-columns: 1fr 1fr;
   gap: 14px;
 }
-.af-grid-2 .af-input { max-width: none; }
+.af-grid-2 .af-input,
+.af-grid-2 .af-select { max-width: none; }
 @media (max-width: 640px) {
   .af-grid-2 { grid-template-columns: 1fr; }
 }
+.af-config-block {
+  margin: 0 0 22px;
+  padding: 16px 16px 8px;
+  border: 1px solid var(--af-border-subtle);
+  border-radius: var(--af-radius);
+  background: var(--af-bg-elevated);
+}
+.af-config-block .af-section-title { margin-bottom: 10px; }
+.af-toggle-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 12px;
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+.af-toggle-copy { min-width: 0; flex: 1; }
+.af-toggle-row .af-tip-label {
+  font-weight: 600;
+  color: var(--af-text);
+  cursor: pointer;
+}
+.af-toggle-row .af-switch { margin-top: 3px; }
 
 /* Tabs */
 .af-tabs {

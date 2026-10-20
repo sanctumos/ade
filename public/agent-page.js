@@ -248,14 +248,64 @@
     return '';
   }
 
+  function setField(id, value) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    if (el.type === 'checkbox') {
+      el.checked = !!value;
+      return;
+    }
+    el.value = (value == null || value === '') ? '' : String(value);
+  }
+
+  function numFrom(id) {
+    var raw = document.getElementById(id).value.trim();
+    if (raw === '') return null;
+    var n = Number(raw);
+    return isNaN(n) ? null : n;
+  }
+
+  function strFrom(id) {
+    var el = document.getElementById(id);
+    return el ? el.value.trim() : '';
+  }
+
   function applyLlmFieldsFromAgent(a) {
     var lc = (a && a.llm_config) || {};
-    var t = document.getElementById('llm-temperature');
-    var m = document.getElementById('llm-max-tokens');
-    if (lc.temperature != null && lc.temperature !== '') t.value = String(lc.temperature);
-    else t.value = '';
-    if (lc.max_tokens != null && lc.max_tokens !== '') m.value = String(lc.max_tokens);
-    else m.value = '';
+    var ec = (a && a.embedding_config) || {};
+    setField('agent-name', a && (a.name || a.agent_name) || '');
+    setField('agent-description', a && a.description || '');
+    setField('llm-temperature', lc.temperature);
+    setField('llm-max-tokens', lc.max_tokens);
+    setField('llm-context-window', (a && a.context_window_limit != null) ? a.context_window_limit : lc.context_window);
+    setField('llm-frequency-penalty', lc.frequency_penalty);
+    setField('llm-verbosity', lc.verbosity);
+    setField('llm-reasoning-effort', lc.reasoning_effort);
+    setField('llm-max-reasoning-tokens', lc.max_reasoning_tokens);
+    setField('llm-effort', lc.effort);
+    setField('llm-enable-reasoner', lc.enable_reasoner !== false);
+    setField('llm-inner-thoughts', lc.put_inner_thoughts_in_kwargs === true);
+    setField('llm-parallel-tools', lc.parallel_tool_calls === true);
+    setField('agent-sleeptime', a && a.enable_sleeptime === true);
+    setField('agent-autoclear', a && a.message_buffer_autoclear === true);
+    setField('agent-timezone', a && a.timezone);
+    setField('agent-max-files', a && a.max_files_open);
+    setField('agent-file-window', a && a.per_file_view_window_char_limit);
+    var embedSel = document.getElementById('embedding');
+    if (embedSel && embedSel.options.length) {
+      var currentEmbed = String((a && a.embedding) || ec.handle || ec.embedding_model || '');
+      if (currentEmbed) embedSel.value = currentEmbed;
+    }
+  }
+
+  function fillSelect(select, items, current, idFn, labelFn) {
+    var known = items.some(function (item) { return String(idFn(item)) === current; });
+    select.innerHTML = '<option value="">—</option>' +
+      (current && !known ? '<option value="' + escAttr(current) + '">' + escHtml(current) + ' (current — not in server list)</option>' : '') +
+      items.map(function (item) {
+        return '<option value="' + escAttr(String(idFn(item))) + '">' + escHtml(String(labelFn(item))) + '</option>';
+      }).join('');
+    select.value = current;
   }
 
   function renderMemoryBlocks(blocks) {
@@ -453,23 +503,24 @@
   Promise.all([
     window.ADE.listModels().catch(function () { return []; }),
     window.ADE.listTools().catch(function () { return []; }),
-    window.ADE.listAgentTools(id).catch(function () { return null; })
+    window.ADE.listAgentTools(id).catch(function () { return null; }),
+    window.ADE.listEmbeddingModels().catch(function () { return []; })
   ]).then(function (arr) {
     var models = normList(arr[0]), tools = normList(arr[1]);
     var agentToolsResp = arr[2];
+    var embeddings = normList(arr[3]);
     window.ADE.getAgent(id).then(function (a) {
       currentAgent = a;
       if (models.length) {
         document.getElementById('model-row').classList.remove('af-hidden');
-        var modelSelect = document.getElementById('model');
         var current = String(a.model || (a.llm_config && (a.llm_config.handle || a.llm_config.model)) || a.handle || '');
-        var known = models.some(function (m) { return String(modelId(m)) === current; });
-        modelSelect.innerHTML = '<option value="">—</option>' +
-          (current && !known ? '<option value="' + escAttr(current) + '">' + escHtml(current) + ' (current — not in server list)</option>' : '') +
-          models.map(function (m) {
-            return '<option value="' + escAttr(String(modelId(m))) + '">' + escHtml(String(modelLabel(m))) + '</option>';
-          }).join('');
-        modelSelect.value = current;
+        fillSelect(document.getElementById('model'), models, current, modelId, modelLabel);
+      }
+      if (embeddings.length) {
+        document.getElementById('embedding-row').classList.remove('af-hidden');
+        var ec = a.embedding_config || {};
+        var currentEmbed = String(a.embedding || ec.handle || ec.embedding_model || '');
+        fillSelect(document.getElementById('embedding'), embeddings, currentEmbed, modelId, modelLabel);
       }
       if (agentToolsResp != null) {
         attachedToolIds = toolIdsFrom(normList(agentToolsResp));
@@ -495,9 +546,22 @@
 
   function saveAgentConfiguration() {
     var body = {};
+    var nameVal = strFrom('agent-name');
+    if (nameVal) body.name = nameVal;
+    body.description = strFrom('agent-description');
     var modelVal = document.getElementById('model').value;
     if (!document.getElementById('model-row').classList.contains('af-hidden') && modelVal) body.model = modelVal;
+    var embedVal = document.getElementById('embedding').value;
+    if (!document.getElementById('embedding-row').classList.contains('af-hidden') && embedVal) body.embedding = embedVal;
     body.system = document.getElementById('system').value;
+    body.enable_sleeptime = document.getElementById('agent-sleeptime').checked;
+    body.message_buffer_autoclear = document.getElementById('agent-autoclear').checked;
+    var tz = strFrom('agent-timezone');
+    if (tz) body.timezone = tz;
+    var maxFiles = numFrom('agent-max-files');
+    if (maxFiles != null) body.max_files_open = maxFiles;
+    var fileWin = numFrom('agent-file-window');
+    if (fileWin != null) body.per_file_view_window_char_limit = fileWin;
     var checked = [].map.call(document.querySelectorAll('input[name=tool]:checked'), function (c) { return c.value; });
     if (attachedToolIds) {
       var rendered = {};
@@ -507,12 +571,35 @@
     }
 
     var llm = Object.assign({}, (currentAgent && currentAgent.llm_config) || {});
-    var tv = document.getElementById('llm-temperature').value.trim();
-    var mv = document.getElementById('llm-max-tokens').value.trim();
-    if (tv !== '') llm.temperature = parseFloat(tv, 10);
+    var tv = numFrom('llm-temperature');
+    var mv = numFrom('llm-max-tokens');
+    var cw = numFrom('llm-context-window');
+    var fp = numFrom('llm-frequency-penalty');
+    var rmax = numFrom('llm-max-reasoning-tokens');
+    if (tv != null) llm.temperature = tv;
     else delete llm.temperature;
-    if (mv !== '') llm.max_tokens = parseInt(mv, 10);
+    if (mv != null) llm.max_tokens = mv;
     else delete llm.max_tokens;
+    if (cw != null) {
+      llm.context_window = cw;
+      body.context_window_limit = cw;
+    }
+    if (fp != null) llm.frequency_penalty = fp;
+    else delete llm.frequency_penalty;
+    var verbosity = strFrom('llm-verbosity');
+    if (verbosity) llm.verbosity = verbosity;
+    else delete llm.verbosity;
+    var effortR = strFrom('llm-reasoning-effort');
+    if (effortR) llm.reasoning_effort = effortR;
+    else delete llm.reasoning_effort;
+    if (rmax != null) llm.max_reasoning_tokens = rmax;
+    else delete llm.max_reasoning_tokens;
+    var effortA = strFrom('llm-effort');
+    if (effortA) llm.effort = effortA;
+    else delete llm.effort;
+    llm.enable_reasoner = document.getElementById('llm-enable-reasoner').checked;
+    llm.put_inner_thoughts_in_kwargs = document.getElementById('llm-inner-thoughts').checked;
+    llm.parallel_tool_calls = document.getElementById('llm-parallel-tools').checked;
     if (Object.keys(llm).length) body.llm_config = llm;
 
     setSaveConfigDisabled(true);
@@ -520,6 +607,10 @@
     window.ADE.updateAgent(id, body).then(function (updated) {
       currentAgent = Object.assign({}, currentAgent || {}, updated);
       applyLlmFieldsFromAgent(currentAgent);
+      var agentName = currentAgent.name || currentAgent.agent_name || id;
+      document.getElementById('title').textContent = agentName;
+      document.title = agentName + ' — Sanctum ADE';
+      document.getElementById('agent-avatar').innerHTML = window.ADE.avatarHtml(agentName, 'lg');
       if (body.tool_ids) attachedToolIds = body.tool_ids.slice();
       if (lastRegisteredTools.length && attachedToolIds) {
         mountAgentToolsList(lastRegisteredTools, attachedToolIds);
