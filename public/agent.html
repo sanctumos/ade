@@ -37,7 +37,7 @@
         </div>
 
         <div class="af-tab-pane is-active" data-pane="general" role="tabpanel">
-          <p class="af-muted af-mb">Same knobs as Letta ADE: identity, model, generation, reasoning, embeddings, and host behavior. <strong>Save</strong> also persists tool choices from the Tools tab.</p>
+          <p class="af-muted af-mb">Same knobs as Letta ADE: identity, models, <strong>context window</strong>, generation, reasoning, embeddings, compaction, and host behavior. <strong>Save</strong> also persists tool choices from the Tools tab.</p>
           <div id="config-form">
             <section class="af-config-block" aria-labelledby="cfg-identity">
               <h2 class="af-section-title" id="cfg-identity">Identity</h2>
@@ -86,42 +86,66 @@
                   </label>
                   <select class="af-select" id="embedding"></select>
                 </div>
+                <div class="af-field">
+                  <label class="af-label" for="embed-dim">Embedding dimensions</label>
+                  <input type="text" class="af-input" id="embed-dim" readonly tabindex="-1" placeholder="from embedding config" />
+                </div>
+                <div class="af-field">
+                  <label class="af-label" for="embed-chunk">Embedding chunk size</label>
+                  <input type="text" class="af-input" id="embed-chunk" readonly tabindex="-1" placeholder="from embedding config" />
+                </div>
               </div>
+            </section>
+
+            <section class="af-config-block" aria-labelledby="cfg-context" id="cfg-context-block">
+              <h2 class="af-section-title" id="cfg-context">Context window</h2>
+              <p class="af-hint af-mb">How many tokens this agent may keep in one turn (conversation + memory + tools). Same control as Letta ADE’s context window slider. The right end of the slider is this model’s maximum.</p>
+              <div class="af-slider-row">
+                <input type="range" class="af-range" id="llm-context-window-slider" min="4000" max="128000" step="1000" aria-label="Context window slider" />
+                <input type="number" class="af-input af-slider-num" id="llm-context-window" min="4000" step="1000" />
+              </div>
+              <p class="af-meta af-mb" id="llm-context-window-readout">—</p>
             </section>
 
             <section class="af-config-block" aria-labelledby="cfg-gen">
               <h2 class="af-section-title" id="cfg-gen">Generation</h2>
+              <div class="af-field">
+                <label class="af-label" for="llm-temperature">
+                  <span class="af-tip">
+                    <span class="af-tip-label">Temperature</span>
+                    <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-temp" aria-label="Explain: Temperature">?</button>
+                    <span id="af-tip-agent-temp" role="tooltip" class="af-tip-bubble" hidden>How random replies are. Lower is steadier; higher is more creative. Letta ADE’s slider is 0–1; this one goes to 2 because the API allows it.</span>
+                  </span>
+                </label>
+                <div class="af-slider-row">
+                  <input type="range" class="af-range" id="llm-temperature-slider" min="0" max="2" step="0.01" aria-label="Temperature slider" />
+                  <input type="number" class="af-input af-slider-num" id="llm-temperature" step="0.01" min="0" max="2" />
+                </div>
+              </div>
+              <div class="af-toggle-row">
+                <input type="checkbox" class="af-switch" id="llm-enable-max-tokens" />
+                <div class="af-toggle-copy">
+                  <span class="af-tip">
+                    <label class="af-tip-label" for="llm-enable-max-tokens">Enable max output tokens</label>
+                    <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-enmax" aria-label="Explain: Enable max output tokens">?</button>
+                    <span id="af-tip-agent-enmax" role="tooltip" class="af-tip-bubble" hidden>When on, limits how many tokens the model may generate in one response. When off, the model uses its default.</span>
+                  </span>
+                </div>
+              </div>
+              <div class="af-field" id="llm-max-tokens-wrap">
+                <label class="af-label" for="llm-max-tokens">
+                  <span class="af-tip">
+                    <span class="af-tip-label">Max output tokens</span>
+                    <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-maxtok" aria-label="Explain: Max output tokens">?</button>
+                    <span id="af-tip-agent-maxtok" role="tooltip" class="af-tip-bubble" hidden>Cap on tokens the model may generate per turn, including reasoning.</span>
+                  </span>
+                </label>
+                <div class="af-slider-row">
+                  <input type="range" class="af-range" id="llm-max-tokens-slider" min="1" max="16384" step="1" aria-label="Max output tokens slider" />
+                  <input type="number" class="af-input af-slider-num" id="llm-max-tokens" min="1" step="1" />
+                </div>
+              </div>
               <div class="af-grid-2" id="llm-advanced">
-                <div>
-                  <label class="af-label" for="llm-temperature">
-                    <span class="af-tip">
-                      <span class="af-tip-label">Temperature</span>
-                      <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-temp" aria-label="Explain: Temperature">?</button>
-                      <span id="af-tip-agent-temp" role="tooltip" class="af-tip-bubble" hidden>How random replies are. Lower is steadier; higher is more creative.</span>
-                    </span>
-                  </label>
-                  <input type="number" class="af-input" id="llm-temperature" step="0.05" min="0" max="2" placeholder="e.g. 0.7" />
-                </div>
-                <div>
-                  <label class="af-label" for="llm-max-tokens">
-                    <span class="af-tip">
-                      <span class="af-tip-label">Max output tokens</span>
-                      <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-maxtok" aria-label="Explain: Max output tokens">?</button>
-                      <span id="af-tip-agent-maxtok" role="tooltip" class="af-tip-bubble" hidden>Cap on tokens the model may generate per turn, including reasoning. Leave blank for the model default.</span>
-                    </span>
-                  </label>
-                  <input type="number" class="af-input" id="llm-max-tokens" min="1" step="1" placeholder="optional" />
-                </div>
-                <div>
-                  <label class="af-label" for="llm-context-window">
-                    <span class="af-tip">
-                      <span class="af-tip-label">Context window</span>
-                      <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-ctx" aria-label="Explain: Context window">?</button>
-                      <span id="af-tip-agent-ctx" role="tooltip" class="af-tip-bubble" hidden>How many tokens of conversation plus memory the agent can keep in one turn. Matches Letta ADE’s context window slider.</span>
-                    </span>
-                  </label>
-                  <input type="number" class="af-input" id="llm-context-window" min="1024" step="1" placeholder="e.g. 32000" />
-                </div>
                 <div>
                   <label class="af-label" for="llm-frequency-penalty">
                     <span class="af-tip">
@@ -282,6 +306,82 @@
                   </label>
                   <input type="number" class="af-input" id="agent-file-window" min="1" step="1" placeholder="optional" />
                 </div>
+              </div>
+            </section>
+
+            <section class="af-config-block" aria-labelledby="cfg-compact">
+              <h2 class="af-section-title" id="cfg-compact">Compaction</h2>
+              <p class="af-hint af-mb">When the context window fills up, Letta summarizes older messages. Same knobs as Letta ADE’s compaction panel.</p>
+              <div class="af-grid-2">
+                <div>
+                  <label class="af-label" for="compact-mode">
+                    <span class="af-tip">
+                      <span class="af-tip-label">Mode</span>
+                      <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-compact-mode" aria-label="Explain: Compaction mode">?</button>
+                      <span id="af-tip-compact-mode" role="tooltip" class="af-tip-bubble" hidden>All summarizes the whole history. Sliding window keeps a percentage of recent tokens. Self-compact modes use the agent’s own model instead of a separate summarizer.</span>
+                    </span>
+                  </label>
+                  <select class="af-select" id="compact-mode">
+                    <option value="">Default</option>
+                    <option value="all">All</option>
+                    <option value="sliding_window">Sliding window</option>
+                    <option value="self_compact_all">Self-compact all</option>
+                    <option value="self_compact_sliding_window">Self-compact sliding window</option>
+                  </select>
+                </div>
+                <div id="compact-model-row">
+                  <label class="af-label" for="compact-model">
+                    <span class="af-tip">
+                      <span class="af-tip-label">Summarizer model</span>
+                      <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-compact-model" aria-label="Explain: Summarizer model">?</button>
+                      <span id="af-tip-compact-model" role="tooltip" class="af-tip-bubble" hidden>Which model writes the summary. Leave on default for the provider’s usual summarizer. Hidden for self-compact modes.</span>
+                    </span>
+                  </label>
+                  <select class="af-select" id="compact-model"></select>
+                </div>
+                <div>
+                  <label class="af-label" for="compact-clip">
+                    <span class="af-tip">
+                      <span class="af-tip-label">Clip characters</span>
+                      <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-compact-clip" aria-label="Explain: Clip characters">?</button>
+                      <span id="af-tip-compact-clip" role="tooltip" class="af-tip-bubble" hidden>Maximum length of the summary in characters. Empty means no clip.</span>
+                    </span>
+                  </label>
+                  <input type="number" class="af-input" id="compact-clip" min="1" step="1" placeholder="e.g. 50000" />
+                </div>
+                <div id="compact-window-row">
+                  <label class="af-label" for="compact-window">
+                    <span class="af-tip">
+                      <span class="af-tip-label">Sliding window keep</span>
+                      <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-compact-win" aria-label="Explain: Sliding window keep">?</button>
+                      <span id="af-tip-compact-win" role="tooltip" class="af-tip-bubble" hidden>Fraction of the context window to keep after summarization (0–1). Only used in sliding-window modes.</span>
+                    </span>
+                  </label>
+                  <div class="af-slider-row">
+                    <input type="range" class="af-range" id="compact-window-slider" min="0" max="1" step="0.01" aria-label="Sliding window keep slider" />
+                    <input type="number" class="af-input af-slider-num" id="compact-window" min="0" max="1" step="0.01" placeholder="0.3" />
+                  </div>
+                </div>
+              </div>
+              <div class="af-toggle-row" id="compact-ack-row">
+                <input type="checkbox" class="af-switch" id="compact-ack" />
+                <div class="af-toggle-copy">
+                  <span class="af-tip">
+                    <label class="af-tip-label" for="compact-ack">Prompt acknowledgement</label>
+                    <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-compact-ack" aria-label="Explain: Prompt acknowledgement">?</button>
+                    <span id="af-tip-compact-ack" role="tooltip" class="af-tip-bubble" hidden>Ask the summarizer to acknowledge the prompt so it is less likely to emit something other than a summary. Off for self-compact modes.</span>
+                  </span>
+                </div>
+              </div>
+              <div class="af-field">
+                <label class="af-label" for="compact-prompt">
+                  <span class="af-tip">
+                    <span class="af-tip-label">Summarizer prompt</span>
+                    <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-compact-prompt" aria-label="Explain: Summarizer prompt">?</button>
+                    <span id="af-tip-compact-prompt" role="tooltip" class="af-tip-bubble" hidden>Instructions given to the summarizer. Leave blank to keep the server default.</span>
+                  </span>
+                </label>
+                <textarea class="af-input af-input-wide" id="compact-prompt" rows="4" placeholder="optional — server default if empty"></textarea>
               </div>
             </section>
 

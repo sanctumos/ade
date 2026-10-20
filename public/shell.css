@@ -924,6 +924,31 @@ details[open] > summary .af-summary-chev { transform: rotate(180deg); }
   cursor: pointer;
 }
 .af-toggle-row .af-switch { margin-top: 3px; }
+.af-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 8px;
+}
+.af-range {
+  flex: 1;
+  min-width: 0;
+  height: 6px;
+  accent-color: var(--af-accent);
+  cursor: pointer;
+}
+.af-slider-num {
+  width: 7.5rem;
+  max-width: 7.5rem;
+  flex: 0 0 7.5rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+#cfg-context-block {
+  border-color: color-mix(in srgb, var(--af-accent) 35%, var(--af-border-subtle));
+  background: color-mix(in srgb, var(--af-accent-dim) 35%, var(--af-bg-elevated));
+}
+#llm-max-tokens-wrap.is-disabled { opacity: 0.45; pointer-events: none; }
 
 /* Tabs */
 .af-tabs {

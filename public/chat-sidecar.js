@@ -187,12 +187,16 @@
       )
       : 'Context window';
 
+    var editHref = state.agentId
+      ? 'agent.html?id=' + encodeURIComponent(state.agentId) + '#cfg-context'
+      : 'agents.html';
     host.innerHTML =
       '<div class="chat-ctx-top">' +
         '<div class="chat-ctx-title">' + titleHtml + '</div>' +
         '<div class="chat-ctx-stats">' +
           '<strong>' + fmtTokens(used) + '</strong> / ' + fmtTokens(max) +
           ' · <span class="chat-ctx-free">' + pctFree + '% free</span>' +
+          ' · <a class="chat-ctx-edit" href="' + editHref + '">Change window size</a>' +
         '</div>' +
       '</div>' +
       '<div class="chat-ctx-track" role="group" aria-label="Context usage ' + pctUsed +
