@@ -28,7 +28,7 @@
 
       <p id="no-agent-hint" class="af-alert af-alert-warn af-hidden" role="note">Open an agent from <a href="agents.html">Agents</a> (URL must include <code>?id=…</code>).</p>
 
-      <div id="agent-editor" class="af-hidden" style="max-width:720px">
+      <div id="agent-editor" class="af-hidden" style="max-width:880px">
         <div class="af-tabs" role="tablist">
           <button type="button" class="af-tab is-active" data-tab="general" role="tab" aria-selected="true">General</button>
           <button type="button" class="af-tab" data-tab="tools" role="tab" aria-selected="false">Tools</button>
@@ -37,51 +37,267 @@
         </div>
 
         <div class="af-tab-pane is-active" data-pane="general" role="tabpanel">
-          <p class="af-muted af-mb">Model, <code>llm_config</code>, and <code>system</code> prompt. <strong>Save</strong> also persists tool choices from the Tools tab.</p>
+          <p class="af-muted af-mb">Same knobs as Letta ADE: identity, model, generation, reasoning, embeddings, and host behavior. <strong>Save</strong> also persists tool choices from the Tools tab.</p>
           <div id="config-form">
-            <div class="af-field af-hidden" id="model-row">
-              <label class="af-label" for="model">
-                <span class="af-tip">
-                  <span class="af-tip-label">Model</span>
-                  <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-model" aria-label="Explain: Model">?</button>
-                  <span id="af-tip-agent-model" role="tooltip" class="af-tip-bubble" hidden>Which LLM handle this agent uses. List comes from your Letta server’s /v1/models.</span>
-                </span>
-              </label>
-              <select class="af-select" id="model"></select>
-            </div>
-            <div class="af-grid-2 af-mb" id="llm-advanced">
-              <div>
-                <label class="af-label" for="llm-temperature">
+            <section class="af-config-block" aria-labelledby="cfg-identity">
+              <h2 class="af-section-title" id="cfg-identity">Identity</h2>
+              <div class="af-field">
+                <label class="af-label" for="agent-name">
                   <span class="af-tip">
-                    <span class="af-tip-label">Temperature</span>
-                    <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-temp" aria-label="Explain: Temperature">?</button>
-                    <span id="af-tip-agent-temp" role="tooltip" class="af-tip-bubble" hidden>How random replies are. Lower is steadier; higher is more creative. Saved in llm_config.</span>
+                    <span class="af-tip-label">Name</span>
+                    <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-name" aria-label="Explain: Name">?</button>
+                    <span id="af-tip-agent-name" role="tooltip" class="af-tip-bubble" hidden>Display name for this agent. Saved on the agent record.</span>
                   </span>
                 </label>
-                <input type="number" class="af-input" id="llm-temperature" step="0.05" min="0" max="2" placeholder="e.g. 0.7" />
+                <input type="text" class="af-input" id="agent-name" autocomplete="off" />
               </div>
-              <div>
-                <label class="af-label" for="llm-max-tokens">
+              <div class="af-field">
+                <label class="af-label" for="agent-description">
                   <span class="af-tip">
-                    <span class="af-tip-label">Max tokens</span>
-                    <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-maxtok" aria-label="Explain: Max tokens">?</button>
-                    <span id="af-tip-agent-maxtok" role="tooltip" class="af-tip-bubble" hidden>Optional cap on tokens the model may generate per turn. Leave blank to use the server default.</span>
+                    <span class="af-tip-label">Description</span>
+                    <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-desc" aria-label="Explain: Description">?</button>
+                    <span id="af-tip-agent-desc" role="tooltip" class="af-tip-bubble" hidden>Optional note. Not sent to the model unless you put it in the system prompt.</span>
                   </span>
                 </label>
-                <input type="number" class="af-input" id="llm-max-tokens" min="1" step="1" placeholder="optional" />
+                <textarea class="af-input af-input-wide" id="agent-description" rows="2"></textarea>
               </div>
-            </div>
-            <p class="af-hint af-mb">Saved into <code>llm_config</code>. Leave blank to omit a field.</p>
-            <div class="af-field">
-              <label class="af-label" for="system">
-                <span class="af-tip">
-                  <span class="af-tip-label">System prompt</span>
-                  <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-system" aria-label="Explain: System prompt">?</button>
-                  <span id="af-tip-agent-system" role="tooltip" class="af-tip-bubble" hidden>Standing instructions for the agent. Lives in the agent’s system field and counts toward context usage.</span>
-                </span>
-              </label>
-              <textarea class="af-input af-input-wide" id="system" rows="5"></textarea>
-            </div>
+            </section>
+
+            <section class="af-config-block" aria-labelledby="cfg-models">
+              <h2 class="af-section-title" id="cfg-models">Models</h2>
+              <div class="af-grid-2">
+                <div class="af-field af-hidden" id="model-row">
+                  <label class="af-label" for="model">
+                    <span class="af-tip">
+                      <span class="af-tip-label">Chat model</span>
+                      <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-model" aria-label="Explain: Chat model">?</button>
+                      <span id="af-tip-agent-model" role="tooltip" class="af-tip-bubble" hidden>Which LLM handle this agent uses. List comes from your Letta server’s /v1/models.</span>
+                    </span>
+                  </label>
+                  <select class="af-select" id="model"></select>
+                </div>
+                <div class="af-field af-hidden" id="embedding-row">
+                  <label class="af-label" for="embedding">
+                    <span class="af-tip">
+                      <span class="af-tip-label">Embedding model</span>
+                      <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-embed" aria-label="Explain: Embedding model">?</button>
+                      <span id="af-tip-agent-embed" role="tooltip" class="af-tip-bubble" hidden>Used for archival search. List comes from /v1/models/embedding. Changing this does not re-embed old passages.</span>
+                    </span>
+                  </label>
+                  <select class="af-select" id="embedding"></select>
+                </div>
+              </div>
+            </section>
+
+            <section class="af-config-block" aria-labelledby="cfg-gen">
+              <h2 class="af-section-title" id="cfg-gen">Generation</h2>
+              <div class="af-grid-2" id="llm-advanced">
+                <div>
+                  <label class="af-label" for="llm-temperature">
+                    <span class="af-tip">
+                      <span class="af-tip-label">Temperature</span>
+                      <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-temp" aria-label="Explain: Temperature">?</button>
+                      <span id="af-tip-agent-temp" role="tooltip" class="af-tip-bubble" hidden>How random replies are. Lower is steadier; higher is more creative.</span>
+                    </span>
+                  </label>
+                  <input type="number" class="af-input" id="llm-temperature" step="0.05" min="0" max="2" placeholder="e.g. 0.7" />
+                </div>
+                <div>
+                  <label class="af-label" for="llm-max-tokens">
+                    <span class="af-tip">
+                      <span class="af-tip-label">Max output tokens</span>
+                      <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-maxtok" aria-label="Explain: Max output tokens">?</button>
+                      <span id="af-tip-agent-maxtok" role="tooltip" class="af-tip-bubble" hidden>Cap on tokens the model may generate per turn, including reasoning. Leave blank for the model default.</span>
+                    </span>
+                  </label>
+                  <input type="number" class="af-input" id="llm-max-tokens" min="1" step="1" placeholder="optional" />
+                </div>
+                <div>
+                  <label class="af-label" for="llm-context-window">
+                    <span class="af-tip">
+                      <span class="af-tip-label">Context window</span>
+                      <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-ctx" aria-label="Explain: Context window">?</button>
+                      <span id="af-tip-agent-ctx" role="tooltip" class="af-tip-bubble" hidden>How many tokens of conversation plus memory the agent can keep in one turn. Matches Letta ADE’s context window slider.</span>
+                    </span>
+                  </label>
+                  <input type="number" class="af-input" id="llm-context-window" min="1024" step="1" placeholder="e.g. 32000" />
+                </div>
+                <div>
+                  <label class="af-label" for="llm-frequency-penalty">
+                    <span class="af-tip">
+                      <span class="af-tip-label">Frequency penalty</span>
+                      <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-freq" aria-label="Explain: Frequency penalty">?</button>
+                      <span id="af-tip-agent-freq" role="tooltip" class="af-tip-bubble" hidden>OpenAI-style. Positive values make repeats less likely. Range −2 to 2. Leave blank to omit.</span>
+                    </span>
+                  </label>
+                  <input type="number" class="af-input" id="llm-frequency-penalty" step="0.05" min="-2" max="2" placeholder="optional" />
+                </div>
+                <div>
+                  <label class="af-label" for="llm-verbosity">
+                    <span class="af-tip">
+                      <span class="af-tip-label">Verbosity</span>
+                      <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-verb" aria-label="Explain: Verbosity">?</button>
+                      <span id="af-tip-agent-verb" role="tooltip" class="af-tip-bubble" hidden>Soft length control used by GPT-5-class models. Leave on default if the model ignores it.</span>
+                    </span>
+                  </label>
+                  <select class="af-select" id="llm-verbosity">
+                    <option value="">Default</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+              </div>
+            </section>
+
+            <section class="af-config-block" aria-labelledby="cfg-reason">
+              <h2 class="af-section-title" id="cfg-reason">Reasoning</h2>
+              <div class="af-toggle-row">
+                <input type="checkbox" class="af-switch" id="llm-enable-reasoner" />
+                <div class="af-toggle-copy">
+                  <span class="af-tip">
+                    <label class="af-tip-label" for="llm-enable-reasoner">Enable reasoner</label>
+                    <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-reason" aria-label="Explain: Enable reasoner">?</button>
+                    <span id="af-tip-agent-reason" role="tooltip" class="af-tip-bubble" hidden>Extended thinking for reasoning models (Claude 3.7/4, Gemini 2.5, GPT-5, o-series). Some models cannot turn this off.</span>
+                  </span>
+                </div>
+              </div>
+              <div class="af-toggle-row">
+                <input type="checkbox" class="af-switch" id="llm-inner-thoughts" />
+                <div class="af-toggle-copy">
+                  <span class="af-tip">
+                    <label class="af-tip-label" for="llm-inner-thoughts">Inner thoughts in tool kwargs</label>
+                    <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-thoughts" aria-label="Explain: Inner thoughts">?</button>
+                    <span id="af-tip-agent-thoughts" role="tooltip" class="af-tip-bubble" hidden>Puts inner_thoughts on the function call. Helps some non-native reasoners. Leave off for native reasoning models.</span>
+                  </span>
+                </div>
+              </div>
+              <div class="af-grid-2">
+                <div>
+                  <label class="af-label" for="llm-reasoning-effort">
+                    <span class="af-tip">
+                      <span class="af-tip-label">Reasoning effort</span>
+                      <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-effort" aria-label="Explain: Reasoning effort">?</button>
+                      <span id="af-tip-agent-effort" role="tooltip" class="af-tip-bubble" hidden>How hard a native reasoner thinks (none / minimal / low / medium / high / xhigh). Codex models reject minimal.</span>
+                    </span>
+                  </label>
+                  <select class="af-select" id="llm-reasoning-effort">
+                    <option value="">Default</option>
+                    <option value="none">None</option>
+                    <option value="minimal">Minimal</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="xhigh">Extra high</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="af-label" for="llm-max-reasoning-tokens">
+                    <span class="af-tip">
+                      <span class="af-tip-label">Max reasoning tokens</span>
+                      <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-rmax" aria-label="Explain: Max reasoning tokens">?</button>
+                      <span id="af-tip-agent-rmax" role="tooltip" class="af-tip-bubble" hidden>Thinking budget for Anthropic/Gemini extended thinking. 0 means unused. Letta’s floor is 1024 when the reasoner is on.</span>
+                    </span>
+                  </label>
+                  <input type="number" class="af-input" id="llm-max-reasoning-tokens" min="0" step="1" placeholder="0 or 1024+" />
+                </div>
+                <div>
+                  <label class="af-label" for="llm-effort">
+                    <span class="af-tip">
+                      <span class="af-tip-label">Anthropic effort</span>
+                      <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-aeffort" aria-label="Explain: Anthropic effort">?</button>
+                      <span id="af-tip-agent-aeffort" role="tooltip" class="af-tip-bubble" hidden>Token-spend control for Claude Opus 4.5. Not the same as reasoning effort. Leave default unless you are on that model.</span>
+                    </span>
+                  </label>
+                  <select class="af-select" id="llm-effort">
+                    <option value="">Default</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+              </div>
+            </section>
+
+            <section class="af-config-block" aria-labelledby="cfg-host">
+              <h2 class="af-section-title" id="cfg-host">Agent behavior</h2>
+              <div class="af-toggle-row">
+                <input type="checkbox" class="af-switch" id="llm-parallel-tools" />
+                <div class="af-toggle-copy">
+                  <span class="af-tip">
+                    <label class="af-tip-label" for="llm-parallel-tools">Parallel tool calls</label>
+                    <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-parallel" aria-label="Explain: Parallel tool calls">?</button>
+                    <span id="af-tip-agent-parallel" role="tooltip" class="af-tip-bubble" hidden>Let the model fire more than one tool in a single turn when the provider supports it.</span>
+                  </span>
+                </div>
+              </div>
+              <div class="af-toggle-row">
+                <input type="checkbox" class="af-switch" id="agent-sleeptime" />
+                <div class="af-toggle-copy">
+                  <span class="af-tip">
+                    <label class="af-tip-label" for="agent-sleeptime">Sleeptime memory</label>
+                    <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-sleep" aria-label="Explain: Sleeptime">?</button>
+                    <span id="af-tip-agent-sleep" role="tooltip" class="af-tip-bubble" hidden>Moves memory management onto a background sleeptime agent. Same toggle as Letta ADE.</span>
+                  </span>
+                </div>
+              </div>
+              <div class="af-toggle-row">
+                <input type="checkbox" class="af-switch" id="agent-autoclear" />
+                <div class="af-toggle-copy">
+                  <span class="af-tip">
+                    <label class="af-tip-label" for="agent-autoclear">Clear message buffer each turn</label>
+                    <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-clear" aria-label="Explain: Clear message buffer">?</button>
+                    <span id="af-tip-agent-clear" role="tooltip" class="af-tip-bubble" hidden>The agent will not keep prior chat messages in context. Core and archival memory still apply. Leave off unless you have a specific reason.</span>
+                  </span>
+                </div>
+              </div>
+              <div class="af-grid-2">
+                <div>
+                  <label class="af-label" for="agent-timezone">
+                    <span class="af-tip">
+                      <span class="af-tip-label">Timezone</span>
+                      <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-tz" aria-label="Explain: Timezone">?</button>
+                      <span id="af-tip-agent-tz" role="tooltip" class="af-tip-bubble" hidden>IANA timezone the agent should use for dates, e.g. America/Chicago.</span>
+                    </span>
+                  </label>
+                  <input type="text" class="af-input" id="agent-timezone" placeholder="America/Chicago" autocomplete="off" />
+                </div>
+                <div>
+                  <label class="af-label" for="agent-max-files">
+                    <span class="af-tip">
+                      <span class="af-tip-label">Max open files</span>
+                      <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-files" aria-label="Explain: Max open files">?</button>
+                      <span id="af-tip-agent-files" role="tooltip" class="af-tip-bubble" hidden>How many files this agent may keep open at once. Too high can blow the context window.</span>
+                    </span>
+                  </label>
+                  <input type="number" class="af-input" id="agent-max-files" min="1" step="1" placeholder="optional" />
+                </div>
+                <div>
+                  <label class="af-label" for="agent-file-window">
+                    <span class="af-tip">
+                      <span class="af-tip-label">Per-file view window</span>
+                      <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-fwin" aria-label="Explain: Per-file view window">?</button>
+                      <span id="af-tip-agent-fwin" role="tooltip" class="af-tip-bubble" hidden>Character cap for what the agent can see of one open file. Same control as Letta ADE’s window char limit.</span>
+                    </span>
+                  </label>
+                  <input type="number" class="af-input" id="agent-file-window" min="1" step="1" placeholder="optional" />
+                </div>
+              </div>
+            </section>
+
+            <section class="af-config-block" aria-labelledby="cfg-system">
+              <h2 class="af-section-title" id="cfg-system">System prompt</h2>
+              <div class="af-field" style="margin-bottom:8px">
+                <label class="af-label" for="system">
+                  <span class="af-tip">
+                    <span class="af-tip-label">Standing instructions</span>
+                    <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-agent-system" aria-label="Explain: System prompt">?</button>
+                    <span id="af-tip-agent-system" role="tooltip" class="af-tip-bubble" hidden>Standing instructions for the agent. Lives in the agent’s system field and counts toward context usage.</span>
+                  </span>
+                </label>
+                <textarea class="af-input af-input-wide" id="system" rows="5"></textarea>
+              </div>
+            </section>
           </div>
           <button type="button" class="af-btn af-btn-primary ade-save-config">Save configuration</button>
         </div>

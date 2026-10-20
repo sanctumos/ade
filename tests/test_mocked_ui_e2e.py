@@ -116,6 +116,8 @@ class MockLetta:
             return self._json(route, DIRECTORY[: int(limit or 50)])
         if path.rstrip("/") == "/v1/models":
             return self._json(route, [{"handle": "openai-proxy/other-model"}])
+        if path.rstrip("/") in ("/v1/models/embedding", "/v1/models/embedding/"):
+            return self._json(route, [{"handle": "openai-proxy/text-embedding-3-small", "display_name": "text-embedding-3-small"}])
         if path.rstrip("/") == "/v1/runs/active" and method == "GET":
             self.active_polls += 1
             return self._json(route, list(self.active_runs))
@@ -190,6 +192,64 @@ def test_save_keeps_attached_tools_and_current_model(page):
     assert sorted(mock.patches[-1]["tool_ids"]) == sorted(t["id"] for t in AGENT_TOOLS), mock.patches[-1]
     assert mock.patches[-1]["model"] == "openai-proxy/legacy-model"
     assert not errors, errors
+
+
+def test_save_sends_letta_model_settings(page):
+    mock = MockLetta()
+    _boot(page, mock)
+    page.goto(f"{BASE}/agent.html?id={AGENT_ID}", wait_until="networkidle")
+    _wait_tools_mounted(page)
+    assert page.locator("#llm-temperature").input_value() == "0.5"
+    assert page.locator("#cfg-gen").inner_text().strip().upper() == "GENERATION"
+    assert page.locator("#cfg-reason").inner_text().strip().upper() == "REASONING"
+    assert page.locator("label[for=llm-enable-reasoner]").inner_text() == "Enable reasoner"
+    assert page.locator("label[for=agent-sleeptime]").inner_text() == "Sleeptime memory"
+    assert page.locator("label[for=llm-enable-reasoner]").is_visible()
+    page.fill("#llm-temperature", "0.2")
+    page.fill("#llm-max-tokens", "4096")
+    page.fill("#llm-context-window", "32000")
+    page.fill("#llm-frequency-penalty", "0.4")
+    page.select_option("#llm-reasoning-effort", "high")
+    page.select_option("#llm-verbosity", "low")
+    page.check("#llm-enable-reasoner")
+    page.uncheck("#llm-inner-thoughts")
+    page.check("#llm-parallel-tools")
+    page.check("#agent-sleeptime")
+    page.fill("#agent-timezone", "America/Chicago")
+    page.locator('[data-pane="general"] .ade-save-config').click()
+    page.wait_for_timeout(500)
+    assert mock.patches, "Save did not PATCH"
+    body = mock.patches[-1]
+    llm = body["llm_config"]
+    assert llm["temperature"] == 0.2
+    assert llm["max_tokens"] == 4096
+    assert llm["context_window"] == 32000
+    assert body["context_window_limit"] == 32000
+    assert llm["frequency_penalty"] == 0.4
+    assert llm["reasoning_effort"] == "high"
+    assert llm["verbosity"] == "low"
+    assert llm["enable_reasoner"] is True
+    assert llm["put_inner_thoughts_in_kwargs"] is False
+    assert llm["parallel_tool_calls"] is True
+    assert body["enable_sleeptime"] is True
+    assert body["timezone"] == "America/Chicago"
+    artifacts = os.path.join(os.path.dirname(__file__), "artifacts")
+    os.makedirs(artifacts, exist_ok=True)
+    page.evaluate("() => document.body.classList.remove('nav-open')")
+    page.set_viewport_size({"width": 1280, "height": 900})
+    page.locator("#cfg-identity").scroll_into_view_if_needed()
+    page.screenshot(path=os.path.join(artifacts, "agent-general-desktop.png"))
+    page.set_viewport_size({"width": 390, "height": 844})
+    page.evaluate("() => document.body.classList.remove('nav-open')")
+    page.locator("#cfg-gen").scroll_into_view_if_needed()
+    gen_box = page.locator("#cfg-gen").bounding_box()
+    assert gen_box and gen_box["x"] >= 8, gen_box
+    assert "Max output tokens" in page.locator("label[for=llm-max-tokens]").inner_text()
+    tok_box = page.locator("#llm-max-tokens").bounding_box()
+    assert tok_box and tok_box["x"] >= 8, tok_box
+    page.screenshot(path=os.path.join(artifacts, "agent-general-mobile.png"))
+    page.locator("#cfg-reason").scroll_into_view_if_needed()
+    page.screenshot(path=os.path.join(artifacts, "agent-general-mobile-reason.png"))
 
 
 def test_save_omits_tools_when_agent_tools_unavailable(page):

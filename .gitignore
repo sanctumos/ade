@@ -8,6 +8,7 @@ __pycache__/
 public/config.js
 playwright-report/
 test-results/
+tests/artifacts/
 login-failure.png
 node_modules/
 oauth-failure.png
