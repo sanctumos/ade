@@ -12,7 +12,7 @@ header('X-Content-Type-Options: nosniff');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     header('Access-Control-Allow-Origin: *');
     header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
-    header('Access-Control-Allow-Headers: Authorization, Content-Type, Accept');
+    header('Access-Control-Allow-Headers: Authorization, Content-Type, Accept, X-Stainless-Package-Version');
     header('Access-Control-Max-Age: 86400');
     http_response_code(204);
     exit;
@@ -59,6 +59,12 @@ unset($query['path']);
 $qs = http_build_query($query);
 $url = $upstream . $path . ($qs !== '' ? ('?' . $qs) : '');
 
+$body = file_get_contents('php://input');
+$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+$accept = $_SERVER['HTTP_ACCEPT'] ?? '';
+$wantStream = (stripos($accept, 'text/event-stream') !== false)
+    || (is_string($body) && str_contains(str_replace(' ', '', $body), '"streaming":true'));
+
 $headers = [];
 $auth = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
 if ($auth === '' && function_exists('apache_request_headers')) {
@@ -77,16 +83,21 @@ $ct = $_SERVER['CONTENT_TYPE'] ?? $_SERVER['HTTP_CONTENT_TYPE'] ?? '';
 if ($ct !== '') {
     $headers[] = 'Content-Type: ' . $ct;
 }
-$accept = $_SERVER['HTTP_ACCEPT'] ?? '';
 if ($accept !== '') {
     $headers[] = 'Accept: ' . $accept;
 }
-
-$body = file_get_contents('php://input');
-$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+$stainless = (string)($_SERVER['HTTP_X_STAINLESS_PACKAGE_VERSION'] ?? '');
+if ($wantStream) {
+    // Letta 0.16+ 422s streaming=true unless the caller looks like SDK v1.0+.
+    // PHP-cURL's default User-Agent is not letta-client/*, so inject on stream only.
+    $headers[] = 'User-Agent: letta-client/1.0.0';
+    $headers[] = 'X-Stainless-Package-Version: ' . ($stainless !== '' ? $stainless : '1.0.0');
+} elseif ($stainless !== '') {
+    $headers[] = 'X-Stainless-Package-Version: ' . $stainless;
+}
 
 $ch = curl_init($url);
-curl_setopt_array($ch, [
+$curlOpts = [
     CURLOPT_CUSTOMREQUEST => $method,
     CURLOPT_HTTPHEADER => $headers,
     CURLOPT_POSTFIELDS => ($method === 'GET' || $method === 'HEAD') ? null : $body,
@@ -96,10 +107,11 @@ curl_setopt_array($ch, [
     CURLOPT_TIMEOUT => 600,
     CURLOPT_CONNECTTIMEOUT => 30,
     CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-]);
-
-$wantStream = (stripos($accept, 'text/event-stream') !== false)
-    || (is_string($body) && str_contains($body, '"streaming":true'));
+];
+if ($wantStream) {
+    $curlOpts[CURLOPT_USERAGENT] = 'letta-client/1.0.0';
+}
+curl_setopt_array($ch, $curlOpts);
 
 $status = 0;
 $responseHeaders = [];
