@@ -270,14 +270,141 @@
     return el ? el.value.trim() : '';
   }
 
+  var lastModels = [];
+  var CONTEXT_MIN = 4000;
+  var CONTEXT_FALLBACK_MAX = 272000;
+
+  function modelMaxContext(handle) {
+    var i, m, cw;
+    var h = String(handle || '');
+    for (i = 0; i < lastModels.length; i++) {
+      m = lastModels[i];
+      if (String(modelId(m)) !== h) continue;
+      cw = m.max_context_window != null ? m.max_context_window : m.context_window;
+      if (cw != null && Number(cw) > 0) return Number(cw);
+    }
+    return CONTEXT_FALLBACK_MAX;
+  }
+
+  function currentModelHandle(a) {
+    var lc = (a && a.llm_config) || {};
+    var sel = document.getElementById('model');
+    if (sel && sel.value) return sel.value;
+    return String((a && a.model) || lc.handle || lc.model || '');
+  }
+
+  function syncDual(sliderId, numId) {
+    var s = document.getElementById(sliderId);
+    var n = document.getElementById(numId);
+    if (!s || !n) return;
+    if (n.value !== '') s.value = n.value;
+  }
+
+  function bindDual(sliderId, numId, onInput) {
+    var s = document.getElementById(sliderId);
+    var n = document.getElementById(numId);
+    if (!s || !n || s.getAttribute('data-bound') === '1') return;
+    s.setAttribute('data-bound', '1');
+    s.addEventListener('input', function () {
+      n.value = s.value;
+      if (onInput) onInput();
+    });
+    n.addEventListener('input', function () {
+      if (n.value !== '') s.value = n.value;
+      if (onInput) onInput();
+    });
+  }
+
+  function updateContextReadout() {
+    var n = document.getElementById('llm-context-window');
+    var out = document.getElementById('llm-context-window-readout');
+    var s = document.getElementById('llm-context-window-slider');
+    if (!out || !n || !s) return;
+    var cur = n.value === '' ? '—' : Number(n.value).toLocaleString();
+    var max = Number(s.max) || 0;
+    out.textContent = 'Agent limit: ' + cur + ' tokens · Model maximum: ' + max.toLocaleString() + ' tokens';
+  }
+
+  function applyContextWindow(a) {
+    var lc = (a && a.llm_config) || {};
+    var handle = currentModelHandle(a);
+    var max = modelMaxContext(handle);
+    if (max < CONTEXT_MIN) max = CONTEXT_MIN;
+    var cur = null;
+    if (a && a.context_window_limit != null) cur = Number(a.context_window_limit);
+    else if (lc.context_window != null) cur = Number(lc.context_window);
+    else if (lc.max_context_window != null) cur = Number(lc.max_context_window);
+    if (cur == null || isNaN(cur) || cur <= 0) cur = max;
+    if (cur < CONTEXT_MIN) cur = CONTEXT_MIN;
+    if (cur > max) cur = max;
+    var s = document.getElementById('llm-context-window-slider');
+    var n = document.getElementById('llm-context-window');
+    if (s) {
+      s.min = String(CONTEXT_MIN);
+      s.max = String(max);
+      s.step = max > 32000 ? '1000' : '100';
+      s.value = String(cur);
+    }
+    if (n) {
+      n.min = String(CONTEXT_MIN);
+      n.max = String(max);
+      n.value = String(cur);
+    }
+    updateContextReadout();
+  }
+
+  function applyMaxTokensUi(lc) {
+    var has = lc && lc.max_tokens != null && lc.max_tokens !== '';
+    setField('llm-enable-max-tokens', has);
+    var wrap = document.getElementById('llm-max-tokens-wrap');
+    if (wrap) wrap.classList.toggle('is-disabled', !has);
+    var s = document.getElementById('llm-max-tokens-slider');
+    var val = has ? Number(lc.max_tokens) : 4096;
+    if (s) {
+      var ctxSlider = document.getElementById('llm-context-window-slider');
+      var cap = (ctxSlider && Number(ctxSlider.max)) || 16384;
+      s.max = String(Math.max(val, Math.min(cap, 16384)));
+      s.value = String(val);
+    }
+    setField('llm-max-tokens', has ? val : '');
+    syncDual('llm-max-tokens-slider', 'llm-max-tokens');
+  }
+
+  function toggleCompactModeRows() {
+    var mode = strFrom('compact-mode');
+    var sliding = mode === 'sliding_window' || mode === 'self_compact_sliding_window';
+    var selfMode = mode === 'self_compact_all' || mode === 'self_compact_sliding_window';
+    var modelRow = document.getElementById('compact-model-row');
+    var winRow = document.getElementById('compact-window-row');
+    var ackRow = document.getElementById('compact-ack-row');
+    if (modelRow) modelRow.style.display = selfMode ? 'none' : '';
+    if (winRow) winRow.style.display = sliding ? '' : 'none';
+    if (ackRow) ackRow.style.display = selfMode ? 'none' : '';
+  }
+
+  function applyCompaction(a) {
+    var cs = (a && a.compaction_settings) || {};
+    setField('compact-mode', cs.mode || '');
+    setField('compact-clip', cs.clip_chars);
+    setField('compact-window', cs.sliding_window_percentage);
+    setField('compact-prompt', cs.prompt || '');
+    setField('compact-ack', cs.prompt_acknowledgement === true);
+    var sel = document.getElementById('compact-model');
+    if (sel && sel.options.length && cs.model) sel.value = cs.model;
+    else if (sel && cs.model && !sel.options.length) fillSelect(sel, lastModels, cs.model, modelId, modelLabel);
+    syncDual('compact-window-slider', 'compact-window');
+    toggleCompactModeRows();
+  }
+
   function applyLlmFieldsFromAgent(a) {
     var lc = (a && a.llm_config) || {};
     var ec = (a && a.embedding_config) || {};
     setField('agent-name', a && (a.name || a.agent_name) || '');
     setField('agent-description', a && a.description || '');
-    setField('llm-temperature', lc.temperature);
-    setField('llm-max-tokens', lc.max_tokens);
-    setField('llm-context-window', (a && a.context_window_limit != null) ? a.context_window_limit : lc.context_window);
+    setField('llm-temperature', lc.temperature != null ? lc.temperature : 1);
+    syncDual('llm-temperature-slider', 'llm-temperature');
+    applyContextWindow(a);
+    applyMaxTokensUi(lc);
     setField('llm-frequency-penalty', lc.frequency_penalty);
     setField('llm-verbosity', lc.verbosity);
     setField('llm-reasoning-effort', lc.reasoning_effort);
@@ -291,11 +418,14 @@
     setField('agent-timezone', a && a.timezone);
     setField('agent-max-files', a && a.max_files_open);
     setField('agent-file-window', a && a.per_file_view_window_char_limit);
+    setField('embed-dim', ec.embedding_dim);
+    setField('embed-chunk', ec.embedding_chunk_size);
     var embedSel = document.getElementById('embedding');
     if (embedSel && embedSel.options.length) {
       var currentEmbed = String((a && a.embedding) || ec.handle || ec.embedding_model || '');
       if (currentEmbed) embedSel.value = currentEmbed;
     }
+    applyCompaction(a);
   }
 
   function fillSelect(select, items, current, idFn, labelFn) {
@@ -511,10 +641,14 @@
     var embeddings = normList(arr[3]);
     window.ADE.getAgent(id).then(function (a) {
       currentAgent = a;
+      lastModels = models;
       if (models.length) {
         document.getElementById('model-row').classList.remove('af-hidden');
         var current = String(a.model || (a.llm_config && (a.llm_config.handle || a.llm_config.model)) || a.handle || '');
         fillSelect(document.getElementById('model'), models, current, modelId, modelLabel);
+        var compactSel = document.getElementById('compact-model');
+        var compactCurrent = String((a.compaction_settings && a.compaction_settings.model) || '');
+        if (compactSel) fillSelect(compactSel, models, compactCurrent, modelId, modelLabel);
       }
       if (embeddings.length) {
         document.getElementById('embedding-row').classList.remove('af-hidden');
@@ -572,14 +706,15 @@
 
     var llm = Object.assign({}, (currentAgent && currentAgent.llm_config) || {});
     var tv = numFrom('llm-temperature');
-    var mv = numFrom('llm-max-tokens');
+    var enableMax = document.getElementById('llm-enable-max-tokens').checked;
+    var mv = enableMax ? numFrom('llm-max-tokens') : null;
     var cw = numFrom('llm-context-window');
     var fp = numFrom('llm-frequency-penalty');
     var rmax = numFrom('llm-max-reasoning-tokens');
     if (tv != null) llm.temperature = tv;
     else delete llm.temperature;
-    if (mv != null) llm.max_tokens = mv;
-    else delete llm.max_tokens;
+    if (enableMax && mv != null) llm.max_tokens = mv;
+    else llm.max_tokens = null;
     if (cw != null) {
       llm.context_window = cw;
       body.context_window_limit = cw;
@@ -601,6 +736,24 @@
     llm.put_inner_thoughts_in_kwargs = document.getElementById('llm-inner-thoughts').checked;
     llm.parallel_tool_calls = document.getElementById('llm-parallel-tools').checked;
     if (Object.keys(llm).length) body.llm_config = llm;
+
+    var compact = Object.assign({}, (currentAgent && currentAgent.compaction_settings) || {});
+    var compactMode = strFrom('compact-mode');
+    if (compactMode) compact.mode = compactMode;
+    var compactModel = strFrom('compact-model');
+    if (compactModel) compact.model = compactModel;
+    var clip = numFrom('compact-clip');
+    if (clip != null) compact.clip_chars = clip;
+    else if (document.getElementById('compact-clip').value.trim() === '') delete compact.clip_chars;
+    var keep = numFrom('compact-window');
+    if (keep != null) compact.sliding_window_percentage = keep;
+    var compactPrompt = document.getElementById('compact-prompt').value;
+    if (compactPrompt.trim()) compact.prompt = compactPrompt;
+    else delete compact.prompt;
+    compact.prompt_acknowledgement = document.getElementById('compact-ack').checked;
+    if (compact.mode || compact.model || compact.prompt || compact.clip_chars != null) {
+      body.compaction_settings = compact;
+    }
 
     setSaveConfigDisabled(true);
     errorEl.innerHTML = '';
@@ -625,6 +778,28 @@
   document.querySelectorAll('.ade-save-config').forEach(function (btn) {
     btn.addEventListener('click', saveAgentConfiguration);
   });
+
+  bindDual('llm-context-window-slider', 'llm-context-window', updateContextReadout);
+  bindDual('llm-temperature-slider', 'llm-temperature');
+  bindDual('llm-max-tokens-slider', 'llm-max-tokens');
+  bindDual('compact-window-slider', 'compact-window');
+  document.getElementById('model').addEventListener('change', function () {
+    applyContextWindow(currentAgent);
+  });
+  document.getElementById('llm-enable-max-tokens').addEventListener('change', function () {
+    var on = document.getElementById('llm-enable-max-tokens').checked;
+    var wrap = document.getElementById('llm-max-tokens-wrap');
+    if (wrap) wrap.classList.toggle('is-disabled', !on);
+    if (on && !document.getElementById('llm-max-tokens').value) {
+      document.getElementById('llm-max-tokens').value = '4096';
+      syncDual('llm-max-tokens-slider', 'llm-max-tokens');
+    }
+  });
+  document.getElementById('compact-mode').addEventListener('change', toggleCompactModeRows);
+  if (location.hash === '#cfg-context') {
+    var block = document.getElementById('cfg-context-block');
+    if (block) block.scrollIntoView({ block: 'start' });
+  }
 
   (function setupDangerZoneDelete() {
     var input = document.getElementById('delete-agent-confirm-input');

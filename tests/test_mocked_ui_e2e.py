@@ -16,7 +16,16 @@ AGENT = {
     "id": AGENT_ID,
     "name": "Test Agent",
     "system": "be helpful",
-    "llm_config": {"handle": "openai-proxy/legacy-model", "model": "legacy-model", "temperature": 0.5},
+    "llm_config": {
+        "handle": "openai-proxy/legacy-model",
+        "model": "legacy-model",
+        "temperature": 0.5,
+        "context_window": 32000,
+        "max_tokens": 2048,
+    },
+    "context_window_limit": 32000,
+    "embedding_config": {"embedding_model": "text-embedding-3-small", "embedding_dim": 1536, "embedding_chunk_size": 300},
+    "compaction_settings": {"mode": "sliding_window", "model": "openai-proxy/legacy-model", "clip_chars": 50000, "sliding_window_percentage": 0.3},
     "tools": [],
     "tool_ids": [],
 }
@@ -115,7 +124,10 @@ class MockLetta:
         if path.rstrip("/") == "/v1/tools":
             return self._json(route, DIRECTORY[: int(limit or 50)])
         if path.rstrip("/") == "/v1/models":
-            return self._json(route, [{"handle": "openai-proxy/other-model"}])
+            return self._json(route, [
+                {"handle": "openai-proxy/other-model", "context_window": 64000, "max_context_window": 64000},
+                {"handle": "openai-proxy/legacy-model", "context_window": 128000, "max_context_window": 128000},
+            ])
         if path.rstrip("/") in ("/v1/models/embedding", "/v1/models/embedding/"):
             return self._json(route, [{"handle": "openai-proxy/text-embedding-3-small", "display_name": "text-embedding-3-small"}])
         if path.rstrip("/") == "/v1/runs/active" and method == "GET":
@@ -199,15 +211,28 @@ def test_save_sends_letta_model_settings(page):
     _boot(page, mock)
     page.goto(f"{BASE}/agent.html?id={AGENT_ID}", wait_until="networkidle")
     _wait_tools_mounted(page)
+    page.wait_for_function(
+        "() => document.getElementById('llm-context-window-slider') && "
+        "document.getElementById('llm-context-window-slider').max === '128000'"
+    )
     assert page.locator("#llm-temperature").input_value() == "0.5"
+    assert page.locator("#cfg-context").inner_text().strip().upper() == "CONTEXT WINDOW"
+    assert page.locator("#llm-context-window").input_value() == "32000"
+    assert page.locator("#llm-context-window-slider").input_value() == "32000"
+    assert page.locator("#llm-context-window-slider").get_attribute("max") == "128000"
+    assert "128,000" in page.locator("#llm-context-window-readout").inner_text()
     assert page.locator("#cfg-gen").inner_text().strip().upper() == "GENERATION"
     assert page.locator("#cfg-reason").inner_text().strip().upper() == "REASONING"
+    assert page.locator("#cfg-compact").inner_text().strip().upper() == "COMPACTION"
     assert page.locator("label[for=llm-enable-reasoner]").inner_text() == "Enable reasoner"
     assert page.locator("label[for=agent-sleeptime]").inner_text() == "Sleeptime memory"
     assert page.locator("label[for=llm-enable-reasoner]").is_visible()
     page.fill("#llm-temperature", "0.2")
+    page.check("#llm-enable-max-tokens")
     page.fill("#llm-max-tokens", "4096")
-    page.fill("#llm-context-window", "32000")
+    page.fill("#llm-context-window", "48000")
+    assert page.locator("#llm-context-window-slider").input_value() == "48000"
+    page.select_option("#compact-mode", "all")
     page.fill("#llm-frequency-penalty", "0.4")
     page.select_option("#llm-reasoning-effort", "high")
     page.select_option("#llm-verbosity", "low")
@@ -223,8 +248,9 @@ def test_save_sends_letta_model_settings(page):
     llm = body["llm_config"]
     assert llm["temperature"] == 0.2
     assert llm["max_tokens"] == 4096
-    assert llm["context_window"] == 32000
-    assert body["context_window_limit"] == 32000
+    assert llm["context_window"] == 48000
+    assert body["context_window_limit"] == 48000
+    assert body["compaction_settings"]["mode"] == "all"
     assert llm["frequency_penalty"] == 0.4
     assert llm["reasoning_effort"] == "high"
     assert llm["verbosity"] == "low"
@@ -237,10 +263,15 @@ def test_save_sends_letta_model_settings(page):
     os.makedirs(artifacts, exist_ok=True)
     page.evaluate("() => document.body.classList.remove('nav-open')")
     page.set_viewport_size({"width": 1280, "height": 900})
-    page.locator("#cfg-identity").scroll_into_view_if_needed()
+    page.locator("#cfg-context-block").scroll_into_view_if_needed()
     page.screenshot(path=os.path.join(artifacts, "agent-general-desktop.png"))
+    page.locator("#cfg-context-block").screenshot(path=os.path.join(artifacts, "agent-context-window.png"))
     page.set_viewport_size({"width": 390, "height": 844})
     page.evaluate("() => document.body.classList.remove('nav-open')")
+    page.locator("#cfg-context-block").scroll_into_view_if_needed()
+    ctx_box = page.locator("#cfg-context-block").bounding_box()
+    assert ctx_box and ctx_box["x"] >= 8, ctx_box
+    page.locator("#cfg-context-block").screenshot(path=os.path.join(artifacts, "agent-context-window-mobile.png"))
     page.locator("#cfg-gen").scroll_into_view_if_needed()
     gen_box = page.locator("#cfg-gen").bounding_box()
     assert gen_box and gen_box["x"] >= 8, gen_box
@@ -376,6 +407,9 @@ def test_chat_context_bar_and_memory_panel(page):
     bar = page.locator("#chat-context-bar").inner_text().lower()
     assert "context window" in bar
     assert "85% free" in bar or "free" in bar
+    edit = page.locator("#chat-context-bar .chat-ctx-edit")
+    assert edit.inner_text() == "Change window size"
+    assert f"agent.html?id={AGENT_ID}#cfg-context" in (edit.get_attribute("href") or "")
     assert page.locator("#chat-context-bar .chat-ctx-seg").count() >= 3
     # Legend removed — segment details use shared ADE_TIP floating bubble (CPH pattern).
     assert page.locator("#chat-context-bar .chat-ctx-legend").count() == 0

@@ -78,6 +78,13 @@
 }
 .chat-ctx-stats strong { color: var(--af-text); font-weight: 700; }
 .chat-ctx-free { color: var(--af-success); }
+.chat-ctx-edit {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+}
 .chat-ctx-track {
   display: flex;
   width: 100%;
