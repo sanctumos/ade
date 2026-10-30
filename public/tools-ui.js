@@ -59,6 +59,17 @@
     };
   }
 
+  function isEditableTool(t) {
+    var typ = String(toolType(t)).toLowerCase();
+    if (typ.indexOf('mcp') !== -1) return false;
+    if (typ.indexOf('letta') !== -1 || typ.indexOf('builtin') !== -1 || typ.indexOf('core') !== -1 || typ.indexOf('base') !== -1) {
+      return false;
+    }
+    var ui = classifyTool(t);
+    if (ui.kind === 'mcp' || ui.kind === 'builtin') return false;
+    return typ === '' || typ === 'custom' || ui.kind === 'other';
+  }
+
   function classifyTool(t) {
     var parsed = parseToolName(toolRawName(t));
     var typ = String(toolType(t)).toLowerCase();
@@ -162,7 +173,13 @@
     html += '<span class="af-badge">' + escHtml(String(typ)) + '</span>';
     html += '</div>';
     if (desc) html += '<div class="af-meta af-tool-desc">' + escHtml(desc) + '</div>';
-    html += '</div></div>';
+    html += '</div>';
+    if (opts.edit && isEditableTool(t)) {
+      html += '<div class="af-tool-row-actions">';
+      html += '<button type="button" class="af-btn af-btn-primary af-btn-sm" data-tool-edit="' + escAttr(String(tid)) + '">Edit</button>';
+      html += '</div>';
+    }
+    html += '</div>';
     return html;
   }
 
@@ -180,6 +197,7 @@
     toolType: toolType,
     parseToolName: parseToolName,
     classifyTool: classifyTool,
+    isEditableTool: isEditableTool,
     isRetiredServer: isRetiredServer,
     groupTools: groupTools,
     toolRowHtml: toolRowHtml,

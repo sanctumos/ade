@@ -20,7 +20,21 @@
             <p class="af-lede" id="agents-count">Every agent on your Letta server.</p>
           </div>
         </div>
-        <button type="button" class="af-btn af-btn-primary" id="new-agent-btn"><span data-af-icon="plus"></span>New agent</button>
+        <div class="af-page-head-actions">
+          <button type="button" class="af-btn af-btn-secondary" id="import-af-btn"><span data-af-icon="upload"></span>Import .af</button>
+          <button type="button" class="af-btn af-btn-primary" id="new-agent-btn"><span data-af-icon="plus"></span>New agent</button>
+        </div>
+      </div>
+      <input type="file" id="import-af-file" accept=".af,.json,application/json" hidden />
+      <div id="import-af-panel" class="af-panel af-mb af-hidden" hidden>
+        <h2>Import agent file</h2>
+        <p class="af-muted" id="import-af-name">No file selected.</p>
+        <label class="af-check af-mb"><input type="checkbox" id="import-af-copy" checked /> Append “_copy” to the agent name</label>
+        <label class="af-check af-mb"><input type="checkbox" id="import-af-strip" /> Strip conversation history</label>
+        <div class="af-inline">
+          <button type="button" class="af-btn af-btn-primary" id="import-af-go">Import</button>
+          <button type="button" class="af-btn af-btn-ghost" id="import-af-cancel">Cancel</button>
+        </div>
       </div>
       <div id="error"></div>
       <details class="af-panel" id="create-panel">
@@ -110,6 +124,7 @@
           '<div class="af-agent-card-actions">' +
           '<a class="af-btn af-btn-secondary af-btn-sm" href="' + href + '">' + I.sliders + 'Configure</a>' +
           '<a class="af-btn af-btn-secondary af-btn-sm" href="chat.html?agent=' + encodeURIComponent(aid) + '">' + I.chat + 'Chat</a>' +
+          '<button type="button" class="af-btn af-btn-secondary af-btn-sm" title="Export .af" aria-label="Export ' + esc(nm) + '" data-export="' + encodeURIComponent(aid) + '" data-export-name="' + esc(nm) + '">' + I.download + 'Export</button>' +
           '<button type="button" class="af-btn af-btn-danger af-btn-sm af-btn-icon" title="Delete agent" aria-label="Delete ' + esc(nm) + '" data-id="' + encodeURIComponent(aid) + '">' + I.trash + '</button>' +
           '</div></li>';
       }).join('');
@@ -120,7 +135,60 @@
           window.ADE.deleteAgent(aid).then(function() { return window.ADE.listAgents(); }).then(function(d) { render(norm(d)); return window.ADE.refreshAgentSelect(); }).catch(function(err) { showErr(err.message); });
         };
       });
+      listEl.querySelectorAll('button[data-export]').forEach(function(btn) {
+        btn.onclick = function() {
+          var aid = decodeURIComponent(btn.getAttribute('data-export') || '');
+          var nm = btn.getAttribute('data-export-name') || 'agent';
+          btn.disabled = true;
+          window.ADE.exportAgent(aid).then(function(data) {
+            window.ADE.downloadAf(nm, data);
+          }).catch(function(err) { showErr(err.message); }).finally(function() { btn.disabled = false; });
+        };
+      });
     }
+
+    var importFile = null;
+    var importPanel = document.getElementById('import-af-panel');
+    var importFileInput = document.getElementById('import-af-file');
+    document.getElementById('import-af-btn').onclick = function() {
+      importFileInput.value = '';
+      importFileInput.click();
+    };
+    importFileInput.onchange = function() {
+      var f = importFileInput.files && importFileInput.files[0];
+      if (!f) return;
+      importFile = f;
+      document.getElementById('import-af-name').textContent = 'File: ' + f.name;
+      importPanel.hidden = false;
+      importPanel.classList.remove('af-hidden');
+    };
+    document.getElementById('import-af-cancel').onclick = function() {
+      importFile = null;
+      importFileInput.value = '';
+      importPanel.hidden = true;
+      importPanel.classList.add('af-hidden');
+    };
+    document.getElementById('import-af-go').onclick = function() {
+      if (!importFile) return;
+      var go = document.getElementById('import-af-go');
+      go.disabled = true;
+      errorEl.innerHTML = '';
+      window.ADE.importAgent(importFile, {
+        append_copy_suffix: document.getElementById('import-af-copy').checked,
+        strip_messages: document.getElementById('import-af-strip').checked
+      }).then(function(res) {
+        importFile = null;
+        importFileInput.value = '';
+        importPanel.hidden = true;
+        importPanel.classList.add('af-hidden');
+        var ids = (res && res.agent_ids) || [];
+        if (ids.length) window.ADE.setSelectedAgentId(String(ids[0]));
+        return window.ADE.listAgents();
+      }).then(function(d) {
+        render(norm(d));
+        return window.ADE.refreshAgentSelect();
+      }).catch(function(err) { showErr(err.message); }).finally(function() { go.disabled = false; });
+    };
     Promise.all([window.ADE.listAgents(), window.ADE.listModels().catch(function() { return []; }), window.ADE.listTools().catch(function() { return []; })]).then(function(arr) {
       render(norm(arr[0]));
       models = normList(arr[1]);

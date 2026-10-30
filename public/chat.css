@@ -49,6 +49,37 @@
   flex-shrink: 0;
 }
 
+.chat-find {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 8px 28px;
+  border-bottom: 1px solid var(--af-border-subtle);
+  background: var(--af-bg-raised);
+}
+.chat-find[hidden] { display: none !important; }
+.chat-find-input {
+  flex: 1;
+  min-width: 0;
+  max-width: 28rem;
+}
+.chat-find-count {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--af-text-muted);
+  white-space: nowrap;
+}
+.chat-find-hit {
+  outline: 2px solid color-mix(in srgb, var(--af-accent) 55%, transparent);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+.chat-find-current {
+  outline-color: var(--af-accent);
+  background: color-mix(in srgb, var(--af-accent) 12%, transparent);
+}
+
 /* Context window usage bar — segment clicks open shared ADE_TIP floating bubble */
 .chat-context-bar {
   position: relative;
@@ -138,6 +169,7 @@
   transition: width 0.2s ease, padding 0.2s ease;
   overflow: hidden;
 }
+.visually-hidden,
 .chat-memory-panel .visually-hidden {
   position: absolute;
   width: 1px;
@@ -841,6 +873,7 @@ html[data-chat-memory="closed"] .chat-memory-collapse {
 @media (max-width: 768px) {
   .chat-header { padding: 10px 14px; }
   .chat-header-actions .af-btn span { display: none; }
+  .chat-find { padding: 8px 14px; flex-wrap: wrap; }
   .chat-context-bar { padding: 8px 14px 10px; }
   .chat-workspace { position: relative; }
   .chat-memory-panel {

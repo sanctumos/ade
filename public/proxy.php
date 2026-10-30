@@ -96,11 +96,35 @@ if ($wantStream) {
     $headers[] = 'X-Stainless-Package-Version: ' . $stainless;
 }
 
+$isMultipart = $ct !== '' && stripos($ct, 'multipart/form-data') !== false;
+$postFields = ($method === 'GET' || $method === 'HEAD') ? null : $body;
+if ($isMultipart && !empty($_FILES)) {
+    // php://input is empty for multipart; rebuild so Letta gets file + form fields.
+    $headers = array_values(array_filter($headers, static function ($h): bool {
+        return stripos((string)$h, 'Content-Type:') !== 0;
+    }));
+    $postFields = $_POST;
+    foreach ($_FILES as $field => $info) {
+        if (!is_array($info) || (($info['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK)) {
+            continue;
+        }
+        $tmp = (string)($info['tmp_name'] ?? '');
+        if ($tmp === '' || !is_uploaded_file($tmp)) {
+            continue;
+        }
+        $mime = (string)($info['type'] ?? '');
+        if ($mime === '') {
+            $mime = 'application/octet-stream';
+        }
+        $postFields[$field] = new CURLFile($tmp, $mime, (string)($info['name'] ?? 'upload'));
+    }
+}
+
 $ch = curl_init($url);
 $curlOpts = [
     CURLOPT_CUSTOMREQUEST => $method,
     CURLOPT_HTTPHEADER => $headers,
-    CURLOPT_POSTFIELDS => ($method === 'GET' || $method === 'HEAD') ? null : $body,
+    CURLOPT_POSTFIELDS => $postFields,
     CURLOPT_RETURNTRANSFER => false,
     CURLOPT_HEADER => false,
     CURLOPT_FOLLOWLOCATION => true,

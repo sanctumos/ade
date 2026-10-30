@@ -103,6 +103,20 @@ class MockLetta:
         ]
         self.archival_posts: list[dict] = []
         self.archival_deletes: list[str] = []
+        self.agents = [dict(AGENT)]
+        self.exports: list[str] = []
+        self.imports: list[str] = []
+        self.tools_created: list[dict] = []
+        self.tools_updated: list[dict] = []
+        self.custom_tools = [
+            {
+                "id": "tool-custom-1",
+                "name": "hello_world",
+                "tool_type": "custom",
+                "description": "greet",
+                "source_code": "def hello_world(name: str) -> str:\n    return f'Hello, {name}!'\n",
+            }
+        ]
         self.context = {
             "context_window_size_max": 32000,
             "context_window_size_current": 4800,
@@ -127,7 +141,21 @@ class MockLetta:
         limit = parse_qs(inner_q).get("limit", [None])[0]
         method = request.method
         if path.rstrip("/") == "/v1/agents" and method == "GET":
-            return self._json(route, [AGENT])
+            return self._json(route, list(self.agents))
+        if path.rstrip("/") == "/v1/agents/import" and method == "POST":
+            self.imports.append(request.post_data or "")
+            imported = {
+                "id": "agent-imported-1",
+                "name": "Imported Agent",
+                "llm_config": AGENT["llm_config"],
+                "tools": [],
+                "tool_ids": [],
+            }
+            self.agents.append(imported)
+            return self._json(route, {"agent_ids": [imported["id"]]})
+        if path == f"/v1/agents/{AGENT_ID}/export" and method == "GET":
+            self.exports.append(AGENT_ID)
+            return self._json(route, {"agents": [{"id": AGENT_ID, "name": AGENT["name"]}], "version": "v2"})
         if path == f"/v1/agents/{AGENT_ID}" and method == "GET":
             self.get_agent_headers.append({k.lower(): v for k, v in request.headers.items()})
             return self._json(route, AGENT)
@@ -140,7 +168,34 @@ class MockLetta:
                 return route.fulfill(status=500, body="boom")
             return self._json(route, AGENT_TOOLS[: int(limit or 10)])
         if path.rstrip("/") == "/v1/tools":
-            return self._json(route, DIRECTORY[: int(limit or 50)])
+            if method == "POST":
+                body = json.loads(request.post_data or "{}")
+                self.tools_created.append(body)
+                row = {
+                    "id": f"tool-new-{len(self.tools_created)}",
+                    "name": "ping",
+                    "tool_type": "custom",
+                    "description": body.get("description") or "",
+                    "source_code": body.get("source_code") or "",
+                }
+                self.custom_tools.append(row)
+                return self._json(route, row)
+            listed = DIRECTORY[: int(limit or 50)] + self.custom_tools
+            return self._json(route, listed)
+        if path.startswith("/v1/tools/") and method in ("GET", "PATCH"):
+            tid = path.rsplit("/", 1)[-1]
+            if method == "PATCH":
+                body = json.loads(request.post_data or "{}")
+                self.tools_updated.append({"id": tid, **body})
+                for t in self.custom_tools:
+                    if t.get("id") == tid:
+                        t.update(body)
+                        return self._json(route, t)
+                return self._json(route, {"id": tid, **body})
+            for t in self.custom_tools:
+                if t.get("id") == tid:
+                    return self._json(route, t)
+            return self._json(route, {"id": tid, "name": tid, "tool_type": "custom", "source_code": "def x() -> str:\n    return 'ok'\n"})
         if path.rstrip("/") == "/v1/models":
             return self._json(route, [
                 {"handle": "openai-proxy/other-model", "context_window": 64000, "max_context_window": 64000},
@@ -246,7 +301,7 @@ def test_save_keeps_attached_tools_and_current_model(page):
     _wait_tools_mounted(page)
     assert page.locator("#model").input_value() == "openai-proxy/legacy-model"
     assert page.locator("#agent-sub .af-badge-tools").inner_text() == "15 tools"
-    assert page.locator("input[name=tool]").count() == 60, "directory truncated"
+    assert page.locator("input[name=tool]").count() == 61, "directory truncated"
     assert page.locator("input[name=tool][value=tool-058]").is_checked()
     assert not page.locator("input[name=tool][value=tool-020]").is_checked()
     page.locator('[data-pane="general"] .ade-save-config').click()
@@ -674,3 +729,76 @@ def test_chat_archival_memory_panel(page):
     page.locator("#chat-mem-tab-core").click()
     assert page.locator("#chat-mem-tab-core").get_attribute("aria-selected") == "true"
     assert page.locator('.chat-memory-card[data-label="persona"]').is_visible()
+
+
+def test_chat_search_history(page):
+    mock = MockLetta()
+    _boot(page, mock)
+    page.goto(f"{BASE}/chat.html?agent={AGENT_ID}", wait_until="networkidle")
+    page.wait_for_selector("#messages .chat-turn--user", timeout=15000)
+    page.locator("#chat-find-open").click()
+    page.locator("#chat-find").wait_for(state="visible")
+    page.fill("#chat-find-q", "hello there")
+    page.wait_for_function("() => document.querySelectorAll('.chat-find-hit').length >= 1", timeout=5000)
+    assert "1 / 1" in page.locator("#chat-find-count").inner_text()
+    assert page.locator(".chat-find-current").count() == 1
+    artifacts = os.path.join(os.path.dirname(__file__), "artifacts")
+    os.makedirs(artifacts, exist_ok=True)
+    page.screenshot(path=os.path.join(artifacts, "chat-search.png"))
+    page.locator("#chat-find-close").click()
+    page.wait_for_function("() => document.getElementById('chat-find').hidden", timeout=3000)
+    assert page.locator(".chat-find-hit").count() == 0
+
+
+def test_export_and_import_af(page):
+    mock = MockLetta()
+    _boot(page, mock)
+    page.goto(f"{BASE}/agent.html?id={AGENT_ID}", wait_until="networkidle")
+    page.wait_for_selector("#export-agent-btn", timeout=15000)
+    with page.expect_download() as dl_info:
+        page.locator("#export-agent-btn").click()
+    download = dl_info.value
+    assert str(download.suggested_filename).endswith(".af")
+    assert mock.exports == [AGENT_ID]
+
+    page.goto(f"{BASE}/agents.html", wait_until="networkidle")
+    page.wait_for_selector(".af-agent-card", timeout=15000)
+    artifacts = os.path.join(os.path.dirname(__file__), "artifacts")
+    os.makedirs(artifacts, exist_ok=True)
+    af_path = os.path.join(artifacts, "import-sample.af")
+    with open(af_path, "w", encoding="utf-8") as fh:
+        json.dump({"agents": [{"name": "Imported"}]}, fh)
+    page.locator("#import-af-btn").click()
+    page.set_input_files("#import-af-file", af_path)
+    page.locator("#import-af-panel").wait_for(state="visible")
+    page.screenshot(path=os.path.join(artifacts, "agents-import-af.png"))
+    page.locator("#import-af-go").click()
+    page.wait_for_function(
+        "() => document.body.innerText.includes('Imported Agent')",
+        timeout=10000,
+    )
+    assert mock.imports
+
+
+def test_custom_tool_create(page):
+    mock = MockLetta()
+    _boot(page, mock)
+    page.goto(f"{BASE}/tools.html", wait_until="networkidle")
+    page.wait_for_selector("#new-tool-btn", timeout=15000)
+    page.locator("#new-tool-btn").click()
+    overlay = page.locator(".af-tooledit")
+    overlay.wait_for(state="visible", timeout=3000)
+    page.fill("#af-tooledit-desc", "Ping the server")
+    page.fill("#af-tooledit-code", "def ping() -> str:\n    return 'pong'\n")
+    artifacts = os.path.join(os.path.dirname(__file__), "artifacts")
+    os.makedirs(artifacts, exist_ok=True)
+    page.screenshot(path=os.path.join(artifacts, "tool-editor.png"))
+    page.locator('[data-tooledit="save"]').click()
+    page.wait_for_function("() => document.querySelector('.af-tooledit').hidden", timeout=8000)
+    assert mock.tools_created
+    assert "def ping" in mock.tools_created[-1]["source_code"]
+    assert mock.tools_created[-1]["description"] == "Ping the server"
+    page.locator('[data-tool-edit="tool-custom-1"]').click()
+    overlay.wait_for(state="visible", timeout=3000)
+    assert "hello_world" in page.locator("#af-tooledit-title").inner_text()
+    assert "Hello" in page.locator("#af-tooledit-code").input_value()

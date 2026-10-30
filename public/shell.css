@@ -402,6 +402,7 @@ code {
 }
 .af-page-head-main { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .af-page-head .af-nav-toggle { margin-bottom: 0; }
+.af-page-head-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 /* Tooltips — HMG CPH pattern (portal + diamond arrow). See tip.js */
 .af-tip {
   position: relative;
@@ -1156,6 +1157,7 @@ details[open] > summary .af-summary-chev { transform: rotate(180deg); }
     var(--af-bg-elevated);
 }
 .af-agent-head-main { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.af-agent-head-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .af-agent-head h1 { font-size: 22px; overflow-wrap: anywhere; }
 .af-agent-head-sub { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; min-width: 0; }
 .af-agent-head-sub .af-badge { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; }
@@ -1262,3 +1264,32 @@ textarea.af-input.af-memedit-text {
   color: var(--af-danger);
 }
 .af-memedit-actions { margin-left: auto; display: flex; gap: 8px; }
+
+.af-tooledit .af-memedit-body {
+  flex-direction: column;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+.af-tooledit .af-tooledit-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+}
+.af-tooledit .af-tooledit-code {
+  flex: 1;
+  min-height: 12rem;
+  font-family: var(--af-mono);
+  font-size: 13px;
+  line-height: 1.45;
+  max-width: none !important;
+  resize: vertical;
+}
+.af-tool-row-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: flex-start;
+  gap: 6px;
+  margin-left: auto;
+}
