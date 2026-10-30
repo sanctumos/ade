@@ -1,11 +1,13 @@
 /**
- * Chat sidecar: core-memory block panel + context-window usage bar.
- * Context meter + memory panel (classic ADE CoreMemorySidebar / ContextWindowPreview pattern).
+ * Chat sidecar: core-memory + archival panel + context-window usage bar.
+ * Classic ADE: CoreMemorySidebar / ArchivalMemoriesPanel tabs in the same right-hand zone.
  */
 (function () {
   'use strict';
 
   var STORAGE_MEM = 'af-chat-memory-open';
+  var STORAGE_TAB = 'af-chat-memory-tab';
+  var ARCHIVAL_PAGE = 20;
   var SEGMENTS = [
     { key: 'system', label: 'System', color: '#3f5ff9', fields: ['num_tokens_system', 'num_tokens_tool_usage_rules'] },
     { key: 'tools', label: 'Tools', color: '#6ba5b3', fields: ['num_tokens_functions_definitions'] },
@@ -19,13 +21,23 @@
     agentId: null,
     blockTimer: null,
     contextTimer: null,
+    archivalTimer: null,
     blocksFp: '',
     contextFp: '',
+    archivalFp: '',
     contextBusy: false,
     blocksBusy: false,
+    archivalBusy: false,
     blocksQueued: false,
     contextQueued: false,
-    blocks: []
+    archivalQueued: false,
+    blocks: [],
+    passages: [],
+    memTab: 'core',
+    archivalSearch: '',
+    archivalSearchTimer: null,
+    archivalAfter: null,
+    archivalHasMore: false
   };
 
   function esc(s) {
@@ -68,6 +80,38 @@
     var t = String(val || '').replace(/\s+/g, ' ').trim();
     if (!t) return '(empty)';
     return t.length > 160 ? t.slice(0, 157) + '…' : t;
+  }
+  function normPassages(d) {
+    if (Array.isArray(d)) return d;
+    if (d && Array.isArray(d.data)) return d.data;
+    if (d && Array.isArray(d.passages)) return d.passages;
+    if (d && Array.isArray(d.items)) return d.items;
+    if (d && Array.isArray(d.results)) return d.results;
+    return [];
+  }
+  function passageId(p) {
+    return p && (p.id != null ? p.id : p.memory_id || p.passage_id || '');
+  }
+  function passageText(p) {
+    if (!p) return '';
+    if (p.text != null) return String(p.text);
+    if (p.content != null) return String(p.content);
+    if (p.value != null) return String(p.value);
+    return '';
+  }
+  function fmtDate(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return String(iso);
+    return d.toLocaleString(undefined, {
+      month: 'short', day: 'numeric', year: 'numeric',
+      hour: 'numeric', minute: '2-digit'
+    });
+  }
+  function passagesFingerprint(passages) {
+    return passages.map(function (p) {
+      return [passageId(p), passageText(p), p.created_at || ''].join(':');
+    }).join('|');
   }
   function openMemoryEditor(label) {
     var block = null;
@@ -133,6 +177,38 @@
       panel.removeAttribute('hidden');
       panel.setAttribute('aria-hidden', open ? 'false' : 'true');
     }
+  }
+
+  function isArchivalTab() {
+    return state.memTab === 'archival';
+  }
+
+  function setMemTab(tab) {
+    tab = tab === 'archival' ? 'archival' : 'core';
+    state.memTab = tab;
+    try { localStorage.setItem(STORAGE_TAB, tab); } catch (e) { /* ignore */ }
+    document.querySelectorAll('.chat-memory-tab').forEach(function (btn) {
+      var on = btn.getAttribute('data-mem-tab') === tab;
+      btn.classList.toggle('is-active', on);
+      btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    document.querySelectorAll('.chat-memory-pane').forEach(function (pane) {
+      var on = pane.getAttribute('data-mem-pane') === tab;
+      pane.classList.toggle('is-active', on);
+      if (on) pane.removeAttribute('hidden');
+      else pane.setAttribute('hidden', '');
+    });
+    var kind = document.getElementById('chat-memory-sub-kind');
+    var countEl = document.getElementById('chat-memory-count');
+    if (tab === 'archival') {
+      if (kind) kind.textContent = 'passages';
+      if (countEl) countEl.textContent = String(state.passages.length);
+      refreshArchival(false);
+    } else {
+      if (kind) kind.textContent = 'attached · live';
+      if (countEl) countEl.textContent = String(state.blocks.length);
+    }
+    scheduleTimers();
   }
 
   function pctOf(part, whole) {
@@ -236,7 +312,7 @@
     var host = document.getElementById('chat-memory-list');
     var countEl = document.getElementById('chat-memory-count');
     if (!host) return;
-    if (countEl) countEl.textContent = String(blocks.length);
+    if (countEl && !isArchivalTab()) countEl.textContent = String(blocks.length);
     if (!blocks.length) {
       host.innerHTML = '<p class="chat-memory-empty">No memory blocks attached.</p>';
       return;
@@ -283,6 +359,153 @@
         e.preventDefault();
         openMemoryEditor(el.getAttribute('data-label'));
       });
+    });
+  }
+
+  function openArchivalViewer(pid) {
+    var passage = null;
+    var i;
+    for (i = 0; i < state.passages.length; i++) {
+      if (String(passageId(state.passages[i])) === String(pid)) {
+        passage = state.passages[i];
+        break;
+      }
+    }
+    if (!passage || !window.ADE_MEMORY_EDITOR) return;
+    var when = fmtDate(passage.created_at);
+    window.ADE_MEMORY_EDITOR.open({
+      agentId: state.agentId,
+      label: when ? 'Archival · ' + when : 'Archival passage',
+      value: passageText(passage),
+      description: pid ? 'Passage ' + pid : '',
+      readOnly: true
+    });
+  }
+
+  function setArchivalAddOpen(open) {
+    var form = document.getElementById('chat-archival-add');
+    if (!form) return;
+    if (open) {
+      form.removeAttribute('hidden');
+      var ta = document.getElementById('chat-archival-text');
+      if (ta) ta.focus();
+    } else {
+      form.setAttribute('hidden', '');
+    }
+  }
+
+  function renderArchival(passages) {
+    var host = document.getElementById('chat-archival-list');
+    var countEl = document.getElementById('chat-memory-count');
+    if (!host) return;
+    state.passages = passages;
+    if (countEl && isArchivalTab()) countEl.textContent = String(passages.length);
+    if (!passages.length) {
+      host.innerHTML = '<p class="chat-memory-empty">' +
+        (state.archivalSearch ? 'No passages match that search.' : 'No archival passages yet.') +
+        '</p>';
+      return;
+    }
+    host.innerHTML = passages.map(function (p) {
+      var pid = String(passageId(p) || '');
+      var tx = passageText(p);
+      var when = fmtDate(p.created_at);
+      return '<article class="chat-memory-card chat-archival-card" data-arch-id="' + esc(pid) + '" tabindex="0">' +
+        '<div class="chat-memory-card-head">' +
+          '<span class="chat-memory-label">' + esc(when || (pid ? pid.slice(0, 12) : 'Passage')) + '</span>' +
+          '<span>' +
+            '<button type="button" class="af-btn af-btn-secondary af-btn-sm" data-arch-view="' + esc(pid) + '">View</button> ' +
+            (pid ? '<button type="button" class="af-btn af-btn-sm af-btn-danger" data-arch-del="' + esc(pid) + '">Delete</button>' : '') +
+          '</span>' +
+        '</div>' +
+        (pid ? '<p class="chat-archival-meta">' + esc(pid) + '</p>' : '') +
+        '<p class="chat-memory-snippet">' + esc(snippet(tx)) + '</p>' +
+      '</article>';
+    }).join('') + (state.archivalHasMore
+      ? '<button type="button" class="af-btn af-btn-secondary" id="chat-archival-more">Load more</button>'
+      : '');
+
+    host.querySelectorAll('[data-arch-view]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        openArchivalViewer(btn.getAttribute('data-arch-view'));
+      });
+    });
+    host.querySelectorAll('[data-arch-del]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var mid = btn.getAttribute('data-arch-del');
+        if (!mid || !state.agentId) return;
+        if (!window.confirm('Delete this archival passage?')) return;
+        btn.disabled = true;
+        window.ADE.deleteArchivalMemory(state.agentId, mid).then(function () {
+          refreshArchival(true);
+        }).catch(function () {
+          btn.disabled = false;
+        });
+      });
+    });
+    host.querySelectorAll('.chat-archival-card').forEach(function (el) {
+      el.addEventListener('click', function (e) {
+        if (e.target.closest('button')) return;
+        openArchivalViewer(el.getAttribute('data-arch-id'));
+      });
+      el.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault();
+        openArchivalViewer(el.getAttribute('data-arch-id'));
+      });
+    });
+    var more = document.getElementById('chat-archival-more');
+    if (more) {
+      more.addEventListener('click', function () {
+        more.disabled = true;
+        refreshArchival(false, { append: true });
+      });
+    }
+  }
+
+  function refreshArchival(force, opts) {
+    if (!state.agentId || document.hidden) return;
+    if (!isArchivalTab() && !force) return;
+    opts = opts || {};
+    if (state.archivalBusy) {
+      state.archivalQueued = true;
+      return;
+    }
+    state.archivalBusy = true;
+    var params = { limit: String(ARCHIVAL_PAGE), ascending: 'false' };
+    if (state.archivalSearch) params.search = state.archivalSearch;
+    if (opts.append && state.archivalAfter) params.after = state.archivalAfter;
+    window.ADE.listArchivalMemory(state.agentId, params).then(function (d) {
+      state.archivalBusy = false;
+      if (!state.agentId) return;
+      var page = normPassages(d);
+      var passages = opts.append ? state.passages.concat(page) : page;
+      state.archivalHasMore = page.length >= ARCHIVAL_PAGE;
+      var last = page.length ? passageId(page[page.length - 1]) : null;
+      state.archivalAfter = last ? String(last) : null;
+      var fp = passagesFingerprint(passages) + '|' + state.archivalSearch + '|' + (state.archivalHasMore ? 1 : 0);
+      if (force || fp !== state.archivalFp) {
+        state.archivalFp = fp;
+        renderArchival(passages);
+      }
+      if (state.archivalQueued) {
+        state.archivalQueued = false;
+        refreshArchival(false);
+      }
+    }).catch(function () {
+      state.archivalBusy = false;
+      var host = document.getElementById('chat-archival-list');
+      if (host && !host.querySelector('.chat-archival-card')) {
+        host.innerHTML = '<p class="chat-memory-empty">Could not load archival memory.</p>';
+      }
+      if (state.archivalQueued) {
+        state.archivalQueued = false;
+        refreshArchival(false);
+      }
     });
   }
 
@@ -351,6 +574,7 @@
   function clearTimers() {
     if (state.blockTimer) { clearInterval(state.blockTimer); state.blockTimer = null; }
     if (state.contextTimer) { clearInterval(state.contextTimer); state.contextTimer = null; }
+    if (state.archivalTimer) { clearInterval(state.archivalTimer); state.archivalTimer = null; }
   }
 
   function scheduleTimers() {
@@ -360,6 +584,8 @@
     state.blockTimer = setInterval(refreshBlocks, 4000);
     /* Context overview is heavier (~400KB on busy agents); slower poll + event refresh. */
     state.contextTimer = setInterval(refreshContext, 12000);
+    /* Original ADE ArchivalMemoriesPanel refetchInterval is 10s while that tab is open. */
+    if (isArchivalTab()) state.archivalTimer = setInterval(function () { refreshArchival(false); }, 10000);
   }
 
   var uiBound = false;
@@ -376,26 +602,90 @@
         setMemoryOpen(!isMemoryOpen());
       });
     }
+    document.querySelectorAll('.chat-memory-tab').forEach(function (tabBtn) {
+      tabBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        setMemTab(tabBtn.getAttribute('data-mem-tab'));
+      });
+    });
+    var search = document.getElementById('chat-archival-search');
+    if (search) {
+      search.addEventListener('input', function () {
+        var q = search.value.trim();
+        if (state.archivalSearchTimer) clearTimeout(state.archivalSearchTimer);
+        state.archivalSearchTimer = setTimeout(function () {
+          state.archivalSearch = q;
+          state.archivalFp = '';
+          state.archivalAfter = null;
+          refreshArchival(true);
+        }, 500);
+      });
+    }
+    var addOpen = document.getElementById('chat-archival-add-open');
+    if (addOpen) {
+      addOpen.addEventListener('click', function (e) {
+        e.preventDefault();
+        var form = document.getElementById('chat-archival-add');
+        setArchivalAddOpen(!(form && !form.hidden));
+      });
+    }
+    var addCancel = document.getElementById('chat-archival-add-cancel');
+    if (addCancel) {
+      addCancel.addEventListener('click', function (e) {
+        e.preventDefault();
+        setArchivalAddOpen(false);
+      });
+    }
+    var addForm = document.getElementById('chat-archival-add');
+    if (addForm) {
+      addForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        if (!state.agentId) return;
+        var ta = document.getElementById('chat-archival-text');
+        var text = ta ? ta.value.trim() : '';
+        if (!text) return;
+        var saveBtn = document.getElementById('chat-archival-add-btn');
+        if (saveBtn) saveBtn.disabled = true;
+        window.ADE.createArchivalMemory(state.agentId, { text: text }).then(function () {
+          if (ta) ta.value = '';
+          setArchivalAddOpen(false);
+          state.archivalFp = '';
+          refreshArchival(true);
+        }).catch(function () { /* leave form open */ }).finally(function () {
+          if (saveBtn) saveBtn.disabled = false;
+        });
+      });
+    }
+    var savedTab = 'core';
+    try { savedTab = localStorage.getItem(STORAGE_TAB) || 'core'; } catch (e) { savedTab = 'core'; }
+    setMemTab(savedTab);
   }
 
   function startForAgent(agentId) {
     state.agentId = agentId || null;
     state.blocksFp = '';
     state.contextFp = '';
+    state.archivalFp = '';
+    state.archivalAfter = null;
+    state.passages = [];
     clearTimers();
     var bar = document.getElementById('chat-context-bar');
     var list = document.getElementById('chat-memory-list');
+    var arch = document.getElementById('chat-archival-list');
     var countEl = document.getElementById('chat-memory-count');
     if (!agentId) {
       if (bar) bar.innerHTML = '<div class="chat-ctx-empty">Select an agent to see context usage</div>';
       if (list) list.innerHTML = '<p class="chat-memory-empty">Select an agent.</p>';
+      if (arch) arch.innerHTML = '<p class="chat-memory-empty">Select an agent.</p>';
       if (countEl) countEl.textContent = '0';
       return;
     }
     if (bar) bar.innerHTML = '<div class="chat-ctx-empty">Loading context…</div>';
     if (list) list.innerHTML = '<p class="chat-memory-empty">Loading blocks…</p>';
+    if (arch && isArchivalTab()) arch.innerHTML = '<p class="chat-memory-empty">Loading archival…</p>';
     refreshBlocks();
     refreshContext();
+    if (isArchivalTab()) refreshArchival(true);
     scheduleTimers();
   }
 
@@ -403,6 +693,7 @@
     /* Call after send / hitch / stream finish so bar catches mid-turn attaches. */
     refreshBlocks();
     refreshContext();
+    if (isArchivalTab()) refreshArchival(false);
   }
 
   /* Bind once — dual DOMContentLoaded + readyState paths double-toggle (looks broken). */
@@ -427,6 +718,7 @@
     stop: function () { state.agentId = null; clearTimers(); },
     bump: bump,
     setMemoryOpen: setMemoryOpen,
-    isMemoryOpen: isMemoryOpen
+    isMemoryOpen: isMemoryOpen,
+    setMemTab: setMemTab
   };
 })();
