@@ -1172,6 +1172,7 @@ body.af-memedit-open { overflow: hidden; }
   background: color-mix(in srgb, #000 42%, transparent);
 }
 .af-memedit[hidden] { display: none !important; }
+.af-memedit [hidden] { display: none !important; }
 .af-memedit-dialog {
   width: min(920px, 100%);
   max-height: calc(100vh - 48px);

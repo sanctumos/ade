@@ -89,6 +89,20 @@ class MockLetta:
                 "read_only": True,
             },
         ]
+        self.passages = [
+            {
+                "id": "p-meet",
+                "text": "Meeting on 2024-03-15: discussed archival search.",
+                "created_at": "2026-10-01T12:00:00Z",
+            },
+            {
+                "id": "p-note",
+                "text": "Otto is Mark's dev partner.",
+                "created_at": "2026-10-02T15:30:00Z",
+            },
+        ]
+        self.archival_posts: list[dict] = []
+        self.archival_deletes: list[str] = []
         self.context = {
             "context_window_size_max": 32000,
             "context_window_size_current": 4800,
@@ -178,6 +192,30 @@ class MockLetta:
             return self._json(route, self.blocks)
         if path == f"/v1/agents/{AGENT_ID}/context" and method == "GET":
             return self._json(route, self.context)
+        arch_base = f"/v1/agents/{AGENT_ID}/archival-memory"
+        if path.rstrip("/") == arch_base:
+            if method == "GET":
+                q = parse_qs(inner_q)
+                search = (q.get("search", [""])[0] or "").lower()
+                rows = list(self.passages)
+                if search:
+                    rows = [p for p in rows if search in (p.get("text") or "").lower()]
+                return self._json(route, rows)
+            if method == "POST":
+                body = json.loads(request.post_data or "{}")
+                self.archival_posts.append(body)
+                row = {
+                    "id": f"p-new-{len(self.passages) + 1}",
+                    "text": body.get("text", ""),
+                    "created_at": "2026-10-30T00:00:00Z",
+                }
+                self.passages.insert(0, row)
+                return self._json(route, row)
+        if path.startswith(arch_base + "/") and method == "DELETE":
+            mid = path[len(arch_base) + 1 :]
+            self.archival_deletes.append(mid)
+            self.passages = [p for p in self.passages if p.get("id") != mid]
+            return self._json(route, {"ok": True})
         return self._json(route, [])
 
     @staticmethod
@@ -444,7 +482,9 @@ def test_chat_context_bar_and_memory_panel(page):
     """Context usage bar + collapsible core-memory sidebar (Broca attach/detach surface)."""
     mock = MockLetta()
     _boot(page, mock)
-    page.evaluate("() => localStorage.removeItem('af-chat-memory-open')")
+    page.evaluate(
+        "() => { localStorage.removeItem('af-chat-memory-open'); localStorage.removeItem('af-chat-memory-tab'); }"
+    )
     page.goto(f"{BASE}/chat.html?agent={AGENT_ID}", wait_until="networkidle")
     page.wait_for_selector("#chat-context-bar .chat-ctx-track", timeout=15000)
     bar = page.locator("#chat-context-bar").inner_text().lower()
@@ -559,3 +599,60 @@ def test_chat_context_bar_and_memory_panel(page):
         "() => document.getElementById('chat-memory-panel').getBoundingClientRect().width < 80",
         timeout=3000,
     )
+
+
+def test_chat_archival_memory_panel(page):
+    """Original ADE: archival review sits in the same right-hand zone as core blocks."""
+    mock = MockLetta()
+    _boot(page, mock)
+    page.evaluate(
+        "() => { localStorage.removeItem('af-chat-memory-open'); localStorage.removeItem('af-chat-memory-tab'); }"
+    )
+    page.goto(f"{BASE}/chat.html?agent={AGENT_ID}", wait_until="networkidle")
+    page.wait_for_selector('.chat-memory-card[data-label="persona"]', timeout=15000)
+    assert page.locator("#chat-mem-tab-core").get_attribute("aria-selected") == "true"
+    assert page.locator("#chat-mem-pane-archival").is_hidden()
+    page.locator("#chat-mem-tab-archival").click()
+    page.wait_for_selector('.chat-archival-card[data-arch-id="p-note"]', timeout=8000)
+    assert page.locator("#chat-mem-tab-archival").get_attribute("aria-selected") == "true"
+    assert page.locator("#chat-memory-count").inner_text() == "2"
+    assert page.locator("#chat-memory-sub-kind").inner_text() == "passages"
+    assert "Otto is Mark" in page.locator('.chat-archival-card[data-arch-id="p-note"] .chat-memory-snippet').inner_text()
+    artifacts = os.path.join(os.path.dirname(__file__), "artifacts")
+    os.makedirs(artifacts, exist_ok=True)
+    page.locator("#chat-memory-panel").screenshot(path=os.path.join(artifacts, "chat-archival-panel.png"))
+    page.set_viewport_size({"width": 390, "height": 844})
+    page.locator("#chat-memory-panel").screenshot(path=os.path.join(artifacts, "chat-archival-panel-mobile.png"))
+    page.set_viewport_size({"width": 1280, "height": 800})
+    page.locator('.chat-archival-card[data-arch-id="p-note"] [data-arch-view]').click()
+    page.locator(".af-memedit").wait_for(state="visible", timeout=3000)
+    assert "Archival" in page.locator("#af-memedit-title").inner_text()
+    assert page.locator(".af-memedit-text").input_value() == "Otto is Mark's dev partner."
+    assert page.evaluate("() => document.querySelector('[data-memedit=\"save\"]').hidden")
+    page.screenshot(path=os.path.join(artifacts, "chat-archival-viewer.png"))
+    page.locator('[data-memedit="close"]').click()
+    page.wait_for_function("() => document.querySelector('.af-memedit').hidden", timeout=3000)
+    page.fill("#chat-archival-search", "Meeting")
+    page.wait_for_function(
+        "() => document.querySelectorAll('.chat-archival-card').length === 1 && "
+        "document.querySelector('.chat-archival-card[data-arch-id=\"p-meet\"]')",
+        timeout=8000,
+    )
+    page.fill("#chat-archival-search", "")
+    page.wait_for_function("() => document.querySelectorAll('.chat-archival-card').length === 2", timeout=8000)
+    page.locator("#chat-archival-add-open").click()
+    page.locator("#chat-archival-text").wait_for(state="visible")
+    page.fill("#chat-archival-text", "A new long-term fact.")
+    page.locator("#chat-archival-add-btn").click()
+    page.wait_for_function("() => document.querySelectorAll('.chat-archival-card').length === 3", timeout=8000)
+    assert mock.archival_posts and mock.archival_posts[-1]["text"] == "A new long-term fact."
+    page.once("dialog", lambda d: d.accept())
+    page.locator('.chat-archival-card[data-arch-id="p-meet"] [data-arch-del]').click()
+    page.wait_for_function(
+        "() => !document.querySelector('.chat-archival-card[data-arch-id=\"p-meet\"]')",
+        timeout=8000,
+    )
+    assert "p-meet" in mock.archival_deletes
+    page.locator("#chat-mem-tab-core").click()
+    assert page.locator("#chat-mem-tab-core").get_attribute("aria-selected") == "true"
+    assert page.locator('.chat-memory-card[data-label="persona"]').is_visible()

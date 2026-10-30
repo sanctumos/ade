@@ -50,26 +50,51 @@
             </div>
           </div>
         </div>
-        <aside class="chat-memory-panel" id="chat-memory-panel" aria-label="Core memory blocks">
+        <aside class="chat-memory-panel" id="chat-memory-panel" aria-label="Agent memory">
           <div class="chat-memory-head">
             <div class="chat-memory-head-text">
               <h2 class="chat-memory-title">
                 <span class="af-tip">
-                  <span class="af-tip-label">Memory blocks</span>
-                  <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-chat-memory" aria-label="Explain: Memory blocks">?</button>
-                  <span id="af-tip-chat-memory" role="tooltip" class="af-tip-bubble" hidden>Core memory attached to this agent. Click a block or Edit to open the large editor (full screen is in that window). Broca can attach or detach blocks mid-stream — this list refreshes on its own.</span>
+                  <span class="af-tip-label">Memory</span>
+                  <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-chat-memory" aria-label="Explain: Memory">?</button>
+                  <span id="af-tip-chat-memory" role="tooltip" class="af-tip-bubble" hidden>Same zone as original ADE: Core is always in context — click a block to edit. Archival is long-term recall the agent searches when it needs it. Switch tabs to review passages. Broca can attach or detach core blocks mid-stream.</span>
                 </span>
               </h2>
-              <p class="chat-memory-sub"><span id="chat-memory-count">0</span> attached · live</p>
+              <p class="chat-memory-sub"><span id="chat-memory-count">0</span> <span id="chat-memory-sub-kind">attached · live</span></p>
             </div>
             <button type="button" class="chat-memory-collapse" id="chat-memory-collapse" aria-controls="chat-memory-panel" aria-expanded="true" title="Collapse memory panel" aria-label="Collapse memory panel">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/><path d="M15 4v16"/></svg>
             </button>
           </div>
-          <div class="chat-memory-list" id="chat-memory-list">
-            <p class="chat-memory-empty">Select an agent.</p>
+          <div class="chat-memory-tabs" role="tablist" aria-label="Memory type">
+            <button type="button" class="chat-memory-tab is-active" id="chat-mem-tab-core" data-mem-tab="core" role="tab" aria-selected="true" aria-controls="chat-mem-pane-core">Core</button>
+            <button type="button" class="chat-memory-tab" id="chat-mem-tab-archival" data-mem-tab="archival" role="tab" aria-selected="false" aria-controls="chat-mem-pane-archival">Archival</button>
           </div>
-          <p class="chat-memory-foot">Click a block to edit it. Broca can attach or detach blocks mid-stream — this list refreshes automatically.</p>
+          <div class="chat-memory-pane is-active" id="chat-mem-pane-core" data-mem-pane="core" role="tabpanel" aria-labelledby="chat-mem-tab-core">
+            <div class="chat-memory-list" id="chat-memory-list">
+              <p class="chat-memory-empty">Select an agent.</p>
+            </div>
+            <p class="chat-memory-foot">Click a block to edit it. Broca can attach or detach blocks mid-stream — this list refreshes automatically.</p>
+          </div>
+          <div class="chat-memory-pane" id="chat-mem-pane-archival" data-mem-pane="archival" role="tabpanel" aria-labelledby="chat-mem-tab-archival" hidden>
+            <div class="chat-archival-bar">
+              <label class="visually-hidden" for="chat-archival-search">Search archival memory</label>
+              <input type="search" class="af-input chat-archival-search" id="chat-archival-search" placeholder="Search archival…" autocomplete="off" />
+              <button type="button" class="af-btn af-btn-secondary af-btn-sm" id="chat-archival-add-open">Add</button>
+            </div>
+            <form class="chat-archival-add" id="chat-archival-add" hidden>
+              <label class="visually-hidden" for="chat-archival-text">New archival passage</label>
+              <textarea class="af-input" id="chat-archival-text" rows="4" placeholder="Text to store in archival memory…"></textarea>
+              <div class="chat-archival-add-actions">
+                <button type="submit" class="af-btn af-btn-primary af-btn-sm" id="chat-archival-add-btn">Save passage</button>
+                <button type="button" class="af-btn af-btn-ghost af-btn-sm" id="chat-archival-add-cancel">Cancel</button>
+              </div>
+            </form>
+            <div class="chat-memory-list" id="chat-archival-list">
+              <p class="chat-memory-empty">Select an agent.</p>
+            </div>
+            <p class="chat-memory-foot">Passages live outside the context window. The agent retrieves them when it needs to remember.</p>
+          </div>
         </aside>
       </div>
     </main>
