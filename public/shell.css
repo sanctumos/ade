@@ -604,6 +604,8 @@ textarea.af-input { max-width: 42rem; min-height: 100px; resize: vertical; line-
 }
 
 .af-btn {
+  appearance: none;
+  -webkit-appearance: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -616,6 +618,7 @@ textarea.af-input { max-width: 42rem; min-height: 100px; resize: vertical; line-
   font-size: 13px;
   font-weight: 600;
   font-family: inherit;
+  line-height: 1.2;
   cursor: pointer;
   text-decoration: none;
   transition: background 0.15s, border-color 0.15s, transform 0.08s, box-shadow 0.15s, color 0.15s;
@@ -1159,23 +1162,26 @@ details[open] > summary .af-summary-chev { transform: rotate(180deg); }
 
 .af-memory-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 
-/* Larger memory-block editor */
+/* Larger memory-block editor — full ADE overlay, never the 312px chat rail */
 body.af-memedit-open { overflow: hidden; }
 .af-memedit {
   position: fixed;
   inset: 0;
-  z-index: 200;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: color-mix(in srgb, #000 42%, transparent);
+  z-index: 5000;
+  display: none;
+  align-items: stretch;
+  justify-content: stretch;
+  padding: 20px 24px;
+  background: color-mix(in srgb, #000 55%, transparent);
 }
+.af-memedit.is-open { display: flex; }
 .af-memedit[hidden] { display: none !important; }
 .af-memedit [hidden] { display: none !important; }
 .af-memedit-dialog {
-  width: min(920px, 100%);
-  max-height: calc(100vh - 48px);
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
   display: flex;
   flex-direction: column;
   background: var(--af-bg-surface);
@@ -1218,12 +1224,14 @@ body.af-memedit-open { overflow: hidden; }
   display: flex;
   padding: 0 16px;
 }
-.af-memedit-text {
+.af-memedit-text,
+textarea.af-input.af-memedit-text {
+  flex: 1;
   width: 100%;
   max-width: none;
-  min-height: min(52vh, 520px);
-  height: min(52vh, 520px);
-  resize: vertical;
+  min-height: 0;
+  height: auto;
+  resize: none;
   font-family: var(--af-mono);
   font-size: 13.5px;
   line-height: 1.5;

@@ -328,9 +328,6 @@
       return '<article class="chat-memory-card' + (ro ? ' is-readonly' : '') + '" data-label="' + esc(label) + '" tabindex="0">' +
         '<div class="chat-memory-card-head">' +
           '<span class="chat-memory-label">' + esc(label) + (ro ? ' <em>read-only</em>' : '') + '</span>' +
-          '<button type="button" class="af-btn af-btn-secondary af-btn-sm" data-mem-expand="' + esc(label) + '">' +
-            (ro ? 'View' : 'Edit') +
-          '</button>' +
         '</div>' +
         '<span class="chat-memory-meter" title="' + chars + ' / ' + (limit || '∞') + ' chars">' +
           '<span class="chat-memory-meter-fill" style="width:' + fill + '%"></span>' +
@@ -338,6 +335,11 @@
         '<span class="chat-memory-chars">' + fmtTokens(chars) + (limit ? ' / ' + fmtTokens(limit) : '') + '</span>' +
         desc +
         '<p class="chat-memory-snippet">' + esc(snippet(val)) + '</p>' +
+        '<div class="chat-memory-card-actions">' +
+          '<button type="button" class="af-btn af-btn-primary af-btn-sm" data-mem-expand="' + esc(label) + '">' +
+            (ro ? 'View' : 'Edit') +
+          '</button>' +
+        '</div>' +
       '</article>';
     }).join('');
 
@@ -413,13 +415,13 @@
       return '<article class="chat-memory-card chat-archival-card" data-arch-id="' + esc(pid) + '" tabindex="0">' +
         '<div class="chat-memory-card-head">' +
           '<span class="chat-memory-label">' + esc(when || (pid ? pid.slice(0, 12) : 'Passage')) + '</span>' +
-          '<span>' +
-            '<button type="button" class="af-btn af-btn-secondary af-btn-sm" data-arch-view="' + esc(pid) + '">View</button> ' +
-            (pid ? '<button type="button" class="af-btn af-btn-sm af-btn-danger" data-arch-del="' + esc(pid) + '">Delete</button>' : '') +
-          '</span>' +
         '</div>' +
         (pid ? '<p class="chat-archival-meta">' + esc(pid) + '</p>' : '') +
         '<p class="chat-memory-snippet">' + esc(snippet(tx)) + '</p>' +
+        '<div class="chat-memory-card-actions">' +
+          '<button type="button" class="af-btn af-btn-primary af-btn-sm" data-arch-view="' + esc(pid) + '">View</button>' +
+          (pid ? '<button type="button" class="af-btn af-btn-sm af-btn-danger" data-arch-del="' + esc(pid) + '">Delete</button>' : '') +
+        '</div>' +
       '</article>';
     }).join('') + (state.archivalHasMore
       ? '<button type="button" class="af-btn af-btn-secondary" id="chat-archival-more">Load more</button>'

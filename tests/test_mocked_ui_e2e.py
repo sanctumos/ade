@@ -525,13 +525,25 @@ def test_chat_context_bar_and_memory_panel(page):
     edit_btn = persona.locator("[data-mem-expand]")
     assert edit_btn.is_visible()
     assert edit_btn.inner_text() == "Edit"
+    assert "af-btn-primary" in (edit_btn.get_attribute("class") or "")
     assert "I am a test agent" in persona.locator(".chat-memory-snippet").inner_text()
     assert page.locator('.chat-memory-card[data-label="system_recent_context"] [data-mem-expand]').inner_text() == "View"
     artifacts = os.path.join(os.path.dirname(__file__), "artifacts")
     os.makedirs(artifacts, exist_ok=True)
     page.locator("#chat-memory-panel").screenshot(path=os.path.join(artifacts, "chat-memory-panel.png"))
     edit_btn.click()
-    page.locator(".af-memedit").wait_for(state="visible", timeout=3000)
+    overlay = page.locator(".af-memedit")
+    overlay.wait_for(state="visible", timeout=3000)
+    assert "is-open" in (overlay.get_attribute("class") or "")
+    assert page.evaluate("() => document.querySelector('.af-memedit').parentElement === document.body")
+    assert page.evaluate(
+        "() => !document.getElementById('chat-memory-panel').contains(document.querySelector('.af-memedit'))"
+    )
+    box = overlay.bounding_box()
+    vp = page.viewport_size
+    assert box and vp
+    assert box["width"] >= vp["width"] - 8, box
+    assert box["height"] >= vp["height"] - 8, box
     assert page.locator("#af-memedit-title").inner_text() == "persona"
     assert page.locator(".af-memedit-text").input_value() == "I am a test agent."
     page.screenshot(path=os.path.join(artifacts, "chat-memory-editor.png"))
@@ -625,7 +637,13 @@ def test_chat_archival_memory_panel(page):
     page.locator("#chat-memory-panel").screenshot(path=os.path.join(artifacts, "chat-archival-panel-mobile.png"))
     page.set_viewport_size({"width": 1280, "height": 800})
     page.locator('.chat-archival-card[data-arch-id="p-note"] [data-arch-view]').click()
-    page.locator(".af-memedit").wait_for(state="visible", timeout=3000)
+    overlay = page.locator(".af-memedit")
+    overlay.wait_for(state="visible", timeout=3000)
+    box = overlay.bounding_box()
+    vp = page.viewport_size
+    assert box and vp
+    assert box["width"] >= vp["width"] - 8, box
+    assert box["height"] >= vp["height"] - 8, box
     assert "Archival" in page.locator("#af-memedit-title").inner_text()
     assert page.locator(".af-memedit-text").input_value() == "Otto is Mark's dev partner."
     assert page.evaluate("() => document.querySelector('[data-memedit=\"save\"]').hidden")
