@@ -20,8 +20,13 @@ def test_ade_client_exposes_stream_and_archival(page):
             hasArchCreate: typeof a.createArchivalMemory === 'function',
             hasArchDel: typeof a.deleteArchivalMemory === 'function',
             hasArchSearch: typeof a.searchArchivalMemory === 'function',
+            hasExport: typeof a.exportAgent === 'function',
+            hasImport: typeof a.importAgent === 'function',
+            hasDownloadAf: typeof a.downloadAf === 'function',
+            hasCreateTool: typeof a.createTool === 'function',
           };
         }"""
     )
     assert api["hasStream"] and api["hasPrefer"]
     assert api["hasArchList"] and api["hasArchCreate"] and api["hasArchDel"] and api["hasArchSearch"]
+    assert api["hasExport"] and api["hasImport"] and api["hasDownloadAf"] and api["hasCreateTool"]

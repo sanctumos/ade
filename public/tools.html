@@ -12,15 +12,25 @@
   <div class="af-layout" data-ade-nav="tools">
     <span id="ade-nav-inject"></span>
     <main class="af-main">
-      <button type="button" class="af-nav-toggle" id="nav-toggle" aria-label="Open menu">≡</button>
-      <h1>
-        <span class="af-tip">
-          <span class="af-tip-label">Tools</span>
-          <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-tools-page" aria-label="Explain: Tools">?</button>
-          <span id="af-tip-tools-page" role="tooltip" class="af-tip-bubble" hidden>Directory of every tool on your Letta server. Grouped like the agent Tools tab: short tool name, MCP server as a section. Attach tools on an agent’s Tools tab — this page is browse-only.</span>
-        </span>
-      </h1>
-      <p class="af-muted">Browse tools by MCP server. Attach them from an agent’s Tools tab.</p>
+      <div class="af-page-head">
+        <div class="af-page-head-main">
+          <button type="button" class="af-nav-toggle" id="nav-toggle" aria-label="Open menu">≡</button>
+          <div>
+            <h1>
+              <span class="af-tip">
+                <span class="af-tip-label">Tools</span>
+                <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-tools-page" aria-label="Explain: Tools">?</button>
+                <span id="af-tip-tools-page" role="tooltip" class="af-tip-bubble" hidden>Directory of every tool on your Letta server. Create custom Python tools here. MCP tools come from servers on the MCP page. Attach any of them on an agent’s Tools tab.</span>
+              </span>
+            </h1>
+            <p class="af-lede">Custom tools you write, plus built-in and MCP tools from this Letta server.</p>
+          </div>
+        </div>
+        <div class="af-page-head-actions">
+          <button type="button" class="af-btn af-btn-primary" id="new-tool-btn"><span data-af-icon="plus"></span>New custom tool</button>
+        </div>
+      </div>
+      <p class="af-muted">Attach tools on an agent’s Tools tab. Custom tools can be edited here; built-in and MCP tools are listed only.</p>
       <div id="tools-dir-toolbar" class="af-inline af-mb af-hidden">
         <span id="tools-dir-count" class="af-badge af-badge-accent">—</span>
         <input type="search" id="tools-dir-filter" class="af-input af-input-sm" placeholder="Search tool or server…" autocomplete="off" aria-label="Filter tools" />
@@ -33,6 +43,7 @@
   <script src="tip.js"></script>
   <script src="app.js"></script>
   <script src="tools-ui.js"></script>
+  <script src="tool-editor.js"></script>
   <script>
     var listEl = document.getElementById('list');
     var errorEl = document.getElementById('error');
@@ -56,17 +67,37 @@
       });
     }
 
-    filter.addEventListener('input', applyFilter);
+    function bindEditButtons() {
+      listEl.querySelectorAll('[data-tool-edit]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var tid = btn.getAttribute('data-tool-edit');
+          if (!tid || !window.ADE_TOOL_EDITOR) return;
+          window.ADE.getTool(tid).then(function (t) {
+            window.ADE_TOOL_EDITOR.open({
+              toolId: t.id || tid,
+              name: t.name,
+              description: t.description,
+              source_code: t.source_code,
+              pip_requirements: t.pip_requirements,
+              onSaved: loadTools,
+              onDeleted: loadTools
+            });
+          }).catch(function (e) {
+            errorEl.innerHTML = '<div class="af-alert af-alert-danger" role="alert">' + e.message + '</div>';
+          });
+        });
+      });
+    }
 
-    window.ADE.listTools().then(function (d) {
+    function renderTools(tools) {
       var UI = window.ADE_TOOLS_UI;
-      var tools = norm(d);
       if (!UI) {
         listEl.innerHTML = '<p class="af-alert af-alert-warn">tools-ui.js failed to load.</p>';
         return;
       }
       if (!tools.length) {
-        listEl.innerHTML = '<p class="af-muted" style="padding:12px">No tools yet. Add MCP servers or create server tools.</p>';
+        toolbar.classList.add('af-hidden');
+        listEl.innerHTML = '<p class="af-muted" style="padding:12px">No tools yet. Add MCP servers or create a custom tool.</p>';
         return;
       }
       toolbar.classList.remove('af-hidden');
@@ -79,7 +110,10 @@
           retiredCount + ' such tools are under Retired.</p>';
       }
       function rows(list) {
-        return list.map(function (t) { return UI.toolRowHtml(t, { checkbox: false }); }).join('');
+        return list.map(function (t) { return UI.toolRowHtml(t, { checkbox: false, edit: true }); }).join('');
+      }
+      if (grouped.other.length) {
+        html += UI.detailsHtml('Custom', grouped.other.length, rows(grouped.other), true);
       }
       if (grouped.builtin.length) {
         html += UI.detailsHtml('Built-in & core', grouped.builtin.length, rows(grouped.builtin), grouped.builtin.length <= 24);
@@ -87,9 +121,6 @@
       grouped.mcpActive.forEach(function (bucket) {
         html += UI.detailsHtml('MCP · ' + bucket.server, bucket.tools.length, rows(bucket.tools), false);
       });
-      if (grouped.other.length) {
-        html += UI.detailsHtml('Other', grouped.other.length, rows(grouped.other), false);
-      }
       if (grouped.mcpRetired.length) {
         var retiredBody = grouped.mcpRetired.map(function (bucket) {
           return UI.detailsHtml('Retired · ' + bucket.server, bucket.tools.length, rows(bucket.tools), false);
@@ -98,9 +129,27 @@
       }
       listEl.innerHTML = html;
       applyFilter();
-    }).catch(function (e) {
-      errorEl.innerHTML = '<div class="af-alert af-alert-danger" role="alert">' + e.message + '</div>';
+      bindEditButtons();
+    }
+
+    function loadTools() {
+      errorEl.innerHTML = '';
+      return window.ADE.listTools().then(function (d) {
+        renderTools(norm(d));
+      }).catch(function (e) {
+        errorEl.innerHTML = '<div class="af-alert af-alert-danger" role="alert">' + e.message + '</div>';
+      });
+    }
+
+    filter.addEventListener('input', applyFilter);
+    document.getElementById('new-tool-btn').addEventListener('click', function () {
+      if (!window.ADE_TOOL_EDITOR) return;
+      window.ADE_TOOL_EDITOR.open({
+        onSaved: loadTools,
+        onDeleted: loadTools
+      });
     });
+    loadTools();
   </script>
 </body>
 </html>

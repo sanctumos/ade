@@ -19,6 +19,9 @@
     trash: svgIcon('<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>'),
     sliders: svgIcon('<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>'),
     plus: svgIcon('<path d="M12 5v14M5 12h14"/>'),
+    search: svgIcon('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>'),
+    download: svgIcon('<path d="M12 3v12M7 11l5 5 5-5"/><path d="M5 21h14"/>'),
+    upload: svgIcon('<path d="M12 21V9M7 13l5-5 5 5"/><path d="M5 3h14"/>'),
     chevron: svgIcon('<path d="m6 9 6 6 6-6"/>'),
     arrow: svgIcon('<path d="M5 12h14M13 6l6 6-6 6"/>'),
     panelCollapse: svgIcon('<path d="M15 18l-6-6 6-6"/><path d="M9 4v16"/>'),
@@ -399,16 +402,58 @@
   function apiFetch(path, options) {
     options = options || {};
     var url = apiUrl(path);
-    var headers = { 'Content-Type': 'application/json' };
+    var isForm = typeof FormData !== 'undefined' && options.body instanceof FormData;
+    var headers = {};
+    if (!isForm) headers['Content-Type'] = 'application/json';
     var key = getConfig().key;
     if (key) headers['Authorization'] = 'Bearer ' + key;
     if (options.headers) Object.assign(headers, options.headers);
+    if (isForm && headers['Content-Type']) delete headers['Content-Type'];
     return fetch(url, Object.assign({}, options, { headers: headers })).then(function (res) {
       if (!res.ok) return res.text().then(function (t) { throw new Error('API ' + res.status + ': ' + (t || res.statusText)); });
       var ct = res.headers.get('content-type');
       if (ct && ct.indexOf('application/json') !== -1) return res.json();
       return res.text();
     });
+  }
+
+  function safeAfFilename(name) {
+    var s = String(name || 'agent').replace(/[^\w.\-]+/g, '_').replace(/^_+|_+$/g, '');
+    if (!s) s = 'agent';
+    if (!/\.af$/i.test(s)) s += '.af';
+    return s;
+  }
+
+  function downloadAf(filename, data) {
+    var json = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+    var blob = new Blob([json], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = safeAfFilename(filename);
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+  }
+
+  function exportAgent(agentId, params) {
+    var q = '';
+    if (params && Object.keys(params).length) q = '?' + new URLSearchParams(params).toString();
+    return apiFetch('/v1/agents/' + agentId + '/export' + q);
+  }
+
+  function importAgent(file, opts) {
+    opts = opts || {};
+    var fd = new FormData();
+    fd.append('file', file, (file && file.name) || 'agent.af');
+    fd.append('strip_messages', opts.strip_messages ? 'true' : 'false');
+    fd.append('append_copy_suffix', opts.append_copy_suffix === false ? 'false' : 'true');
+    if (opts.override_existing_tools === false) fd.append('override_existing_tools', 'false');
+    if (opts.name) fd.append('name', opts.name);
+    if (opts.model) fd.append('model', opts.model);
+    if (opts.embedding) fd.append('embedding', opts.embedding);
+    return apiFetch('/v1/agents/import', { method: 'POST', body: fd });
   }
 
   /**
@@ -614,6 +659,10 @@
     createAgent: function (body) { return apiFetch('/v1/agents/', { method: 'POST', body: JSON.stringify(body) }); },
     updateAgent: function (id, body) { return apiFetch('/v1/agents/' + id, { method: 'PATCH', body: JSON.stringify(body) }); },
     deleteAgent: function (id) { return apiFetch('/v1/agents/' + id, { method: 'DELETE' }); },
+    exportAgent: exportAgent,
+    importAgent: importAgent,
+    downloadAf: downloadAf,
+    safeAfFilename: safeAfFilename,
     cancelAgentMessages: function (agentId, body) { return apiFetch('/v1/agents/' + agentId + '/messages/cancel', { method: 'POST', body: JSON.stringify(body || {}) }); },
     sendMessage: function (agentId, body) { return apiFetch('/v1/agents/' + agentId + '/messages', { method: 'POST', body: JSON.stringify(normalizeAgentSendBody(body)) }); },
     sendMessageStream: sendMessageStream,

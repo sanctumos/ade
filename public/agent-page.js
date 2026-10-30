@@ -783,6 +783,23 @@
     btn.addEventListener('click', saveAgentConfiguration);
   });
 
+  (function setupExportAf() {
+    var btn = document.getElementById('export-agent-btn');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      btn.disabled = true;
+      errorEl.innerHTML = '';
+      window.ADE.exportAgent(id).then(function (data) {
+        var nm = (currentAgent && (currentAgent.name || currentAgent.agent_name)) || id;
+        window.ADE.downloadAf(nm, data);
+      }).catch(function (e) {
+        showErr(e.message);
+      }).finally(function () {
+        btn.disabled = false;
+      });
+    });
+  })();
+
   bindDual('llm-context-window-slider', 'llm-context-window', updateContextReadout);
   bindDual('llm-temperature-slider', 'llm-temperature');
   bindDual('llm-max-tokens-slider', 'llm-max-tokens');

@@ -23,6 +23,7 @@
           </div>
         </div>
         <div class="chat-header-actions">
+          <button type="button" class="af-btn af-btn-secondary af-btn-sm" id="chat-find-open" title="Search this conversation" aria-label="Search this conversation" aria-controls="chat-find" aria-expanded="false"><span id="chat-find-open-icon"></span><span>Search</span></button>
           <span class="af-tip">
             <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-chat-configure" aria-label="Explain: Configure">?</button>
             <span id="af-tip-chat-configure" role="tooltip" class="af-tip-bubble" hidden>Opens this agent’s model, tools, core memory, and archival settings.</span>
@@ -30,6 +31,14 @@
           <a href="agent.html" id="config-agent-link" class="af-btn af-btn-secondary af-btn-sm"><span id="config-agent-icon"></span><span>Configure</span></a>
         </div>
       </header>
+      <div id="chat-find" class="chat-find" hidden>
+        <label class="visually-hidden" for="chat-find-q">Search this conversation</label>
+        <input type="search" class="af-input chat-find-input" id="chat-find-q" placeholder="Search this conversation…" autocomplete="off" />
+        <span class="chat-find-count" id="chat-find-count" aria-live="polite">0 / 0</span>
+        <button type="button" class="af-btn af-btn-ghost af-btn-sm" id="chat-find-prev" title="Previous match">Prev</button>
+        <button type="button" class="af-btn af-btn-ghost af-btn-sm" id="chat-find-next" title="Next match">Next</button>
+        <button type="button" class="af-btn af-btn-ghost af-btn-sm" id="chat-find-close" title="Close search">Close</button>
+      </div>
       <div id="chat-context-bar" class="chat-context-bar" aria-live="polite">
         <div class="chat-ctx-empty">Select an agent to see context usage</div>
       </div>
@@ -118,6 +127,7 @@
     var knownAgents = [];
     document.getElementById('send-btn').innerHTML = window.ADE.icons.send;
     document.getElementById('config-agent-icon').outerHTML = window.ADE.icons.sliders;
+    document.getElementById('chat-find-open-icon').outerHTML = window.ADE.icons.search;
 
     function scrollToBottom() { scrollEl.scrollTop = scrollEl.scrollHeight; }
 
@@ -545,6 +555,149 @@
       return wrap;
     }
 
+    function searchableText(m) {
+      var bits = [];
+      var ut = userFacingContent(m);
+      var at = assistantFacingContent(m);
+      var flat = legacyFlatContent(m);
+      if (ut) bits.push(ut);
+      if (at) bits.push(at);
+      if (flat) bits.push(flat);
+      if (m && m.reasoning) bits.push(String(m.reasoning));
+      collectToolCalls(m || {}).forEach(function (tc) {
+        if (tc && tc.name) bits.push(String(tc.name));
+        if (tc && tc.arguments) bits.push(String(tc.arguments));
+      });
+      if (m && m.tool_return != null) bits.push(typeof m.tool_return === 'string' ? m.tool_return : JSON.stringify(m.tool_return));
+      return bits.join('\n');
+    }
+
+    function attachSearchMeta(el, m) {
+      if (!el || !m) return;
+      var mid = m.id != null ? m.id : m.otid;
+      if (mid != null) el.setAttribute('data-msg-id', String(mid));
+      el.setAttribute('data-chat-search', searchableText(m).toLowerCase());
+    }
+
+    var chatFind = (function () {
+      var bar = document.getElementById('chat-find');
+      var input = document.getElementById('chat-find-q');
+      var countEl = document.getElementById('chat-find-count');
+      var openBtn = document.getElementById('chat-find-open');
+      var hits = [];
+      var idx = -1;
+      var lastQ = '';
+
+      function isOpen() { return bar && !bar.hidden; }
+
+      function clearMarks() {
+        messagesEl.querySelectorAll('.chat-find-hit, .chat-find-current').forEach(function (el) {
+          el.classList.remove('chat-find-hit', 'chat-find-current');
+        });
+      }
+
+      function collectHits(q) {
+        hits = [];
+        if (!q) return;
+        messagesEl.querySelectorAll('[data-chat-search]').forEach(function (el) {
+          var blob = el.getAttribute('data-chat-search') || '';
+          if (blob.indexOf(q) !== -1) hits.push(el);
+        });
+      }
+
+      function paint() {
+        clearMarks();
+        hits.forEach(function (el, i) {
+          el.classList.add('chat-find-hit');
+          if (i === idx) el.classList.add('chat-find-current');
+        });
+        if (countEl) {
+          countEl.textContent = hits.length ? ((idx + 1) + ' / ' + hits.length) : '0 / 0';
+        }
+        if (idx >= 0 && hits[idx]) {
+          hits[idx].scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+      }
+
+      function run(keepIdx) {
+        var q = (input.value || '').trim().toLowerCase();
+        lastQ = q;
+        collectHits(q);
+        if (!hits.length) {
+          idx = -1;
+        } else if (keepIdx && idx >= 0 && idx < hits.length) {
+          /* stay */
+        } else {
+          idx = 0;
+        }
+        paint();
+      }
+
+      function step(dir) {
+        if (!hits.length) return;
+        idx = (idx + dir + hits.length) % hits.length;
+        paint();
+      }
+
+      function open() {
+        if (!bar) return;
+        bar.hidden = false;
+        if (openBtn) openBtn.setAttribute('aria-expanded', 'true');
+        input.focus();
+        input.select();
+        run(true);
+      }
+
+      function close() {
+        if (!bar) return;
+        bar.hidden = true;
+        if (openBtn) openBtn.setAttribute('aria-expanded', 'false');
+        clearMarks();
+        hits = [];
+        idx = -1;
+        if (countEl) countEl.textContent = '0 / 0';
+      }
+
+      function toggle() {
+        if (isOpen()) close();
+        else open();
+      }
+
+      if (openBtn) openBtn.addEventListener('click', function () { if (isOpen()) close(); else open(); });
+      document.getElementById('chat-find-close').addEventListener('click', close);
+      document.getElementById('chat-find-prev').addEventListener('click', function () { step(-1); });
+      document.getElementById('chat-find-next').addEventListener('click', function () { step(1); });
+      input.addEventListener('input', function () { run(false); });
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          step(e.shiftKey ? -1 : 1);
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          close();
+        }
+      });
+      document.addEventListener('keydown', function (e) {
+        var key = e.key;
+        var findCombo = (key === 'f' || key === 'F') && (e.metaKey || e.ctrlKey) && !e.altKey;
+        if (findCombo) {
+          e.preventDefault();
+          open();
+          return;
+        }
+        if (key === 'Escape' && isOpen() && document.activeElement !== inputEl) {
+          close();
+        }
+      });
+
+      return {
+        onRendered: function () {
+          if (!isOpen() || !lastQ) return;
+          run(true);
+        }
+      };
+    })();
+
     function renderHistory(msgs) {
       messagesEl.innerHTML = '';
       indexToolReturns(msgs);
@@ -560,14 +713,17 @@
           var tid = m.tool_call_id ? String(m.tool_call_id) : '';
           if (tid && toolReturnsByCallId[tid]) return;
         }
+        attachSearchMeta(el, m);
         messagesEl.appendChild(el);
         shown++;
       });
       if (!shown) {
         renderEmpty('No messages yet', 'Say hello below to start the conversation.');
+        chatFind.onRendered();
         return;
       }
       scrollToBottom();
+      chatFind.onRendered();
     }
 
     function renderEmpty(title, text) {
