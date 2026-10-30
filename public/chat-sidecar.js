@@ -25,7 +25,7 @@
     blocksBusy: false,
     blocksQueued: false,
     contextQueued: false,
-    openBlock: null
+    blocks: []
   };
 
   function esc(s) {
@@ -61,8 +61,36 @@
   function blocksFingerprint(blocks) {
     return blocks.map(function (b) {
       var v = blockValue(b);
-      return [b.id || '', b.label || '', b.limit || '', v.length, b.read_only ? 1 : 0].join(':');
+      return [b.id || '', b.label || '', b.limit || '', v, b.read_only ? 1 : 0].join(':');
     }).join('|');
+  }
+  function snippet(val) {
+    var t = String(val || '').replace(/\s+/g, ' ').trim();
+    if (!t) return '(empty)';
+    return t.length > 160 ? t.slice(0, 157) + '…' : t;
+  }
+  function openMemoryEditor(label) {
+    var block = null;
+    var i;
+    for (i = 0; i < state.blocks.length; i++) {
+      if ((state.blocks[i].label || String(state.blocks[i].id || 'block')) === label) {
+        block = state.blocks[i];
+        break;
+      }
+    }
+    if (!block || !window.ADE_MEMORY_EDITOR || !state.agentId) return;
+    window.ADE_MEMORY_EDITOR.open({
+      agentId: state.agentId,
+      label: label,
+      value: blockValue(block),
+      description: block.description,
+      limit: block.limit,
+      readOnly: !!block.read_only,
+      onSaved: function () {
+        state.blocksFp = '';
+        refreshBlocks();
+      }
+    });
   }
   function contextFingerprint(ctx) {
     if (!ctx) return '';
@@ -219,26 +247,22 @@
       var limit = Number(b.limit) || 0;
       var chars = val.length;
       var fill = limit > 0 ? Math.min(100, Math.round((chars / limit) * 1000) / 10) : 0;
-      var open = state.openBlock === label;
       var ro = !!b.read_only;
       var desc = b.description ? '<p class="chat-memory-desc">' + esc(b.description) + '</p>' : '';
-      return '<details class="chat-memory-card' + (ro ? ' is-readonly' : '') + '"' +
-        (open ? ' open' : '') + ' data-label="' + esc(label) + '">' +
-        '<summary>' +
+      return '<article class="chat-memory-card' + (ro ? ' is-readonly' : '') + '" data-label="' + esc(label) + '" tabindex="0">' +
+        '<div class="chat-memory-card-head">' +
           '<span class="chat-memory-label">' + esc(label) + (ro ? ' <em>read-only</em>' : '') + '</span>' +
-          '<span class="chat-memory-meter" title="' + chars + ' / ' + (limit || '∞') + ' chars">' +
-            '<span class="chat-memory-meter-fill" style="width:' + fill + '%"></span>' +
-          '</span>' +
-          '<span class="chat-memory-chars">' + fmtTokens(chars) + (limit ? ' / ' + fmtTokens(limit) : '') + '</span>' +
-        '</summary>' +
-        desc +
-        '<pre class="chat-memory-value">' + esc(val || '(empty)') + '</pre>' +
-        '<div class="chat-memory-actions">' +
-          '<button type="button" class="af-btn af-btn-ghost af-btn-sm" data-mem-expand="' + esc(label) + '">' +
-            (ro ? 'View larger' : 'Larger editor') +
+          '<button type="button" class="af-btn af-btn-secondary af-btn-sm" data-mem-expand="' + esc(label) + '">' +
+            (ro ? 'View' : 'Edit') +
           '</button>' +
         '</div>' +
-        '</details>';
+        '<span class="chat-memory-meter" title="' + chars + ' / ' + (limit || '∞') + ' chars">' +
+          '<span class="chat-memory-meter-fill" style="width:' + fill + '%"></span>' +
+        '</span>' +
+        '<span class="chat-memory-chars">' + fmtTokens(chars) + (limit ? ' / ' + fmtTokens(limit) : '') + '</span>' +
+        desc +
+        '<p class="chat-memory-snippet">' + esc(snippet(val)) + '</p>' +
+      '</article>';
     }).join('');
 
     state.blocks = blocks;
@@ -246,32 +270,18 @@
       btn.addEventListener('click', function (e) {
         e.preventDefault();
         e.stopPropagation();
-        var label = btn.getAttribute('data-mem-expand');
-        var block = null;
-        for (var i = 0; i < state.blocks.length; i++) {
-          var candidate = state.blocks[i].label || String(state.blocks[i].id || 'block');
-          if (candidate === label) { block = state.blocks[i]; break; }
-        }
-        if (!block || !window.ADE_MEMORY_EDITOR || !state.agentId) return;
-        window.ADE_MEMORY_EDITOR.open({
-          agentId: state.agentId,
-          label: label,
-          value: blockValue(block),
-          description: block.description,
-          limit: block.limit,
-          readOnly: !!block.read_only,
-          onSaved: function () {
-            state.blocksFp = '';
-            refreshBlocks();
-          }
-        });
+        openMemoryEditor(btn.getAttribute('data-mem-expand'));
       });
     });
-
-    host.querySelectorAll('details.chat-memory-card').forEach(function (el) {
-      el.addEventListener('toggle', function () {
-        if (el.open) state.openBlock = el.getAttribute('data-label');
-        else if (state.openBlock === el.getAttribute('data-label')) state.openBlock = null;
+    host.querySelectorAll('.chat-memory-card').forEach(function (el) {
+      el.addEventListener('click', function (e) {
+        if (e.target.closest('[data-mem-expand]')) return;
+        openMemoryEditor(el.getAttribute('data-label'));
+      });
+      el.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault();
+        openMemoryEditor(el.getAttribute('data-label'));
       });
     });
   }
@@ -372,7 +382,6 @@
     state.agentId = agentId || null;
     state.blocksFp = '';
     state.contextFp = '';
-    state.openBlock = null;
     clearTimers();
     var bar = document.getElementById('chat-context-bar');
     var list = document.getElementById('chat-memory-list');

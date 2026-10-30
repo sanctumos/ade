@@ -42,6 +42,7 @@ class MockLetta:
         self.posts: list[dict] = []
         self.message_headers: list[dict] = []
         self.get_agent_headers: list[dict] = []
+        self.memory_patches: list[dict] = []
         self.stream_runs: list[str] = []
         self.active_runs: list[dict] = []
         self.active_polls = 0
@@ -161,6 +162,15 @@ class MockLetta:
             self.messages.append({"id": "a9", "message_type": "assistant_message", "content": "pong"})
             sse = 'data: {"message_type":"assistant_message","content":"pong"}\n\ndata: [DONE]\n\n'
             return route.fulfill(status=200, headers={"content-type": "text/event-stream"}, body=sse)
+        if path.startswith(f"/v1/agents/{AGENT_ID}/core-memory/blocks/") and method == "PATCH":
+            label = path.rsplit("/", 1)[-1]
+            body = json.loads(request.post_data or "{}")
+            self.memory_patches.append({"label": label, **body})
+            for block in self.blocks:
+                if block.get("label") == label:
+                    if "value" in body:
+                        block["value"] = body["value"]
+            return self._json(route, {"label": label, "value": body.get("value")})
         if path.rstrip("/") in (
             f"/v1/agents/{AGENT_ID}/core-memory/blocks",
             f"/v1/agents/{AGENT_ID}/core-memory/blocks/",
@@ -297,6 +307,29 @@ def test_save_omits_tools_when_agent_tools_unavailable(page):
     page.wait_for_timeout(500)
     assert mock.patches, "Save did not PATCH"
     assert "tool_ids" not in mock.patches[-1], mock.patches[-1]
+
+
+def test_agent_memory_opens_larger_editor(page):
+    mock = MockLetta()
+    _boot(page, mock)
+    page.goto(f"{BASE}/agent.html?id={AGENT_ID}", wait_until="networkidle")
+    _wait_tools_mounted(page)
+    page.locator('.af-tab[data-tab="memory"]').click()
+    page.wait_for_selector(".af-memory-card", timeout=15000)
+    card = page.locator(".af-memory-card").filter(has_text="persona").first
+    card.locator("button", has_text="Open larger editor").click()
+    page.locator(".af-memedit").wait_for(state="visible", timeout=3000)
+    assert page.locator("#af-memedit-title").inner_text() == "persona"
+    assert page.locator(".af-memedit-text").input_value() == "I am a test agent."
+    artifacts = os.path.join(os.path.dirname(__file__), "artifacts")
+    os.makedirs(artifacts, exist_ok=True)
+    page.screenshot(path=os.path.join(artifacts, "agent-memory-editor.png"))
+    page.locator('[data-memedit="close"]').click()
+    page.wait_for_function("() => document.querySelector('.af-memedit').hidden", timeout=3000)
+    ro = page.locator(".af-memory-card").filter(has_text="system_recent_context").first
+    assert ro.locator("button", has_text="View larger editor").count() == 1
+    assert ro.locator("textarea").evaluate("el => el.readOnly") is True
+    assert ro.locator("button.af-btn-secondary").evaluate("el => el.hidden") is True
 
 
 def test_chat_lanes_and_enter_to_send(page):
@@ -442,10 +475,34 @@ def test_chat_context_bar_and_memory_panel(page):
     mem_tip.wait_for(state="visible", timeout=3000)
     assert "af-tip-fixed" in (mem_tip.get_attribute("class") or "")
     assert "Broca" in mem_tip.inner_text()
+    page.locator(".chat-header-name").click()
+    mem_tip.wait_for(state="hidden")
     assert page.locator("#chat-memory-panel").is_visible()
     assert page.locator("#chat-memory-count").inner_text() == "3"
     assert page.locator('.chat-memory-card[data-label="persona"]').count() == 1
     assert page.locator('.chat-memory-card[data-label="system_recent_context"]').count() == 1
+    persona = page.locator('.chat-memory-card[data-label="persona"]')
+    edit_btn = persona.locator("[data-mem-expand]")
+    assert edit_btn.is_visible()
+    assert edit_btn.inner_text() == "Edit"
+    assert "I am a test agent" in persona.locator(".chat-memory-snippet").inner_text()
+    assert page.locator('.chat-memory-card[data-label="system_recent_context"] [data-mem-expand]').inner_text() == "View"
+    artifacts = os.path.join(os.path.dirname(__file__), "artifacts")
+    os.makedirs(artifacts, exist_ok=True)
+    page.locator("#chat-memory-panel").screenshot(path=os.path.join(artifacts, "chat-memory-panel.png"))
+    edit_btn.click()
+    page.locator(".af-memedit").wait_for(state="visible", timeout=3000)
+    assert page.locator("#af-memedit-title").inner_text() == "persona"
+    assert page.locator(".af-memedit-text").input_value() == "I am a test agent."
+    page.screenshot(path=os.path.join(artifacts, "chat-memory-editor.png"))
+    page.fill(".af-memedit-text", "I am Otto.")
+    page.locator('[data-memedit="save"]').click()
+    page.wait_for_function("() => document.querySelector('.af-memedit').hidden", timeout=5000)
+    assert mock.memory_patches and mock.memory_patches[-1]["value"] == "I am Otto."
+    page.wait_for_function(
+        "() => (document.querySelector('.chat-memory-card[data-label=\"persona\"] .chat-memory-snippet') || {}).textContent.includes('Otto')",
+        timeout=8000,
+    )
     # Live attach: Broca adds a block; bump refreshes the panel (same path as the 4s poll).
     mock.blocks.append(
         {

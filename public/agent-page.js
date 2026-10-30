@@ -467,6 +467,7 @@
       ta.className = 'af-input af-input-wide';
       ta.rows = Math.min(14, Math.max(6, Math.ceil(blockValue(b).length / 80) + 2));
       ta.value = blockValue(b);
+      ta.readOnly = !!b.read_only;
       wrap.appendChild(ta);
       var actions = document.createElement('div');
       actions.className = 'af-memory-actions';
@@ -474,22 +475,13 @@
       btn.type = 'button';
       btn.className = 'af-btn af-btn-secondary af-btn-sm';
       btn.textContent = 'Save "' + label + '"';
+      if (b.read_only) btn.hidden = true;
       var expand = document.createElement('button');
       expand.type = 'button';
-      expand.className = 'af-btn af-btn-ghost af-btn-sm';
-      expand.textContent = b.read_only ? 'View larger' : 'Larger editor';
+      expand.className = 'af-btn af-btn-primary af-btn-sm';
+      expand.textContent = b.read_only ? 'View larger editor' : 'Open larger editor';
       (function (blockLabel, textarea, button, expandBtn, block) {
-        button.onclick = function () {
-          button.disabled = true;
-          errorEl.innerHTML = '';
-          window.ADE.updateAgentMemory(id, blockLabel, { value: textarea.value }).then(function () {
-            button.disabled = false;
-          }).catch(function (e) {
-            showErr(e.message);
-            button.disabled = false;
-          });
-        };
-        expandBtn.onclick = function () {
+        function openLarger() {
           if (!window.ADE_MEMORY_EDITOR) return;
           window.ADE_MEMORY_EDITOR.open({
             agentId: id,
@@ -502,10 +494,22 @@
               textarea.value = value;
             }
           });
+        }
+        button.onclick = function () {
+          button.disabled = true;
+          errorEl.innerHTML = '';
+          window.ADE.updateAgentMemory(id, blockLabel, { value: textarea.value }).then(function () {
+            button.disabled = false;
+          }).catch(function (e) {
+            showErr(e.message);
+            button.disabled = false;
+          });
         };
+        expandBtn.onclick = openLarger;
+        textarea.addEventListener('dblclick', openLarger);
       })(label, ta, btn, expand, b);
-      actions.appendChild(btn);
       actions.appendChild(expand);
+      actions.appendChild(btn);
       wrap.appendChild(actions);
       host.appendChild(wrap);
     });
