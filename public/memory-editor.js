@@ -43,6 +43,7 @@
       if (!window.confirm('Discard unsaved changes to “' + session.label + '”?')) return;
     }
     root.hidden = true;
+    root.classList.remove('is-open');
     document.body.classList.remove('af-memedit-open');
     setFullscreen(false);
     session = null;
@@ -152,9 +153,12 @@
     ta.readOnly = session.readOnly;
     saveBtn.hidden = session.readOnly;
     errEl.textContent = '';
-    setFullscreen(!!opts.fullscreen);
+    /* Cover the ADE, not the 312px memory rail — original ADE advanced editor is a full overlay. */
+    setFullscreen(opts.fullscreen !== false);
     updateCount();
     root.hidden = false;
+    root.classList.add('is-open');
+    if (root.parentNode !== document.body) document.body.appendChild(root);
     document.body.classList.add('af-memedit-open');
     ta.focus();
     var len = ta.value.length;

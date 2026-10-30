@@ -66,9 +66,9 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/><path d="M15 4v16"/></svg>
             </button>
           </div>
-          <div class="chat-memory-tabs" role="tablist" aria-label="Memory type">
-            <button type="button" class="chat-memory-tab is-active" id="chat-mem-tab-core" data-mem-tab="core" role="tab" aria-selected="true" aria-controls="chat-mem-pane-core">Core</button>
-            <button type="button" class="chat-memory-tab" id="chat-mem-tab-archival" data-mem-tab="archival" role="tab" aria-selected="false" aria-controls="chat-mem-pane-archival">Archival</button>
+          <div class="af-tabs chat-memory-tabs" role="tablist" aria-label="Memory type">
+            <button type="button" class="af-tab chat-memory-tab is-active" id="chat-mem-tab-core" data-mem-tab="core" role="tab" aria-selected="true" aria-controls="chat-mem-pane-core">Core</button>
+            <button type="button" class="af-tab chat-memory-tab" id="chat-mem-tab-archival" data-mem-tab="archival" role="tab" aria-selected="false" aria-controls="chat-mem-pane-archival">Archival</button>
           </div>
           <div class="chat-memory-pane is-active" id="chat-mem-pane-core" data-mem-pane="core" role="tabpanel" aria-labelledby="chat-mem-tab-core">
             <div class="chat-memory-list" id="chat-memory-list">
@@ -80,7 +80,7 @@
             <div class="chat-archival-bar">
               <label class="visually-hidden" for="chat-archival-search">Search archival memory</label>
               <input type="search" class="af-input chat-archival-search" id="chat-archival-search" placeholder="Search archival…" autocomplete="off" />
-              <button type="button" class="af-btn af-btn-secondary af-btn-sm" id="chat-archival-add-open">Add</button>
+              <button type="button" class="af-btn af-btn-primary af-btn-sm" id="chat-archival-add-open">Add</button>
             </div>
             <form class="chat-archival-add" id="chat-archival-add" hidden>
               <label class="visually-hidden" for="chat-archival-text">New archival passage</label>
