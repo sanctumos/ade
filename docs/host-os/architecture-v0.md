@@ -128,7 +128,7 @@ If Broca is not installed, Registry says so (facts). ADE offers installer / kern
 
 Default: **small OSS in `sanctumos/installer`** — Python (already on every Sanctum box) + bootstrap contracts + shell recipes. Stdlib-first. No Ansible, no Letta Code, no new language. Experimentation is *environment adaptation* (WSL / Docker / proot), not “which agent framework.”
 
-**Mark (2026-10-31):** the interactive debugger for that harness is **gptme**, not Goose. Compact surface now (`gptme[minimal]`, `--system short`, `--tools shell,read,patch,save`). Freeze to an executable is **later packaging**, not I0. Same agent later as a **brain doctor** (Kernel / agent-tree diagnostics) while Letta legacy is pared and parts move to Rust microservices — gptme stays **outside** the Kernel.
+**Mark (2026-10-31):** the interactive debugger for that harness is **gptme**, not Goose. Compact surface now (`gptme[minimal]`, `-y` / `--no-confirm`, `--system short`, `--tools shell,read,patch,save`). **No HITL** — tools run without yes/no; named session stays (not `--non-interactive`). Freeze to an executable is **later packaging**, not I0. Same agent later as a **brain doctor** (Kernel / agent-tree diagnostics) while Letta legacy is pared and parts move to Rust microservices — gptme stays **outside** the Kernel.
 
 Risk if it grows: ansible-at-home. Stay a runner.
 
@@ -275,6 +275,7 @@ Do not start at ADE Chat-through-Broca without Registry. Do not build a universa
 | 2026-10-31 | **Split:** Registry = hive + light Broca transport. **Installer** = adaptive harness (experimental) that **polls Registry**. Apply is not Registry’s job. |
 | 2026-10-31 | **Letta Code out:** family product (Node stateful coding agent), not the installer. Harness = lightweight OSS local devops, Python-in-installer default. |
 | 2026-10-31 | **gptme locked** as installer debugger (compact allowlist). Goose out — not a gptme port, not the product. Freeze to executable later (PyInstaller / shim); not I0. Later role: brain doctor for Kernel/agent trees. Kernel→Rust is separate. |
+| 2026-10-31 | gptme **no HITL:** `-y` / `--no-confirm`. Constraint is allowlist + later freeze, not yes/no on shell. Not `--non-interactive`. |
 
 ---
 

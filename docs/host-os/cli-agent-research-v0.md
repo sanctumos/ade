@@ -140,15 +140,17 @@ Aider is the famous Python pair-programmer: git commits, repo map, `/run` for sh
 ```text
 uv tool install 'gptme[minimal]'   # extra is empty; ARM/musl/Termux-friendly
 # or pipx; no [server] [browser] [tui] [computer]
-gptme --name installer-proot \
+gptme -y --name installer-proot \
   --system short \
   --tools shell,read,patch,save \
   "Registry sysinfo says proot. Bootstrap X failed. Continue from the log."
 # later:
-gptme --name installer-proot -r
+gptme -y --name installer-proot -r
 ```
 
-Venice (or local) as the model. No Node on the target. History is the conversation log on disk. Optional later: a 20-line wrapper that injects `GET /v1/sanctum/registry/sysinfo` into the first prompt. Confirmations **on** for the first spike.
+Venice (or local) as the model. No Node on the target. History is the conversation log on disk. Optional later: a 20-line wrapper that injects `GET /v1/sanctum/registry/sysinfo` into the first prompt.
+
+**No HITL (locked):** `-y` / `--no-confirm` so tools run without yes/no. Wrapper always passes it. Do **not** use `--non-interactive` as the default UX — that is the unattended one-shot that declares victory from a sandbox. Named session stays; confirmations do not. Constraint is the tool allowlist (and later the frozen binary), not a human clicking through shell.
 
 **Not now:** Goose, Pi, Aider, Crush, OpenCode, Hermes, Codex, Letta Code.
 
@@ -156,7 +158,7 @@ Venice (or local) as the model. No Node on the target. History is the conversati
 
 | When | What |
 |------|------|
-| **I0 (this spike)** | `gptme[minimal]` + `--system short` + `--tools` allowlist. Otto-only on a lab box. Do not ship onto every Sanctum install. Do not enable server / TUI / browser / computer-use / MCP garden. |
+| **I0 (this spike)** | `gptme[minimal]` + `-y` + `--system short` + `--tools` allowlist. Otto-only on a lab box. Do not ship onto every Sanctum install. Do not enable server / TUI / browser / computer-use / MCP garden. |
 | **Later (packaging)** | Pin version; freeze to an executable (upstream already has a **PyInstaller** extra used as a Tauri sidecar). That is hardening “loose Python” into a blob, not a Rust rewrite of gptme. A thin Sanctum shim that execs that blob is allowed. |
 | **Later (roles)** | Same compact agent as **installer debugger** and as **brain doctor** (Kernel / Broca / Registry trees after Letta is pared). Not inside the Kernel. Kernel→Rust is a separate rewrite. |
 | **Never this path** | Port gptme to Rust “because Goose exists.” Goose is a different product. |
