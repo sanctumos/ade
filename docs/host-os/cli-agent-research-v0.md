@@ -1,6 +1,6 @@
 # Lightweight CLI agent for installer bootstrap troubleshooting
 
-**Status:** research report · 2026-10-31 · **pick for Mark**
+**Status:** locked · 2026-10-31 · **Mark: gptme. Goose is out.**
 **Job:** occasional local devops while adapting `sanctumos/installer` bootstraps to a box (linux / docker / WSL / proot). Shell + enough session history to debug a failing customize pass. **Not** a Claude Code / Codex / Cursor-class coding agent. Prefer not Node.
 **Corpus host:** NewDev `~/installer-cli-agent-research-temp/` (52-video manifest; **22 transcripts in** when this was filed; batch still running).
 
@@ -10,13 +10,13 @@ Letta Code stays **out** (Node, stateful coding-agent, different fork from Kerne
 
 ## Executive summary
 
-**Use gptme.** It is a Python, MIT-licensed terminal agent with a real stateful shell, named conversations you can resume and search, and a tool allowlist so we can keep it small (`shell` + file read/patch). Practitioners treat it as the simple “lives in your terminal, runs commands, remembers the thread” tool — which is exactly the I0 job: sit with a bootstrap that broke on proot/WSL/docker and work the problem across a session, not one-shot a PR.
+**Locked: gptme.** Goose is not a rewrite of gptme and is not the product we want. Compact/efficient gptme is the installer agent; later it is also the natural **brain-doctor** (Kernel / agent-tree diagnostics). A frozen executable is **on the path, not the first step**.
 
-**Goose is the strong runner-up** if we decide the harness should be **shareable YAML recipes** rather than an interactive debug partner. Official Block videos show `goose session -r`, headless `goose run --recipe`, and a real PATH/zshrc troubleshooting loop that matches “customizing a bootstrap to a system.” It is Rust (not Node), Apache-2.0, AAIF/Linux Foundation. It is also **more product** than Mark asked for (desktop app, MCP garden, cron, subagents).
+It is a Python, MIT-licensed terminal agent with a real stateful shell, named conversations you can resume and search, and a tool allowlist so we can keep it small (`shell` + file read/patch). Practitioners treat it as the simple “lives in your terminal, runs commands, remembers the thread” tool — which is exactly the I0 job: sit with a bootstrap that broke on proot/WSL/docker and work the problem across a session, not one-shot a PR.
+
+**Goose** (Block / AAIF, Rust, Apache-2.0) stays in this report as rejected research. YAML recipes and a compiled binary are real, and they are the wrong shape: desktop, MCP garden, cron, subagents. Kernel moving to Rust later does **not** mean we take Goose.
 
 **Do not** pick Crush (FSL, TUI-pretty, feature-behind), OpenCode (TypeScript/Node, CC-class), Hermes Agent (always-on daemon), Pi (minimal and good — **Node/TypeScript**), Aider (Python but git-pair-programmer, last push May 2026), or Codex/Claude Code.
-
-**Default if Mark does not reply:** gptme, slimmed with `--tools shell,read,patch,save`, named session per bootstrap flavor (`--name installer-proot`). Spike on a lab box, not Moya.
 
 ---
 
@@ -53,8 +53,8 @@ Checked 2026-10-31 via GitHub API + project docs. Stars move; licenses and langu
 
 | Tool | Lang | License | Stars | Shell | Session / history | Fit |
 |------|------|---------|------:|-------|-------------------|-----|
-| **gptme** | Python | MIT | 4.5k | Stateful bash + Python | Named chats, `-r`, `chats search`, fork | **Pick** |
-| **Goose** | Rust | Apache-2.0 | 56k | Developer extension | `goose session -r`, YAML **recipes** | Runner-up (playbooks) |
+| **gptme** | Python | MIT | 4.5k | Stateful bash + Python | Named chats, `-r`, `chats search`, fork | **Locked** |
+| **Goose** | Rust | Apache-2.0 | 56k | Developer extension | `goose session -r`, YAML **recipes** | **Out** (not a gptme port; wrong product) |
 | **Pi** | TypeScript | MIT | 119k | `bash` as one of 4 tools | continue / resume / branch | Good *if* we swallow Node |
 | **Aider** | Python | Apache-2.0 | 50k | `/run` | Chat history file; restore is bolted on | Weak for *this* job; **stale** (last push 2026-05-22) |
 | **Crush** | Go | **FSL-1.1-MIT** | 29k | bash tool + perms | `--continue` / `--session` | Pretty TUI; not OSI today |
@@ -90,7 +90,7 @@ Mark’s bar is “good enough, not beefy.” Crush walkthroughs praise the TUI 
 
 gptme is the one that is **already** a small Python CLI and documents a **minimal context** mode: `--system short --tools shell,read,patch,save` (project docs, not a transcript). That matches “occasional local devops” without forking the product.
 
-**For us:** if we take gptme, ship an allowlist in the installer wrapper. If we take Goose, use **CLI + one recipe**, ignore Desktop.
+**For us:** ship an allowlist in the installer wrapper. Do not take Goose.
 
 ### 3. YAML recipes are the Goose-shaped version of “adapt this bootstrap” (`mixed` — Goose-specific, high leverage)
 
@@ -102,7 +102,7 @@ That maps cleanly onto installer **contracts**: one recipe per bootstrap family,
 >
 > [8] — “Headless mode is a powerful way to use Goose where you just need Goose to do something without any interaction.”
 
-**For us:** if Mark wants the harness to be **files in git** that Ada/Otto/a user can run identically, Goose recipes win. If he wants **Otto-or-owner sitting in a failing bootstrap**, gptme wins. Those are different spikes.
+**For us:** harness contracts stay **files in git** (installer recipes / scripts). gptme is the **interactive debugger** when adaptation is wrong — not Goose recipes as the agent. Those jobs stay split.
 
 ### 4. Environment detection is the actual failure mode (`edge-case` in count, **load-bearing** for Registry)
 
@@ -126,19 +126,20 @@ Aider is the famous Python pair-programmer: git commits, repo map, `/run` for sh
 
 1. **Vendoring Letta Code / OpenCode / Hermes** “because it is in the family / popular.” Wrong weight class.
 2. **Crush in the installer** — FSL is not OSI; Charm TUI is not the job.
-3. **Goose Desktop + 70 MCP servers** on a Sanctum box. CLI + one recipe, or skip Goose.
+3. **Goose** on a Sanctum box (Desktop, CLI, recipes, MCP garden). Mark rejected the product. Kernel-in-Rust later is not a reason to import it.
 4. **Aider as the harness** because it is Python. It will try to commit the user’s disk.
 5. **Headless one-shot** as the first spike. The zsh video is the warning: the agent will declare victory from a sandbox.
 6. **Skipping Registry sysinfo** and asking the LLM to “detect the OS.” Detection is R0; the agent troubleshoots the remainder.
 
 ---
 
-## Recommendation for I0
+## Recommendation for I0 (locked)
 
-**Spike A (default): gptme inside `sanctumos/installer`.**
+**gptme, compact surface, inside `sanctumos/installer` as a wrapper — not the whole gptme product.**
 
 ```text
-pipx install gptme   # or installer-bundled venv
+uv tool install 'gptme[minimal]'   # extra is empty; ARM/musl/Termux-friendly
+# or pipx; no [server] [browser] [tui] [computer]
 gptme --name installer-proot \
   --system short \
   --tools shell,read,patch,save \
@@ -147,21 +148,26 @@ gptme --name installer-proot \
 gptme --name installer-proot -r
 ```
 
-Venice (or local) as the model. No Node on the target. History is the conversation log on disk. Optional later: a 20-line wrapper that injects `GET /v1/sanctum/registry/sysinfo` into the first prompt.
+Venice (or local) as the model. No Node on the target. History is the conversation log on disk. Optional later: a 20-line wrapper that injects `GET /v1/sanctum/registry/sysinfo` into the first prompt. Confirmations **on** for the first spike.
 
-**Spike B (only if Mark wants git-versioned playbooks): Goose CLI + one recipe** `bootstrap-adapt.yaml` with MiniJinja over sysinfo parameters. No Desktop. Lab box only.
+**Not now:** Goose, Pi, Aider, Crush, OpenCode, Hermes, Codex, Letta Code.
 
-**Not now:** Pi (Node), Aider, Crush, OpenCode, Hermes, Codex, Letta Code.
+### Compact now vs freeze later
+
+| When | What |
+|------|------|
+| **I0 (this spike)** | `gptme[minimal]` + `--system short` + `--tools` allowlist. Otto-only on a lab box. Do not ship onto every Sanctum install. Do not enable server / TUI / browser / computer-use / MCP garden. |
+| **Later (packaging)** | Pin version; freeze to an executable (upstream already has a **PyInstaller** extra used as a Tauri sidecar). That is hardening “loose Python” into a blob, not a Rust rewrite of gptme. A thin Sanctum shim that execs that blob is allowed. |
+| **Later (roles)** | Same compact agent as **installer debugger** and as **brain doctor** (Kernel / Broca / Registry trees after Letta is pared). Not inside the Kernel. Kernel→Rust is a separate rewrite. |
+| **Never this path** | Port gptme to Rust “because Goose exists.” Goose is a different product. |
 
 ---
 
-## Open questions for Mark
+## Open questions (remaining)
 
-1. **Interactive debug partner (gptme)** vs **recipe files (Goose)** vs **swallow Node for Pi’s four tools**?
+1. ~~gptme vs Goose vs Pi~~ **gptme.**
 2. May the spike use **Venice** as the model, or must it run local-only on airgapped boxes?
-3. Is “bundled in installer” a **hard pipx/venv** on the target, or Otto-only on the machine doing the customize?
-
-**Default if no reply:** Spike A, Venice OK on networked lab, Otto-only first (do not ship gptme onto every Sanctum install until I0 works).
+3. First ship is **Otto-only** (locked for I0). When (if ever) does a frozen binary land **on the target box**?
 
 ---
 

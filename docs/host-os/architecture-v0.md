@@ -128,6 +128,8 @@ If Broca is not installed, Registry says so (facts). ADE offers installer / kern
 
 Default: **small OSS in `sanctumos/installer`** — Python (already on every Sanctum box) + bootstrap contracts + shell recipes. Stdlib-first. No Ansible, no Letta Code, no new language. Experimentation is *environment adaptation* (WSL / Docker / proot), not “which agent framework.”
 
+**Mark (2026-10-31):** the interactive debugger for that harness is **gptme**, not Goose. Compact surface now (`gptme[minimal]`, `--system short`, `--tools shell,read,patch,save`). Freeze to an executable is **later packaging**, not I0. Same agent later as a **brain doctor** (Kernel / agent-tree diagnostics) while Letta legacy is pared and parts move to Rust microservices — gptme stays **outside** the Kernel.
+
 Risk if it grows: ansible-at-home. Stay a runner.
 
 This will take **experimentation** on real boxes (WSL, proot, Docker, bare Linux). Peacekeeper / throwaway. **Not moya.**
@@ -216,7 +218,7 @@ Do not start at ADE Chat-through-Broca without Registry. Do not build a universa
 | **R0** | Registry process: health, **sysinfo**, empty inventory | ADE proxy splits; `GET .../registry/sysinfo` tells linux vs docker vs WSL vs proot |
 | **R1** | Inventory keys + desired/actual **as data** | No apply yet. CLI can `PUT` facts. |
 | **R2** | Light Broca transport for one `uid` | ADE Chat **can** go Broca when Broca already exists; else honest miss |
-| **I0** | Harness spike: **one** bootstrap, **two** environments, poll Registry | Same `broca-agent` contract on e.g. local Linux + proot **without** a second script tree |
+| **I0** | Harness spike: **one** bootstrap, **two** environments, poll Registry; **gptme compact** as the debugger when adapt fails | Same `broca-agent` contract on e.g. local Linux + proot **without** a second script tree |
 | **I1** | Write-back actual/ports; refuse overwrite on `drift` | Fingerprint rule |
 | **I2** | SMCP as a bootstrap through the same harness | |
 | **R3 / ADE** | Chat default = Registry transport; Kernel labeled | |
@@ -253,7 +255,7 @@ Do not start at ADE Chat-through-Broca without Registry. Do not build a universa
 
 ## 10. Open questions (tomorrow)
 
-1. Tiny runner details (pure stdlib vs a 50-line jinja/envsubst) — not Letta Code. Spike on a lab box.
+1. Tiny runner details (pure stdlib vs a 50-line jinja/envsubst) — not Letta Code. Spike on a lab box. Debugger = compact gptme (locked); freeze-to-binary is not this step.
 2. Desired-state: ADE writes Registry keys, installer polls (Windows-ish) **vs** CLI `installer apply` that reads Registry?
 3. Registry listen: loopback only?
 4. Sysinfo taxonomy: first enum (`linux`, `wsl`, `docker`, `proot`, `macos`)?
@@ -272,6 +274,7 @@ Do not start at ADE Chat-through-Broca without Registry. Do not build a universa
 | 2026-10-31 | Naming: four camps. Sidecar = **Registry**, not Host, not Brainstem. |
 | 2026-10-31 | **Split:** Registry = hive + light Broca transport. **Installer** = adaptive harness (experimental) that **polls Registry**. Apply is not Registry’s job. |
 | 2026-10-31 | **Letta Code out:** family product (Node stateful coding agent), not the installer. Harness = lightweight OSS local devops, Python-in-installer default. |
+| 2026-10-31 | **gptme locked** as installer debugger (compact allowlist). Goose out — not a gptme port, not the product. Freeze to executable later (PyInstaller / shim); not I0. Later role: brain doctor for Kernel/agent trees. Kernel→Rust is separate. |
 
 ---
 

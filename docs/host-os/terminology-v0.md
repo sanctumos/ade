@@ -71,3 +71,4 @@ Tonight’s earlier draft stuffed apply/jobs onto the sidecar. **Wrong grain.** 
 | Optional Letta `/messages` | **Kernel** |
 | What’s on this box | **Registry** |
 | Install / adapt bootstraps | **Installer** (may be CLI-first while we experiment) |
+| Bootstrap / Kernel debugger | **gptme** (compact CLI; not Goose; freeze later) |
