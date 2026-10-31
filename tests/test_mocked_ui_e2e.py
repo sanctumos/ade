@@ -8,6 +8,7 @@ import json
 import os
 import threading
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -274,7 +275,18 @@ class MockLetta:
             self.message_headers.append({k.lower(): v for k, v in request.headers.items()})
             self.messages.append({"id": "u9", "message_type": "user_message", "content": body.get("input", "")})
             self.messages.append({"id": "a9", "message_type": "assistant_message", "content": "pong"})
-            sse = 'data: {"message_type":"assistant_message","content":"pong"}\n\ndata: [DONE]\n\n'
+            run_id = f"run-own-{len(self.posts)}"
+            self.active_runs.append({
+                "id": run_id,
+                "status": "running",
+                "agent_id": AGENT_ID,
+                "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+                "background": False,
+            })
+            sse = (
+                f'data: {{"message_type":"assistant_message","content":"pong","run_id":"{run_id}"}}\n\n'
+                "data: [DONE]\n\n"
+            )
             return route.fulfill(status=200, headers={"content-type": "text/event-stream"}, body=sse)
         if path.startswith(f"/v1/agents/{AGENT_ID}/core-memory/blocks/") and method == "PATCH":
             label = path.rsplit("/", 1)[-1]
@@ -509,7 +521,32 @@ def test_chat_lanes_and_enter_to_send(page):
         h.get("x-stainless-package-version") != "1.0.0" for h in mock.get_agent_headers
     ), "SDK v1 header must not ride ordinary GET /agents (empties include_relationships)"
     assert page.locator("#input").input_value() == ""
+    page.wait_for_function(
+        "() => document.getElementById('send-btn').getAttribute('aria-label') === 'Send'",
+        timeout=10000,
+    )
     assert not errors, errors
+
+
+def test_chat_own_send_does_not_stick_stop(page):
+    """After a finished send, composer returns to Send and does not hitch our own run."""
+    mock = MockLetta()
+    _boot(page, mock)
+    page.goto(f"{BASE}/chat.html?agent={AGENT_ID}", wait_until="networkidle")
+    page.wait_for_selector("#messages .chat-row--assistant", timeout=15000)
+    page.fill("#input", "ping")
+    page.press("#input", "Enter")
+    page.wait_for_function(
+        "() => [...document.querySelectorAll('#messages .chat-turn--assistant')].some(e => e.innerText.includes('pong'))",
+        timeout=15000,
+    )
+    page.wait_for_function(
+        "() => document.getElementById('send-btn').getAttribute('aria-label') === 'Send'",
+        timeout=10000,
+    )
+    page.wait_for_timeout(3000)
+    assert mock.stream_runs == [], mock.stream_runs
+    assert page.locator("#messages .chat-shimmer").count() == 0
 
 
 def test_shift_enter_does_not_send(page):

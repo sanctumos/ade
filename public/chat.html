@@ -808,7 +808,11 @@
     function noteRunId(obj) {
       if (!obj || typeof obj !== 'object') return;
       var id = obj.run_id || obj.runId;
-      if (id != null && String(id)) chatSync.currentRunIds[String(id)] = true;
+      if (id == null || !String(id)) return;
+      var rid = String(id);
+      chatSync.currentRunIds[rid] = true;
+      /* Own stream run_ids must never look like a Broca hitch. */
+      if (chatSync.ownSendActive) chatSync.ignoreRunIds[rid] = true;
     }
 
     function stopCurrentRun() {
@@ -881,9 +885,16 @@
       tickActiveRuns();
     }
 
+    function ignoreKnownRunIds() {
+      Object.keys(chatSync.currentRunIds).forEach(function (id) {
+        chatSync.ignoreRunIds[id] = true;
+      });
+    }
+
     function markOwnSend(active) {
       chatSync.ownSendActive = !!active;
       if (!active) {
+        ignoreKnownRunIds();
         chatSync.sendAbort = null;
         if (!chatSync.hitching) chatSync.currentRunIds = {};
         chatSync.stopping = false;
@@ -905,7 +916,11 @@
           var r = runs[i];
           if (!r || r.id == null) continue;
           var rid = String(r.id);
-          if (chatSync.ignoreRunIds[rid] || chatSync.hitchedRunIds[rid]) continue;
+          if (chatSync.ignoreRunIds[rid] || chatSync.hitchedRunIds[rid] || chatSync.currentRunIds[rid]) continue;
+          if (r.background === true || r.background === 'true') {
+            chatSync.ignoreRunIds[rid] = true;
+            continue;
+          }
           var status = String(r.status || '').toLowerCase();
           if (status && status !== 'running' && status !== 'created' && status !== 'pending') continue;
           /* Prefer recently created runs; skip ancient zombies that slipped past priming. */
@@ -1168,7 +1183,14 @@
       chatSync.streamUi = ui;
 
       function sendIdle() {
-        markOwnSend(false);
+        ignoreKnownRunIds();
+        var aid = chatSync.agentId;
+        var finish = function () { markOwnSend(false); };
+        if (!aid) { finish(); return; }
+        /* Absorb whatever /runs/active still lists from this send before the poll can hitch it. */
+        window.ADE.listActiveRuns({ agent_id: aid }).then(function (runs) {
+          if (chatSync.agentId === aid) absorbActiveRuns(runs);
+        }).catch(function () { /* ignore */ }).finally(finish);
       }
 
       window.ADE.sendMessagePreferStream(aid, { input: text }, {
