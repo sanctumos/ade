@@ -246,7 +246,7 @@ sequenceDiagram
   I->>R: PUT keys/agents/athena/broca/actual
 ```
 
-**Letta-code experiment (B):** same polling. Jobs are not `POST /v1/agents/{kernel}/messages` “please apt”.
+Installer is a **local harness**, not Letta Code (Node stateful coding agent — family, overkill). Jobs are not `POST /v1/agents/{kernel}/messages` “please apt”.
 
 ---
 

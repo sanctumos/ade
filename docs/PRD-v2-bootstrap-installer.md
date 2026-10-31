@@ -5,7 +5,7 @@
 **Product:** Sanctum ADE (next major after v1 static UI) + SanctumOS installer evolution  
 **Related:** `sanctumos/installer` (kernel bootstraps, control plane), canonical layout in installer `docs/reference/docs-on-installer-criteria.md`
 
-> **2026-10-31:** Letta is the **kernel** (optional `/v1`, never the only wire). Broca is the OS mouth. The sidecar is **Registry** (hive + light ADE↔Broca transport), not a mega-Host. **`sanctumos/installer`** evolves from bootstrap *collection* to a **harness** that **polls Registry sysinfo** and adapts scripts (Linux / WSL / Docker / proot) — **experimentation**. Apply is installer work, not Registry and not Letta. ADE: one Settings URL, path-split **E2**. E1 rejected. See [`host-os/`](host-os/README.md).
+> **2026-10-31:** Letta is the **kernel** (optional `/v1`, never the only wire). Broca is the OS mouth. The sidecar is **Registry** (hive + light ADE↔Broca transport), not a mega-Host. **`sanctumos/installer`** evolves from bootstrap *collection* to a **lightweight OSS harness** that **polls Registry sysinfo** and adapts scripts (Linux / WSL / Docker / proot). **Not Letta Code** (separate Node coding-agent product). Apply is installer work, not Registry and not Letta. ADE: one Settings URL, path-split **E2**. E1 rejected. See [`host-os/`](host-os/README.md).
 
 ---
 
@@ -394,6 +394,7 @@ sanctum module set broca --agent athena --desired running
 | 2026-10-15 | **Clarified:** extend **the Letta API on every Sanctum box** with Sanctum endpoints (E1 or E2)—not a second ADE Settings base by default. |
 | 2026-10-31 | **Host OS draft:** optional Letta, not only Letta. E2 Host sidecar is the OS face. E1 rejected as OS home. Engineering: Host first, Broca-through-Host after. Canonical: `docs/host-os/`. |
 | 2026-10-31 | **Split:** sidecar renamed **Registry** (hive + light Broca transport). Installer = adaptive harness polling Registry. Host noun dropped. |
+| 2026-10-31 | Letta Code is family (Node coding agent), not the installer. Lightweight Python harness default. |
 
 ---
 

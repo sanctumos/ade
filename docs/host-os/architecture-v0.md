@@ -11,7 +11,7 @@
 |-------|------|
 | **ADE** | Owner’s personal web client — them and their agents. One Settings URL. |
 | **Registry** | Actual registry (sysinfo + inventory + desired/actual) **and** light transport ADE ↔ Broca. |
-| **Installer** | `sanctumos/installer` evolves from a **bootstrap collection** into a **harness** (or Letta-code runner) that **polls Registry** and adapts scripts to *this* environment. |
+| **Installer** | `sanctumos/installer` evolves from a **bootstrap collection** into a **lightweight OSS harness** that **polls Registry** and adapts scripts. Occasional local devops — not a coding agent. |
 | **Broca** | OS mouth. Default Chat. Per-agent fingerprint. |
 | **SMCP** | OS tool bus. Facts in Registry; install/adapt via installer. |
 | **Kernel (Letta)** | Optional. Never the only wire. |
@@ -118,14 +118,17 @@ If Broca is not installed, Registry says so (facts). ADE offers installer / kern
 4. Applies (install / start / stop / uninstall)
 5. Writes actual + ports + drift back to Registry
 
-### Experimental fork (do not pick tonight)
+### What the harness is (locked direction)
 
-| Shape | What it is | Risk |
-|-------|------------|------|
-| **A — Harness** | Small daemon or CLI runner. Scripts stay scripts. Adaptation is interpolation + privilege/path probes from Registry. | Can rot into ansible-at-home |
-| **B — Letta-code installation** | Bootstraps as structured code a runner executes (Letta-shaped tools/jobs), still **polling Registry** | Easy to accidentally put OS apply **inside the Kernel process** — that is E1, rejected |
+**Occasional local devops.** Poll Registry, adapt a bootstrap, write files, start a process, write facts back. Then it should get out of the way.
 
-**Constraint:** even if B wins, the Kernel `/v1/agents` is not apt. Letta-code would be **installer-owned** code, not Sanctum routers mounted in Letta.
+**Not** a stateful coding agent. **Not** Letta Code.
+
+[Letta Code](https://github.com/letta-ai/letta-code) (`@letta-ai/letta-code`, Node 22.19+, TypeScript CLI, MemFS, skills, sleeptime, subagents) is a **different forked beast** from Sanctum’s **Kernel** (Python Letta legacy / Technonomicon). It is in the family. It is **overkill** for this job. Mark is not sold; this draft is not sold. Do not pull Node-22 into installer as a runtime just because the family has a coding agent.
+
+Default: **small OSS in `sanctumos/installer`** — Python (already on every Sanctum box) + bootstrap contracts + shell recipes. Stdlib-first. No Ansible, no Letta Code, no new language. Experimentation is *environment adaptation* (WSL / Docker / proot), not “which agent framework.”
+
+Risk if it grows: ansible-at-home. Stay a runner.
 
 This will take **experimentation** on real boxes (WSL, proot, Docker, bare Linux). Peacekeeper / throwaway. **Not moya.**
 
@@ -250,7 +253,7 @@ Do not start at ADE Chat-through-Broca without Registry. Do not build a universa
 
 ## 10. Open questions (tomorrow)
 
-1. Installer shape **A harness vs B Letta-code** — spike, don’t pick in docs.
+1. Tiny runner details (pure stdlib vs a 50-line jinja/envsubst) — not Letta Code. Spike on a lab box.
 2. Desired-state: ADE writes Registry keys, installer polls (Windows-ish) **vs** CLI `installer apply` that reads Registry?
 3. Registry listen: loopback only?
 4. Sysinfo taxonomy: first enum (`linux`, `wsl`, `docker`, `proot`, `macos`)?
@@ -268,6 +271,7 @@ Do not start at ADE Chat-through-Broca without Registry. Do not build a universa
 | 2026-10-31 | E2 sidecar. E1 rejected as OS home. |
 | 2026-10-31 | Naming: four camps. Sidecar = **Registry**, not Host, not Brainstem. |
 | 2026-10-31 | **Split:** Registry = hive + light Broca transport. **Installer** = adaptive harness (experimental) that **polls Registry**. Apply is not Registry’s job. |
+| 2026-10-31 | **Letta Code out:** family product (Node stateful coding agent), not the installer. Harness = lightweight OSS local devops, Python-in-installer default. |
 
 ---
 

@@ -27,7 +27,7 @@ If it does not map to a brain region, do not force one. **Registry** is Windows-
 | The whole box | product | **SanctumOS** | Kernel, Registry |
 | Letta runtime `/v1/agents` | 1 + 3 | **Kernel** | Registry, Broca |
 | On-box config + inventory + light Broca transport | 1 | **Registry** (`sanctum-registry`) | The installer, the Kernel |
-| `sanctumos/installer` evolved | 1 | **Installer** (harness — experimental shape) | A pile of unrelated shell one-shots forever |
+| `sanctumos/installer` evolved | 1 | **Installer** (lightweight harness) | Letta Code, Ansible, a pile of env-forked shell forever |
 | On-disk drawer for Registry process | 1 | `control/` (may grow `registry/`) | Product name |
 | Owner web client | 1 | **ADE** | A Broca, Letta Cloud ADE |
 | Per-agent speech / ingress | 2 | **Broca** | Registry, “the OS” |

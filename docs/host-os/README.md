@@ -5,7 +5,7 @@
 | Piece | Job |
 |-------|-----|
 | **Registry** | Actual registry (sysinfo, inventory, desired/actual) **plus light transport** (ADE ↔ Broca loopback) |
-| **Installer** | Evolve `sanctumos/installer` from a **bootstrap collection** into a **harness** (or Letta-code runner) that takes bootstrap scripts and **adapts them to this box** by **polling Registry** |
+| **Installer** | Evolve `sanctumos/installer` from a **bootstrap collection** into a **lightweight OSS harness** (occasional local devops). Polls Registry, adapts scripts. **Not Letta Code.** |
 | **Kernel** | Letta — optional, never the only wire |
 | **Broca / SMCP** | Stay themselves. Installer puts them on disk; Registry records them; ADE talks Broca through Registry’s light transport |
 
