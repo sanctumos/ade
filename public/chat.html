@@ -51,7 +51,7 @@
           <div class="chat-composer-wrap">
             <form id="send-form" class="chat-composer">
               <textarea id="input" rows="1" placeholder="Message the agent…" autocomplete="off" aria-label="Message"></textarea>
-              <button type="submit" class="af-btn af-btn-primary chat-send" id="send-btn" aria-label="Send"></button>
+              <button type="submit" class="af-btn af-btn-primary chat-send" id="send-btn" aria-label="Send" title="Send"></button>
             </form>
             <div class="chat-composer-meta">
               <p id="history-hint"></p>
@@ -776,8 +776,56 @@
       ignoreRunIds: {},
       hitchedRunIds: {},
       hitchAbort: null,
+      sendAbort: null,
+      currentRunIds: {},
+      stopping: false,
+      streamUi: null,
       primed: false
     };
+
+    function composerIsBusy() {
+      return !!(chatSync.ownSendActive || chatSync.hitching);
+    }
+
+    function refreshComposer() {
+      var btn = document.getElementById('send-btn');
+      if (!btn) return;
+      var busy = composerIsBusy();
+      btn.classList.toggle('is-stop', busy);
+      btn.type = busy ? 'button' : 'submit';
+      btn.disabled = false;
+      if (busy) {
+        btn.setAttribute('aria-label', 'Stop');
+        btn.title = 'Stop this run';
+        btn.innerHTML = window.ADE.icons.stop;
+      } else {
+        btn.setAttribute('aria-label', 'Send');
+        btn.title = 'Send';
+        btn.innerHTML = window.ADE.icons.send;
+      }
+    }
+
+    function noteRunId(obj) {
+      if (!obj || typeof obj !== 'object') return;
+      var id = obj.run_id || obj.runId;
+      if (id != null && String(id)) chatSync.currentRunIds[String(id)] = true;
+    }
+
+    function stopCurrentRun() {
+      if (!composerIsBusy()) return;
+      chatSync.stopping = true;
+      var aid = currentAgentId();
+      var ids = Object.keys(chatSync.currentRunIds);
+      Object.keys(chatSync.hitchedRunIds).forEach(function(id) {
+        if (chatSync.hitchedRunIds[id] && ids.indexOf(id) === -1) ids.push(id);
+      });
+      if (aid) {
+        var body = ids.length ? { run_ids: ids } : {};
+        window.ADE.cancelAgentMessages(aid, body).catch(function() { /* kernel may lack Redis */ });
+      }
+      try { if (chatSync.sendAbort) chatSync.sendAbort.abort(); } catch (e) { /* ignore */ }
+      try { if (chatSync.hitchAbort) chatSync.hitchAbort.abort(); } catch (e) { /* ignore */ }
+    }
 
     function stopChatSync() {
       if (chatSync.pollTimer) { clearInterval(chatSync.pollTimer); chatSync.pollTimer = null; }
@@ -790,7 +838,12 @@
       chatSync.agentId = null;
       chatSync.ignoreRunIds = {};
       chatSync.hitchedRunIds = {};
+      chatSync.currentRunIds = {};
+      chatSync.sendAbort = null;
+      chatSync.stopping = false;
+      chatSync.streamUi = null;
       chatSync.primed = false;
+      refreshComposer();
     }
 
     function absorbActiveRuns(runs) {
@@ -830,6 +883,13 @@
 
     function markOwnSend(active) {
       chatSync.ownSendActive = !!active;
+      if (!active) {
+        chatSync.sendAbort = null;
+        if (!chatSync.hitching) chatSync.currentRunIds = {};
+        chatSync.stopping = false;
+        chatSync.streamUi = null;
+      }
+      refreshComposer();
       if (!active || !chatSync.agentId) return;
       /* Snapshot runs already active when we send so we don't hitch our own. */
       window.ADE.listActiveRuns({ agent_id: chatSync.agentId }).then(function(runs) {
@@ -879,6 +939,7 @@
       }, 1000);
       function onEvent(obj) {
         if (!obj) return;
+        noteRunId(obj);
         if (obj.message_type === '_json_response') {
           var fb = extractAssistant(obj.data);
           if (fb) { state.acc = fb; state.sawAssistant = true; bodyEl.innerHTML = AC.parseMarkdown(state.acc); }
@@ -930,27 +991,43 @@
       chatSync.hitching = true;
       chatSync.hitchedRunIds[runId] = true;
       chatSync.ignoreRunIds[runId] = true;
+      chatSync.currentRunIds[String(runId)] = true;
+      refreshComposer();
       var aid = chatSync.agentId;
       var ui = attachStreamUi({ aid: aid });
+      chatSync.streamUi = ui;
       var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
       chatSync.hitchAbort = ctrl;
+      function hitchIdle() {
+        chatSync.hitchAbort = null;
+        chatSync.hitching = false;
+        chatSync.streamUi = null;
+        delete chatSync.currentRunIds[String(runId)];
+        chatSync.stopping = false;
+        refreshComposer();
+      }
       window.ADE.streamRun(runId, { include_pings: true }, {
         onEvent: ui.onEvent,
         onDone: function() {
-          chatSync.hitchAbort = null;
-          ui.finish(true).finally(function() { chatSync.hitching = false; });
+          ui.finish(true).finally(hitchIdle);
         },
-        onError: function() {
-          chatSync.hitchAbort = null;
+        onError: function(err) {
+          if (chatSync.stopping || (window.ADE.isAbortError && window.ADE.isAbortError(err))) {
+            ui.finish(true).finally(hitchIdle);
+            return;
+          }
           ui.fail();
           loadHistory(aid, { softFail: true, quiet: true, skipIfUnchanged: true })
-            .finally(function() { chatSync.hitching = false; });
+            .finally(hitchIdle);
         }
-      }, ctrl ? { signal: ctrl.signal } : undefined).catch(function() {
-        chatSync.hitchAbort = null;
+      }, ctrl ? { signal: ctrl.signal } : undefined).catch(function(err) {
+        if (chatSync.stopping || (window.ADE.isAbortError && window.ADE.isAbortError(err))) {
+          ui.finish(true).finally(hitchIdle);
+          return;
+        }
         ui.fail();
         loadHistory(aid, { softFail: true, quiet: true, skipIfUnchanged: true })
-          .finally(function() { chatSync.hitching = false; });
+          .finally(hitchIdle);
       });
     }
 
@@ -1067,39 +1144,55 @@
       return '';
     }
 
+    document.getElementById('send-btn').addEventListener('click', function(e) {
+      if (!document.getElementById('send-btn').classList.contains('is-stop')) return;
+      e.preventDefault();
+      stopCurrentRun();
+    });
+
     document.getElementById('send-form').onsubmit = function(e) {
       e.preventDefault();
+      if (composerIsBusy()) return;
       var text = inputEl.value.trim();
       var aid = currentAgentId();
       if (!text || !aid) return;
       inputEl.value = '';
       autoGrow();
       addMsg('user', text);
-      document.getElementById('send-btn').disabled = true;
       errorEl.innerHTML = '';
+      var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      chatSync.sendAbort = ctrl;
       markOwnSend(true);
 
       var ui = attachStreamUi({ aid: aid, fallbackEmpty: true });
+      chatSync.streamUi = ui;
+
+      function sendIdle() {
+        markOwnSend(false);
+      }
 
       window.ADE.sendMessagePreferStream(aid, { input: text }, {
         onEvent: ui.onEvent,
         onDone: function() {
-          ui.finish(true).finally(function() {
-            markOwnSend(false);
-            document.getElementById('send-btn').disabled = false;
-          });
+          ui.finish(true).finally(sendIdle);
         },
         onError: function(err) {
+          if (chatSync.stopping || (window.ADE.isAbortError && window.ADE.isAbortError(err))) {
+            ui.finish(true).finally(sendIdle);
+            return;
+          }
           ui.fail();
-          markOwnSend(false);
+          sendIdle();
           errorEl.innerHTML = '<div class="af-alert af-alert-danger" role="alert">' + (err && err.message ? err.message : err) + '</div>';
-          document.getElementById('send-btn').disabled = false;
         }
-      }).catch(function(err) {
+      }, ctrl ? { signal: ctrl.signal } : undefined).catch(function(err) {
+        if (chatSync.stopping || (window.ADE.isAbortError && window.ADE.isAbortError(err))) {
+          ui.finish(true).finally(sendIdle);
+          return;
+        }
         ui.fail();
-        markOwnSend(false);
+        sendIdle();
         errorEl.innerHTML = '<div class="af-alert af-alert-danger" role="alert">' + err.message + '</div>';
-        document.getElementById('send-btn').disabled = false;
       });
     };
   </script>

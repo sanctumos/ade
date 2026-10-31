@@ -850,6 +850,16 @@ html[data-chat-memory="closed"] .chat-memory-collapse {
   flex-shrink: 0;
 }
 .chat-send svg { width: 16px; height: 16px; }
+.chat-send.is-stop {
+  background: color-mix(in srgb, var(--af-danger) 14%, transparent);
+  border-color: color-mix(in srgb, var(--af-danger) 45%, transparent);
+  color: var(--af-danger);
+}
+.chat-send.is-stop:hover {
+  background: color-mix(in srgb, var(--af-danger) 24%, transparent);
+  border-color: var(--af-danger);
+  color: var(--af-danger);
+}
 .chat-composer-meta {
   display: flex;
   justify-content: space-between;
@@ -889,9 +899,11 @@ html[data-chat-memory="closed"] .chat-memory-collapse {
     border-left: 1px solid var(--af-border-subtle);
   }
   html[data-chat-memory="closed"] .chat-memory-panel {
+    position: relative;
     --chat-memory-w: 48px;
     width: 48px;
     box-shadow: none;
+    z-index: 2;
   }
   .chat-messages-scroll { padding: 16px 14px 10px; }
   .chat-composer-wrap { padding: 8px 12px 12px; }

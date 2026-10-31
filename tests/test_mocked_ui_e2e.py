@@ -6,6 +6,9 @@ from __future__ import annotations
 
 import json
 import os
+import threading
+import time
+from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -46,6 +49,9 @@ class MockLetta:
         self.stream_runs: list[str] = []
         self.active_runs: list[dict] = []
         self.active_polls = 0
+        self.cancels: list[dict] = []
+        self.hold_sse = False
+        self._held_sse = None
         self.messages = [
             {"id": "m1", "message_type": "user_message", "content": REMINDER},
             {"id": "m2", "message_type": "user_message", "content": "hello there"},
@@ -206,6 +212,45 @@ class MockLetta:
         if path.rstrip("/") == "/v1/runs/active" and method == "GET":
             self.active_polls += 1
             return self._json(route, list(self.active_runs))
+        if path == f"/v1/agents/{AGENT_ID}/messages/cancel" and method == "POST":
+            body = json.loads(request.post_data or "{}")
+            self.cancels.append(body)
+            held = self._held_sse
+            self._held_sse = None
+            if held is not None:
+                try:
+                    held.abort()
+                except Exception:
+                    pass
+            return self._json(route, {"ok": True})
+        if self.hold_sse and method == "POST" and (
+            path == f"/v1/agents/{AGENT_ID}/messages"
+            or (path.startswith("/v1/runs/") and path.endswith("/stream"))
+        ):
+            if path.startswith("/v1/runs/"):
+                run_id = path[len("/v1/runs/") : -len("/stream")]
+                self.stream_runs.append(run_id)
+            else:
+                body = json.loads(request.post_data or "{}")
+                self.posts.append(body)
+                self.message_headers.append({k.lower(): v for k, v in request.headers.items()})
+            self._held_sse = route
+
+            def _watchdog(held=route):
+                t0 = time.time()
+                while time.time() - t0 < 20:
+                    if self._held_sse is not held:
+                        return
+                    time.sleep(0.05)
+                if self._held_sse is held:
+                    self._held_sse = None
+                    try:
+                        held.abort()
+                    except Exception:
+                        pass
+
+            threading.Thread(target=_watchdog, daemon=True).start()
+            return None
         if path.startswith("/v1/runs/") and path.endswith("/stream") and method == "POST":
             run_id = path[len("/v1/runs/") : -len("/stream")]
             self.stream_runs.append(run_id)
@@ -515,6 +560,84 @@ def test_chat_hitches_external_active_run(page):
         timeout=10000,
     )
     assert not errors, errors
+
+
+def test_chat_send_flips_to_stop_and_cancels_run(page):
+    """Composer Send becomes Stop while a run is live; click posts /messages/cancel."""
+    mock = MockLetta()
+    mock.hold_sse = True
+    _boot(page, mock)
+    errors: list[str] = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    page.goto(f"{BASE}/chat.html?agent={AGENT_ID}", wait_until="networkidle")
+    page.wait_for_selector("#messages .chat-row--assistant", timeout=15000)
+    page.fill("#input", "ping")
+    page.press("#input", "Enter")
+    page.wait_for_function(
+        "() => document.getElementById('send-btn').classList.contains('is-stop') "
+        "&& document.getElementById('send-btn').getAttribute('aria-label') === 'Stop'",
+        timeout=10000,
+    )
+    out = Path("/tmp/ade-stop-run")
+    out.mkdir(parents=True, exist_ok=True)
+    page.set_viewport_size({"width": 1280, "height": 800})
+    page.screenshot(path=str(out / "desktop-stop.png"))
+    page.locator("#send-btn").screenshot(path=str(out / "desktop-stop-btn.png"))
+    page.set_viewport_size({"width": 390, "height": 844})
+    if page.locator("#chat-memory-collapse").get_attribute("aria-expanded") == "true":
+        page.click("#chat-memory-collapse")
+        page.wait_for_function(
+            "() => document.documentElement.getAttribute('data-chat-memory') === 'closed'"
+        )
+        page.wait_for_timeout(250)
+    page.screenshot(path=str(out / "mobile-stop.png"))
+    page.locator("#send-btn").screenshot(path=str(out / "mobile-stop-btn.png"))
+    page.set_viewport_size({"width": 1280, "height": 800})
+    page.click("#send-btn")
+    deadline = time.time() + 10
+    while time.time() < deadline and not mock.cancels:
+        page.wait_for_timeout(50)
+    assert mock.cancels, "Stop did not POST /messages/cancel"
+    page.wait_for_function(
+        "() => document.getElementById('send-btn').getAttribute('aria-label') === 'Send'",
+        timeout=10000,
+    )
+    assert not errors, errors
+
+
+def test_chat_stop_cancels_hitched_run(page):
+    mock = MockLetta()
+    mock.hold_sse = True
+    _boot(page, mock)
+    page.goto(f"{BASE}/chat.html?agent={AGENT_ID}", wait_until="networkidle")
+    page.wait_for_selector("#messages .chat-row--assistant", timeout=15000)
+    deadline = page.evaluate("() => Date.now()") + 8000
+    while mock.active_polls < 1:
+        page.wait_for_timeout(100)
+        if page.evaluate("() => Date.now()") > deadline:
+            break
+    mock.active_runs = [{
+        "id": "run-ext-stop",
+        "status": "running",
+        "agent_id": AGENT_ID,
+        "created_at": "2099-01-01T00:00:00Z",
+    }]
+    page.wait_for_function(
+        "() => document.getElementById('send-btn').classList.contains('is-stop')",
+        timeout=15000,
+    )
+    page.click("#send-btn")
+    deadline = time.time() + 10
+    while time.time() < deadline and not mock.cancels:
+        page.wait_for_timeout(50)
+    assert mock.cancels, mock.cancels
+    assert mock.stream_runs == ["run-ext-stop"]
+    body = mock.cancels[0]
+    assert "run-ext-stop" in (body.get("run_ids") or [])
+    page.wait_for_function(
+        "() => document.getElementById('send-btn').getAttribute('aria-label') === 'Send'",
+        timeout=10000,
+    )
 
 
 def test_chat_ignores_stale_active_runs_present_at_open(page):

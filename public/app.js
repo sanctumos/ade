@@ -16,6 +16,7 @@
     mcp: svgIcon('<path d="M12 2v6M12 16v6M4.9 4.9l4.2 4.2M14.9 14.9l4.2 4.2M2 12h6M16 12h6"/><circle cx="12" cy="12" r="3"/>'),
     settings: svgIcon('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'),
     send: svgIcon('<path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/>'),
+    stop: svgIcon('<rect x="6" y="6" width="12" height="12" rx="1.5" fill="currentColor" stroke="none"/>'),
     trash: svgIcon('<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>'),
     sliders: svgIcon('<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>'),
     plus: svgIcon('<path d="M12 5v14M5 12h14"/>'),
@@ -542,7 +543,17 @@
     init.headers = Object.assign({}, headers, extra.headers || {});
     return fetch(url, init).then(function (res) {
       return consumeSseResponse(res, handlers);
+    }, function (err) {
+      if (handlers.onError) handlers.onError(err);
+      throw err;
     });
+  }
+
+  function isAbortError(err) {
+    if (!err) return false;
+    if (err.name === 'AbortError') return true;
+    var msg = String(err.message || err);
+    return /abort(ed)?/i.test(msg) && !/^API \d/.test(msg);
   }
 
   /**
@@ -550,14 +561,14 @@
    * handlers: { onEvent(obj), onDone(), onError(err) }
    * Falls back to non-stream sendMessage if the server rejects streaming.
    */
-  function sendMessageStream(agentId, body, handlers) {
+  function sendMessageStream(agentId, body, handlers, fetchOpts) {
     handlers = handlers || {};
     var payload = normalizeAgentSendBody(Object.assign({}, body || {}, {
       streaming: true,
       stream_tokens: body && body.stream_tokens === false ? false : true,
       include_pings: true
     }));
-    return sseFetch(apiUrl('/v1/agents/' + agentId + '/messages'), payload, handlers);
+    return sseFetch(apiUrl('/v1/agents/' + agentId + '/messages'), payload, handlers, fetchOpts);
   }
 
   /**
@@ -585,7 +596,7 @@
    * Send with streaming preferred; on stream failure, fall back to non-stream.
    * handlers same as sendMessageStream; also called for fallback JSON via onEvent(_json_response).
    */
-  function sendMessagePreferStream(agentId, body, handlers) {
+  function sendMessagePreferStream(agentId, body, handlers, fetchOpts) {
     handlers = handlers || {};
     var streamStarted = false;
     var wrapped = {
@@ -596,15 +607,17 @@
       onDone: handlers.onDone,
       onError: handlers.onError
     };
-    return sendMessageStream(agentId, body, wrapped).catch(function (err) {
+    return sendMessageStream(agentId, body, wrapped, fetchOpts).catch(function (err) {
+      if (isAbortError(err)) throw err;
       var msg = (err && err.message) ? String(err.message) : '';
       /* Only fall back if the server rejected streaming before any events (not mid-stream). */
       if (streamStarted) throw err;
       if (!/^API (400|404|405|415|422|501)\b/.test(msg)) throw err;
-      return apiFetch('/v1/agents/' + agentId + '/messages', {
+      var extra = fetchOpts || {};
+      return apiFetch('/v1/agents/' + agentId + '/messages', Object.assign({
         method: 'POST',
         body: JSON.stringify(normalizeAgentSendBody(body))
-      }).then(function (data) {
+      }, extra)).then(function (data) {
         if (handlers.onEvent) handlers.onEvent({ message_type: '_json_response', data: data });
         if (handlers.onDone) handlers.onDone(data);
         return data;
@@ -667,6 +680,7 @@
     sendMessage: function (agentId, body) { return apiFetch('/v1/agents/' + agentId + '/messages', { method: 'POST', body: JSON.stringify(normalizeAgentSendBody(body)) }); },
     sendMessageStream: sendMessageStream,
     sendMessagePreferStream: sendMessagePreferStream,
+    isAbortError: isAbortError,
     getAgentMessages: function (agentId, params) {
       var q = '';
       if (params && Object.keys(params).length) q = '?' + new URLSearchParams(params).toString();

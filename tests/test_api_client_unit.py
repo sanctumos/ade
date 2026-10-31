@@ -24,9 +24,12 @@ def test_ade_client_exposes_stream_and_archival(page):
             hasImport: typeof a.importAgent === 'function',
             hasDownloadAf: typeof a.downloadAf === 'function',
             hasCreateTool: typeof a.createTool === 'function',
+            hasCancel: typeof a.cancelAgentMessages === 'function',
+            hasAbort: typeof a.isAbortError === 'function',
           };
         }"""
     )
     assert api["hasStream"] and api["hasPrefer"]
+    assert api["hasCancel"] and api["hasAbort"]
     assert api["hasArchList"] and api["hasArchCreate"] and api["hasArchDel"] and api["hasArchSearch"]
     assert api["hasExport"] and api["hasImport"] and api["hasDownloadAf"] and api["hasCreateTool"]
