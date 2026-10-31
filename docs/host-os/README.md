@@ -14,5 +14,6 @@
 | [terminology-v0.md](terminology-v0.md) | Four-camp rubric + Registry vs Host vs Kernel |
 | [architecture-v0.md](architecture-v0.md) | Layers, mermaid, installer evolution, engineering order |
 | [api-map-v0.md](api-map-v0.md) | Registry HTTP now; installer harness later |
+| [cli-agent-research-v0.md](cli-agent-research-v0.md) | Lightweight CLI agent for I0: **gptme** (default) vs Goose recipes |
 
 Oct 15 PRD: [PRD-v2-bootstrap-installer.md](../PRD-v2-bootstrap-installer.md) — still useful for composite agents and bootstrap *contracts*. Apply/adapt lives on **installer**, not inside Letta.
