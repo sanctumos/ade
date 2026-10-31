@@ -41,3 +41,4 @@ Pre-v1 trees (`ade-simple/`, React `app/`, `ade-faithful/`) live under **`v0/`**
 1. Keep shipping **`public/`**.
 2. Ignore Cloud-only surface.
 3. When the self-hosted `/v1` API evolves, adapt **`public/app.js`**.
+4. **Host OS (draft 2026-10-31):** Letta `/v1` stays the **optional kernel**. Default talk path becomes Broca via an on-box Host sidecar (`/v1/sanctum/*`), path-split in the existing ADE proxy so Settings stays one base URL. See [`docs/host-os/`](docs/host-os/README.md).
