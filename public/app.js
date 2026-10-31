@@ -556,6 +556,15 @@
     return /abort(ed)?/i.test(msg) && !/^API \d/.test(msg);
   }
 
+  /** CORS / net failures (browser "Failed to fetch") — not an abort, not an HTTP API error. */
+  function isStreamTransportError(err) {
+    if (!err || isAbortError(err)) return false;
+    var msg = String(err.message || err);
+    if (/^API \d/.test(msg)) return false;
+    if (err.name === 'TypeError') return true;
+    return /failed to fetch|networkerror|load failed|err_failed/i.test(msg);
+  }
+
   /**
    * POST /v1/agents/:id/messages with streaming=true (SSE).
    * handlers: { onEvent(obj), onDone(), onError(err) }
@@ -612,7 +621,8 @@
       var msg = (err && err.message) ? String(err.message) : '';
       /* Only fall back if the server rejected streaming before any events (not mid-stream). */
       if (streamStarted) throw err;
-      if (!/^API (400|404|405|415|422|501)\b/.test(msg)) throw err;
+      var rejected = /^API (400|404|405|415|422|501)\b/.test(msg);
+      if (!rejected && !isStreamTransportError(err)) throw err;
       var extra = fetchOpts || {};
       return apiFetch('/v1/agents/' + agentId + '/messages', Object.assign({
         method: 'POST',
@@ -681,6 +691,7 @@
     sendMessageStream: sendMessageStream,
     sendMessagePreferStream: sendMessagePreferStream,
     isAbortError: isAbortError,
+    isStreamTransportError: isStreamTransportError,
     getAgentMessages: function (agentId, params) {
       var q = '';
       if (params && Object.keys(params).length) q = '?' + new URLSearchParams(params).toString();

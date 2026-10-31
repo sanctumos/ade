@@ -26,10 +26,14 @@ def test_ade_client_exposes_stream_and_archival(page):
             hasCreateTool: typeof a.createTool === 'function',
             hasCancel: typeof a.cancelAgentMessages === 'function',
             hasAbort: typeof a.isAbortError === 'function',
+            hasTransport: typeof a.isStreamTransportError === 'function',
+            failedFetch: a.isStreamTransportError && a.isStreamTransportError(new TypeError('Failed to fetch')),
+            abortNotTransport: a.isStreamTransportError && !a.isStreamTransportError(Object.assign(new Error('The user aborted a request.'), { name: 'AbortError' })),
           };
         }"""
     )
     assert api["hasStream"] and api["hasPrefer"]
     assert api["hasCancel"] and api["hasAbort"]
+    assert api["hasTransport"] and api["failedFetch"] and api["abortNotTransport"]
     assert api["hasArchList"] and api["hasArchCreate"] and api["hasArchDel"] and api["hasArchSearch"]
     assert api["hasExport"] and api["hasImport"] and api["hasDownloadAf"] and api["hasCreateTool"]
