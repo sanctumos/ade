@@ -1,140 +1,104 @@
-# Sanctum Host API map (v0)
+# Sanctum Registry + installer — API map (v0)
 
-**Status:** first draft · 2026-10-31 · illustrative, not frozen OpenAPI  
-**Prefix:** `/v1/sanctum`  
+**Status:** first draft · 2026-10-31 · illustrative · **installer HTTP is later**  
 **Companion:** [architecture-v0.md](architecture-v0.md)
 
-Host is a **sidecar**. ADE’s proxy path-splits. Letta `/v1` stays Letta. This document is only the OS face.
+Registry is a **hive + light Broca transport**. Installer **polls** Registry. Do not put `apply` on Registry as if it were apt.
 
 ---
 
-## 0. How the browser sees one base
+## 0. Path-split (ADE one base)
 
-ADE Settings stores **one** `base` + **one** bearer (as v1).
+| Incoming path | Backend | When |
+|---------------|---------|------|
+| `/v1/sanctum/registry/*` | **Registry** | R0+ |
+| `/v1/agents`, `/v1/tools`, `/v1/runs`, … | **Kernel** | optional |
+| `/v1/sanctum/installer/*` | Installer harness | **I3, maybe never** if CLI-only |
 
-| Incoming path (after `base`) | Backend | Required for OS? |
-|------------------------------|---------|------------------|
-| `/v1/sanctum/*` | Host | **Yes** |
-| `/v1/agents`, `/v1/tools`, `/v1/runs`, `/v1/models`, … | Letta | **Optional** kernel |
-| `/health` on Host | Host | Probe |
-| Letta `/v1/health` (or equivalent) | Letta | Probe |
-
-**Proxy today:** `public/proxy.php` and Flask `scripts/flask_server.py` forward **everything** to Letta. H0 is: if path starts `/v1/sanctum`, go to Host loopback instead.
-
-Otto / CLI on the box may skip the proxy:
-
-```text
-http://127.0.0.1:<host-port>/v1/sanctum/...
-```
-
-That is E3 for tools, not a second ADE Settings field.
+Auth: same ADE bearer. Registry validates. Broca loopback keys never go to the browser.
 
 ```mermaid
 flowchart TB
-  subgraph ADE["ADE fetch"]
-    U["apiUrl(path)"]
-  end
-  subgraph P["proxy.php / flask"]
-    D{path starts with<br/>/v1/sanctum ?}
-  end
-  U --> D
-  D -->|yes| H["Host 127.0.0.1:N"]
-  D -->|no| L["Letta 127.0.0.1:8283"]
+  U["ADE apiUrl(path)"] --> D{prefix?}
+  D -->|"/v1/sanctum/registry"| R["Registry loopback"]
+  D -->|"/v1/agents …"| L["Kernel"]
+  D -->|"/v1/sanctum/installer"| I["Installer — later"]
 ```
 
 ---
 
-## 1. Auth
-
-Draft:
-
-| Header | Use |
-|--------|-----|
-| `Authorization: Bearer <token>` | Same token ADE already stores |
-| `X-API-Key: <token>` | Alias (Otto Broca already accepts both) |
-
-Host **validates** the token (own table or hashed compare). Host **holds** the Letta upstream key in its config (on disk, not in the browser) when it must call the kernel for meta-create.
-
-Browser never learns Broca’s `OTTO_BRIDGE_HTTP_API_KEY` or per-agent Broca secrets. Host injects those on the loopback hop.
-
-**401** — bad/missing token  
-**503** — Host up, dependency down (Broca/SMCP/Letta), `error` + `dependency` in JSON
-
----
-
-## 2. Resource tree
+## 1. Registry resource tree
 
 ```text
-/v1/sanctum
+/v1/sanctum/registry
 ├─ GET  /health
-├─ GET  /whoami
+├─ GET  /sysinfo
 ├─ GET  /capabilities
-├─ GET  /host
+├─ GET  /whoami
 │
-├─ /bootstraps
+├─ /keys                         # hive — hierarchical, Windows-ish
+│    GET  /                      # list / query
+│    GET  /{key_path}
+│    PUT  /{key_path}            # facts or desired (no apply)
+│    DELETE /{key_path}
+│
+├─ /agents                       # Sanctum agents (index over keys)
 │    GET  /
-│    GET  /{bootstrap_id}
-│
-├─ /components
-│    GET  /
-│    GET  /{component_id}
-│    POST /{component_id}/apply
-│    DELETE /{component_id}          # uninstall (job)
-│
-├─ /jobs
-│    GET  /{job_id}
-│    GET  /{job_id}/events           # SSE
-│
-├─ /agents                           # Sanctum agents (composites)
-│    GET  /
-│    POST /
 │    GET  /{uid}
-│    PATCH /{uid}
 │    │
-│    ├─ /modules/broca
-│    │    GET    /
-│    │    PATCH  /
-│    │    POST   /apply
-│    │    GET    /health
-│    │
-│    └─ /chat                        # ADE Broca ingress (H4)
+│    └─ /chat                    # LIGHT TRANSPORT only
 │         POST /messages
 │         GET  /messages/{idem}/outbox
-│         GET  /events               # SSE
+│         GET  /events
 │
-└─ /modules/smcp                     # box-level SMCP, not per-agent
-     GET    /
-     POST   /apply
-     GET    /health
-     GET    /plugins
-     POST   /plugins/{plugin_id}/install
-     POST   /plugins/{plugin_id}/uninstall
-     GET    /tools
-     GET    /sessions
+└─ GET /modules/broca/{uid}      # convenience read of keys
+   GET /modules/smcp
 ```
 
-Ids: `uid` is the Sanctum folder slug (`athena`), **not** a Letta `agent-…` uuid. Composite payload includes Letta ids.
+**No** `POST .../apply` on Registry. Desired is a **key**. Installer reconciles.
 
 ---
 
-## 3. Identity and host
+## 2. Sysinfo (why the harness can exist)
 
-### `GET /v1/sanctum/health`
+### `GET /v1/sanctum/registry/sysinfo`
+
+Draft shape — enum will move in experiments:
+
+```json
+{
+  "os": "linux",
+  "kind": "proot",
+  "kind_notes": "termux-proot",
+  "arch": "aarch64",
+  "init": "none",
+  "layout_root": "/data/data/com.termux/files/home/sanctum",
+  "container": false,
+  "wsl": false,
+  "docker_socket": false,
+  "can_loopback": true,
+  "python": "/data/.../bin/python"
+}
+```
+
+`kind` (draft): `bare` | `wsl` | `docker` | `proot` | `macos`.
+
+Installer **polls this** before adapting a bootstrap. Today’s `sanctum_bootstrap.sh` vs `_proot_letta.sh` vs `_local_letta.sh` is this missing document.
+
+### `GET /health`
 
 ```json
 {
   "status": "ok",
-  "service": "sanctum-host",
-  "version": "0.0.0",
-  "letta": { "reachable": true, "base": "http://127.0.0.1:8284" },
-  "smcp": { "installed": true, "running": true, "port": 9000 },
-  "agents_with_broca": ["athena", "monday"]
+  "service": "sanctum-registry",
+  "kernel": { "reachable": true },
+  "transport": { "broca_uids": ["athena"] }
 }
 ```
 
-If ADE proxy gets **404** on this path, the box is **kernel-only** (today’s ADE v1). UI must not pretend OS is present.
+404 on this path through ADE proxy = kernel-only box. Be honest.
 
-### `GET /v1/sanctum/whoami`
+### `GET /whoami`
 
 ```json
 {
@@ -145,66 +109,40 @@ If ADE proxy gets **404** on this path, the box is **kernel-only** (today’s AD
 }
 ```
 
-This is how ADE knows it is **not** Otto on the Broca wire.
-
-### `GET /v1/sanctum/capabilities`
+### `GET /capabilities`
 
 ```json
 {
-  "chat_default": "broca",
+  "chat_transport": true,
   "kernel_console": true,
-  "bootstraps": true,
-  "smcp_admin": true,
-  "composite_agents": false
+  "installer": "external"
 }
 ```
 
-`composite_agents: false` until H5. ADE hides the wizard.
-
-### `GET /v1/sanctum/host`
-
-Layout root, venv path, ports table (from `control/registry.db` or equivalent). No secrets.
+`installer: external` until I3.
 
 ---
 
-## 4. Bootstraps, components, jobs
+## 3. Keys (the actual registry)
 
-Reuse the Oct 15 contract; Host **owns** it.
+Hierarchical paths, not a random JSON blob. Draft prefix:
 
-### `GET /v1/sanctum/bootstraps`
-
-```json
-{
-  "bootstraps": [
-    {
-      "id": "broca-agent",
-      "version": "0.1.0",
-      "summary": "Wire Broca under agents/<uid>/broca",
-      "writes": ["agents/<uid>/broca/{app,config,db,logs,run}"],
-      "requires": ["sanctum-venv"],
-      "idempotent": true
-    },
-    {
-      "id": "smcp",
-      "version": "0.1.0",
-      "summary": "Shared SMCP under smcp/",
-      "writes": ["smcp/{app,venv,config,db,plugins,logs,run}"],
-      "requires": [],
-      "idempotent": true
-    }
-  ]
-}
+```text
+sys/...
+agents/{uid}/letta/main
+agents/{uid}/letta/sleeptime
+agents/{uid}/broca/desired
+agents/{uid}/broca/actual
+agents/{uid}/broca/port
+modules/smcp/desired
+modules/smcp/actual
 ```
 
-### `GET /v1/sanctum/components`
-
-Installed vs desired. Example row:
+### `GET /v1/sanctum/registry/keys/agents/athena/broca`
 
 ```json
 {
-  "id": "broca:athena",
-  "kind": "broca",
-  "uid": "athena",
+  "path": "agents/athena/broca",
   "desired": "running",
   "actual": "running",
   "port": 8871,
@@ -212,334 +150,157 @@ Installed vs desired. Example row:
 }
 ```
 
-`drift: true` when the on-disk Broca tree has local patches — **do not** overwrite on re-apply without `{"reset": true}`.
-
-### `POST /v1/sanctum/components/{id}/apply`
+### `PUT .../keys/agents/athena/broca/desired`
 
 ```json
-{ "desired": "running" }
+{ "value": "running" }
 ```
 
-→ `{ "job_id": "job_…" }` · **202**
+**200** — hive updated. **Does not start Broca.** Installer sees desired≠actual on poll.
 
-### `GET /v1/sanctum/jobs/{job_id}/events` (SSE)
+`drift: true` → installer must not overwrite fingerprint without an explicit reset key.
 
-```text
-event: log
-data: {"t":"2026-10-31T09:00:00Z","line":"writing agents/athena/broca/config"}
-
-event: status
-data: {"state":"succeeded"}
-```
-
-Same job pattern for uninstall (`DELETE` → job).
-
-```mermaid
-sequenceDiagram
-  participant C as ADE or CLI
-  participant H as Host
-  participant R as recipes on disk
-
-  C->>H: POST .../apply
-  H-->>C: 202 job_id
-  C->>H: GET .../jobs/id/events
-  loop reconcile
-    H->>R: idempotent bootstrap
-    H-->>C: event log
-  end
-  H-->>C: event status succeeded
-```
+Convenience GETs (`/agents/{uid}`, `/modules/broca/{uid}`) are views over keys.
 
 ---
 
-## 5. Sanctum agents (composites)
+## 4. Light transport (R2)
 
-### `GET /v1/sanctum/agents`
+Otto Broca today (reference): `POST /v1/messages` → 202; `GET /v1/messages/outbox`; `/health`.
 
-```json
-{
-  "agents": [
-    {
-      "uid": "athena",
-      "name": "Athena",
-      "letta": {
-        "main": "agent-5712c4be-…",
-        "sleeptime": "agent-…"
-      },
-      "modules": {
-        "broca": { "desired": "running", "actual": "running", "port": 8871 },
-        "smcp": { "bound": true }
-      }
-    }
-  ]
-}
-```
+Registry wraps that for the browser:
 
-ADE’s **people list** prefers this. Letta `GET /v1/agents` remains the kernel list (loops, sleeptime internals).
-
-### `POST /v1/sanctum/agents` (H5 — wizard)
+### `POST /v1/sanctum/registry/agents/{uid}/chat/messages`
 
 ```json
-{
-  "name": "Athena",
-  "uid": "athena",
-  "profile": "full",
-  "loops": { "main": true, "sleeptime": true, "cerebellum": false },
-  "host": { "broca": true, "smcp": true }
-}
+{ "text": "Good morning.", "idempotency_key": "optional" }
 ```
 
-→ `{ "uid": "athena", "job_id": "job_…" }` · **202**
+Registry sets speaker/owner/platform on the loopback hop. Client speaker fields ignored.
 
-Until H5, `POST` returns **501** with `{"error":"not_implemented","until":"H5"}`.
+**202:** `{ "status": "queued", "idempotency_key": "…", "stream": "…/chat/events?idempotency_key=…" }`
 
----
-
-## 6. Broca module (H3 — detect / connect)
-
-Per-agent. No global Broca.
-
-### `GET /v1/sanctum/agents/{uid}/modules/broca`
-
-```json
-{
-  "uid": "athena",
-  "installed": true,
-  "desired": "running",
-  "actual": "running",
-  "port": 8871,
-  "bind": "127.0.0.1",
-  "plugins": ["telegram", "otto_bridge", "ade"],
-  "fingerprint": "local",
-  "health": "ok"
-}
-```
-
-`installed: false` → ADE Chat offers install, not silent Letta.
-
-### `PATCH` desired state
-
-```json
-{ "desired": "stopped" }
-```
-
-### `POST .../apply`
-
-Runs bootstrap + start/stop. **202** + `job_id`.
-
-### `GET .../health`
-
-Thin probe of loopback Broca `/health` (Otto bridge already has this). Host does the hop.
-
----
-
-## 7. Chat ingress (H4 — after Host)
-
-Reuse Otto bridge **shape**, change **person**, hide **loopback**.
-
-Otto today (reference, not ADE):
-
-| Method | Path | Meaning |
-|--------|------|---------|
-| POST | `/v1/messages` | 202 queued · `idempotency_key` |
-| GET | `/v1/messages/outbox?idempotency_key=` | reply payload or 404 |
-| GET | `/v1/turn/current` | in-flight user message |
-| GET | `/health` | process up |
-
-Host **wraps** that for the browser:
-
-### `POST /v1/sanctum/agents/{uid}/chat/messages`
-
-```json
-{
-  "text": "Good morning.",
-  "idempotency_key": "optional-client-key"
-}
-```
-
-Host sets on the Broca hop:
-
-```json
-{
-  "text": "Good morning.",
-  "speaker": "owner",
-  "username": "<whoami.username>",
-  "display_name": "<owner display>",
-  "platform_user_id": "<stable owner id>",
-  "idempotency_key": "…"
-}
-```
-
-**202:**
-
-```json
-{
-  "status": "queued",
-  "idempotency_key": "…",
-  "stream": "/v1/sanctum/agents/athena/chat/events?idempotency_key=…"
-}
-```
-
-ADE **must not** send `speaker: otto`. Host ignores client speaker fields.
-
-### `GET .../chat/events?idempotency_key=` (SSE)
-
-Preferred ADE UX. Host polls Broca outbox (or receives plugin push) and forwards tokens/events.
-
-```text
-event: queued
-data: {"idempotency_key":"…"}
-
-event: token
-data: {"text":"Hey "}
-
-event: done
-data: {"text":"Hey — I'm here."}
-```
-
-### `GET .../chat/messages/{idem}/outbox`
-
-Escape hatch / CLI. Same JSON family as Otto outbox.
+Missing Broca → **409** `broca_not_installed` (a **fact**). ADE does not fall through to Kernel.
 
 ```mermaid
 sequenceDiagram
   participant ADE
-  participant Host
-  participant Broca as Broca loopback<br/>ade plugin
-  participant Q as queue
+  participant Reg as Registry
+  participant Broca
 
-  ADE->>Host: POST /v1/sanctum/agents/athena/chat/messages
-  Host->>Broca: POST /v1/messages (owner, platform=ade)
-  Broca-->>Host: 202
-  Host-->>ADE: 202 + stream URL
-  ADE->>Host: GET .../chat/events SSE
-  Broca->>Q: insert
-  Q-->>Broca: assistant outbox
-  Host->>Broca: GET /v1/messages/outbox
-  Host-->>ADE: SSE token / done
+  ADE->>Reg: POST .../chat/messages
+  Reg->>Broca: POST /v1/messages owner/ade
+  Broca-->>Reg: 202
+  Reg-->>ADE: 202 + SSE
+  ADE->>Reg: GET .../chat/events
+  Reg->>Broca: GET outbox
+  Reg-->>ADE: tokens
 ```
-
-**Hard rule:** this path is the **default** Chat send once H4 ships. Letta `/v1/agents/{id}/messages` stays available as **kernel console** only.
 
 ---
 
-## 8. SMCP admin (H2)
+## 5. Installer (polls Registry — HTTP optional)
 
-Box-level. SMCP’s native protocol is MCP SSE + JSON-RPC (`GET /sse`, `POST /messages/`). Host does **not** re-expose raw MCP to the ADE browser as the admin UI. Host administers **process + plugins + inventory**.
+**I0–I2:** harness is local. It is a **client** of Registry.
+
+```text
+installer apply broca-agent --uid athena
+  → GET sysinfo, GET desired
+  → adapt contract
+  → write disk
+  → PUT actual, port
+```
+
+Bootstrap **contract** (still the Oct 15 shape, owned by installer repo):
+
+```text
+id: broca-agent
+writes: agents/<uid>/broca/…
+requires: [layout_root]
+idempotent: true
+```
+
+Adaptation uses `sysinfo.kind`, not a new git file per OS.
+
+### Later ` /v1/sanctum/installer` (I3, experimental)
+
+Only if ADE must trigger apply without a CLI:
 
 | Method | Path | Meaning |
 |--------|------|---------|
-| GET | `/v1/sanctum/modules/smcp` | installed, desired, port, venv path |
-| POST | `/v1/sanctum/modules/smcp/apply` | install/start/stop/uninstall job |
-| GET | `/v1/sanctum/modules/smcp/health` | process + MCP probe |
-| GET | `/v1/sanctum/modules/smcp/plugins` | on-disk plugins + enabled |
-| POST | `/v1/sanctum/modules/smcp/plugins/{id}/install` | job |
-| POST | `/v1/sanctum/modules/smcp/plugins/{id}/uninstall` | job |
-| GET | `/v1/sanctum/modules/smcp/tools` | `tools/list` via Host as MCP client |
-| GET | `/v1/sanctum/modules/smcp/sessions` | active MCP sessions if SMCP tracks them |
+| GET | `/v1/sanctum/installer/bootstraps` | contracts |
+| POST | `/v1/sanctum/installer/jobs` | `{ "bootstrap": "broca-agent", "uid": "athena" }` |
+| GET | `/v1/sanctum/installer/jobs/{id}/events` | SSE logs |
 
-Letta `GET/PUT /v1/tools/mcp/servers` remains **kernel** (which MCP servers this Letta agent uses). ADE Tools tab can keep that. Host SMCP pages are **the box’s SMCP**.
+Until then, **501** or the route does not exist.
 
 ```mermaid
-flowchart LR
-  ADE["ADE Host / SMCP tab"]
-  H["Host"]
-  S["SMCP process"]
-  L["Letta MCP client config"]
+sequenceDiagram
+  participant I as Installer
+  participant R as Registry
+  participant D as disk
 
-  ADE -->|"/v1/sanctum/modules/smcp/*"| H
-  H -->|"start/stop, plugins dir"| S
-  ADE -.->|"optional kernel tab"| L
-  L -->|"MCP SSE"| S
+  I->>R: GET /sysinfo
+  I->>R: GET keys/agents/athena/broca
+  I->>D: adapted apply
+  I->>R: PUT keys/agents/athena/broca/actual
 ```
 
-Control UI today (`smcp_plugins.js`) is **mock data**. H2 replaces that.
+**Letta-code experiment (B):** same polling. Jobs are not `POST /v1/agents/{kernel}/messages` “please apt”.
 
 ---
 
-## 9. Optional Letta kernel (not Host)
+## 6. Kernel (unchanged, optional)
 
-Listed so the split is obvious. **Unchanged Letta contract** (ADE v1 already implements most of this):
-
-| Use | Method | Path |
-|-----|--------|------|
-| List kernel agents | GET | `/v1/agents/` |
-| Chat (optional console) | POST | `/v1/agents/{id}/messages` |
-| Hitch Broca-started run | POST | `/v1/runs/{id}/stream` |
-| Memory / archival / tools / `.af` | GET/POST/PATCH | existing ADE coverage |
-
-ADE UI copy (draft): **Kernel** vs **Chat**. Chat = Host Broca. Kernel = Letta.
+| Use | Path |
+|-----|------|
+| Console chat | `POST /v1/agents/{id}/messages` |
+| Hitch Broca run | `POST /v1/runs/{id}/stream` |
+| Memory, tools, `.af` | existing ADE v1 |
 
 ---
 
-## 10. Error model
+## 7. Errors (Registry)
 
-```json
-{
-  "error": "broca_not_installed",
-  "uid": "athena",
-  "hint": "POST /v1/sanctum/agents/athena/modules/broca/apply"
-}
-```
-
-| `error` | HTTP | ADE does |
-|---------|------|----------|
-| `unauthorized` | 401 | Settings |
-| `sanctum_unavailable` | 404/502 | Show kernel-only + “Host not on this box” |
-| `broca_not_installed` | 409 | Offer apply, do not send Letta |
-| `broca_stopped` | 409 | Offer start |
-| `smcp_not_installed` | 409 | Offer apply |
-| `conflict_fingerprint` | 409 | Refuse overwrite; need `reset` |
-| `not_implemented` | 501 | Hide wizard / H5 |
+| `error` | HTTP | Meaning |
+|---------|------|---------|
+| `unauthorized` | 401 | |
+| `broca_not_installed` | 409 | Transport asked; fact says missing |
+| `broca_stopped` | 409 | |
+| `no_such_key` | 404 | |
+| `installer_external` | 501 | Someone POSTed apply on Registry — wrong service |
 
 ---
 
-## 11. Mapping from stubs (do not reinvent blindly)
+## 8. ADE client map
 
-| Need | Steal from | Do not ship as-is |
-|------------------|-------------------|
-| 202 + outbox | `broca-otto-bridge` `http_app.py` | Speaker=otto |
-| Path-split | ADE `proxy.php` / Flask | Today all-to-Letta |
-| Registry / ports | `control/registry.db` idea + layout canon | Alpha Flask chat `?action=` |
-| Broca settings screens | `control/templates/broca_settings.html` | Coupled to control session cookie |
-| SMCP screens | `control` smcp_* templates | Mock JS |
-| Bootstrap verbs | PRD v2 §6 | E1 fork-mount |
-| Composite agent | PRD v2 §4b | — |
-
----
-
-## 12. ADE client map (when we implement)
-
-| ADE surface | Calls | Step |
-|-------------|-------|------|
-| Settings health | `GET /v1/sanctum/health` + Letta health | H0 |
-| Host / install drawer | bootstraps, components, jobs SSE | H1 |
-| SMCP tab | `/modules/smcp/*` | H2 |
-| Agent card Broca badge | `GET .../modules/broca` | H3 |
-| Chat send (default) | `POST .../chat/messages` + SSE | H4 |
-| Chat send (kernel) | existing `sendMessage` Letta | already v1, relabel |
-| New agent wizard | `POST /v1/sanctum/agents` | H5 |
-
-`public/app.js` `apiFetch` already has one `base`. H0 is proxy-side. ADE JS grows a `sanctumFetch('/v1/sanctum/...')` that is the same helper.
+| Surface | Calls | Step |
+|---------|-------|------|
+| Settings | `GET /registry/health` + Kernel health | R0 |
+| Environment badge | `GET /registry/sysinfo` | R0 |
+| Agent Broca badge | `GET /registry/agents/{uid}` | R1 |
+| Chat default | `POST /registry/agents/{uid}/chat/messages` | R2 |
+| Chat kernel | existing Letta send | v1, relabel |
+| Install | CLI harness / later installer jobs | I0+ |
 
 ---
 
-## 13. Out of this map (on purpose)
+## 9. Mapping from stubs
 
-- Telegram plugin HTTP (stays inside Broca)
-- Otto’s tunnel to moya `:8871` (Otto-on-Termux is not the ADE browser)
-- Letta archival/core block editors
-- Multihost Ada deploy of `ade.sanctumos.org`
+| Need | Steal | Don’t freeze |
+|------|--------|--------------|
+| Hive | `registry.db` idea | control UI user tables |
+| Sysinfo | what the three `sanctum_bootstrap*.sh` *implicitly* know | the scripts as the API |
+| Transport | Otto `http_app.py` | speaker=otto |
+| Path-split | ADE proxy | all-to-Letta |
+| Contracts | PRD v2 §6 | E1, apply-on-Letta |
 
 ---
 
-## 14. First vertical (proposal, not coded)
+## 10. First vertical
 
-**H0 + H1 + H3 for one uid** on a **lab** box (Peacekeeper or throwaway). Not moya.
+1. **R0** Registry + sysinfo on a lab box (not moya).
+2. **R2** transport for one existing Broca.
+3. **I0** one bootstrap, two `sysinfo.kind` values, no second script tree.
 
-1. Host serves `/health` + `/agents/athena/modules/broca`
-2. ADE proxy splits
-3. Chat still Letta until H4 — but the badge is honest: Broca running / missing
-4. Then H4 on the same uid
-
-That is enough to prove “Letta is optional, Host is the OS hole” without boiling SMCP or the wizard.
+That is enough to prove: hive is real, Chat can be Broca without Letta-only, installer adapts instead of forking.
