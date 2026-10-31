@@ -8,6 +8,7 @@ Tonight’s lock: ADE is the owner’s personal web client. Broca is the right w
 |-----|------------|
 | [architecture-v0.md](architecture-v0.md) | Product layers, mermaid charts, stubs, engineering order |
 | [api-map-v0.md](api-map-v0.md) | HTTP map, request shapes, sequence diagrams |
+| [terminology-v0.md](terminology-v0.md) | Naming: both camps. Host is tech. Broca stays Broca. |
 
 **Related (older, still useful):** [PRD-v2-bootstrap-installer.md](../PRD-v2-bootstrap-installer.md) — Oct 15 stub. This folder **supersedes** the “Letta face is the product face” leaning. One ADE Settings URL stays. The OS lives in Host, not inside Letta.
 

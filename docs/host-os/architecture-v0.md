@@ -18,6 +18,8 @@
 
 **Mark (2026-10-31):** going into Letta is OK *optionally*. It cannot be the only thing.
 
+**Naming:** Sanctum already uses **both** OS/tech names and neuroscience names, by layer — see [terminology-v0.md](terminology-v0.md) and the public Naming Rubric. **Host** is camp 1 (plumbing). **Broca** stays camp 2 (speech). Do not neuro-name the sidecar.
+
 If ADE can only `POST /v1/agents/{id}/messages`, it is a Letta client with Sanctum paint. Sanctum users want a web client that is **theirs**. Broca is the right wire. Host is how the browser (and Otto, CLI, later Ada-on-box) reach loopback Broca/SMCP/install without stuffing the OS into the kernel.
 
 ---
@@ -322,6 +324,7 @@ Host does not reimplement Letta memory editors.
 | 2026-10-31 | SMCP admin is in-scope for the same Host face. |
 | 2026-10-31 | Engineering home = Host microservice (installer `control/` drawer). Broca-through-ADE **after** Host. |
 | 2026-10-31 | E2 sidecar default. E1 rejected as OS home. E3 not ADE Settings. |
+| 2026-10-31 | **Terminology:** follow existing four-camp rubric. Host = technical. Broca = neuro. Kernel = Letta. No Brainstem sidecar. |
 
 ---
 
