@@ -53,6 +53,8 @@ class MockLetta:
         self.cancels: list[dict] = []
         self.hold_sse = False
         self._held_sse = None
+        self.token_sse = False
+        self.hold_history_after_post = False
         self.messages = [
             {"id": "m1", "message_type": "user_message", "content": REMINDER},
             {"id": "m2", "message_type": "user_message", "content": "hello there"},
@@ -268,6 +270,20 @@ class MockLetta:
             )
             return route.fulfill(status=200, headers={"content-type": "text/event-stream"}, body=sse)
         if path == f"/v1/agents/{AGENT_ID}/messages" and method == "GET":
+            if self.hold_history_after_post and self.posts:
+                held = route
+
+                def _later(held_route=held):
+                    t0 = time.time()
+                    while self.hold_history_after_post and time.time() - t0 < 15:
+                        time.sleep(0.05)
+                    try:
+                        self._json(held_route, self.messages)
+                    except Exception:
+                        pass
+
+                threading.Thread(target=_later, daemon=True).start()
+                return None
             return self._json(route, self.messages)
         if path == f"/v1/agents/{AGENT_ID}/messages" and method == "POST":
             body = json.loads(request.post_data or "{}")
@@ -283,10 +299,22 @@ class MockLetta:
                 "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
                 "background": False,
             })
-            sse = (
-                f'data: {{"message_type":"assistant_message","content":"pong","run_id":"{run_id}"}}\n\n'
-                "data: [DONE]\n\n"
-            )
+            if self.token_sse:
+                sse = (
+                    'data: {"message_type":"reasoning_message","id":"r-stream-1","reasoning":"Hel"}\n\n'
+                    'data: {"message_type":"reasoning_message","id":"r-stream-1","reasoning":"lo"}\n\n'
+                    'data: {"message_type":"tool_call_message","id":"tc-stream-1",'
+                    '"tool_call":{"name":"memory","arguments":"ab","tool_call_id":"call-stream"}}\n\n'
+                    'data: {"message_type":"tool_call_message","id":"tc-stream-1",'
+                    '"tool_call":{"name":"memory","arguments":"cd","tool_call_id":"call-stream"}}\n\n'
+                    f'data: {{"message_type":"assistant_message","content":"pong","run_id":"{run_id}"}}\n\n'
+                    "data: [DONE]\n\n"
+                )
+            else:
+                sse = (
+                    f'data: {{"message_type":"assistant_message","content":"pong","run_id":"{run_id}"}}\n\n'
+                    "data: [DONE]\n\n"
+                )
             return route.fulfill(status=200, headers={"content-type": "text/event-stream"}, body=sse)
         if path.startswith(f"/v1/agents/{AGENT_ID}/core-memory/blocks/") and method == "PATCH":
             label = path.rsplit("/", 1)[-1]
@@ -526,6 +554,35 @@ def test_chat_lanes_and_enter_to_send(page):
         timeout=10000,
     )
     assert not errors, errors
+
+
+def test_chat_stream_tokens_upsert_one_reasoning_and_tool_card(page):
+    """Letta streams reasoning/tool_call as many SSE events with the same id — one card each, not N copies."""
+    mock = MockLetta()
+    mock.token_sse = True
+    mock.hold_history_after_post = True
+    _boot(page, mock)
+    page.goto(f"{BASE}/chat.html?agent={AGENT_ID}", wait_until="networkidle")
+    page.wait_for_selector("#messages .chat-row--assistant", timeout=15000)
+    before_reason = page.locator("#messages .chat-turn--reasoning").count()
+    before_tools = page.locator("#messages .chat-turn--tool-call").count()
+    page.fill("#input", "ping")
+    page.press("#input", "Enter")
+    page.wait_for_function(
+        """([beforeR, beforeT]) => {
+            const r = [...document.querySelectorAll('#messages .chat-turn--reasoning')];
+            const t = [...document.querySelectorAll('#messages .chat-turn--tool-call')];
+            const hello = r.some(e => (e.textContent || '').includes('Hello'));
+            const abcd = t.some(e => (e.textContent || '').includes('abcd'));
+            return hello && abcd && r.length === beforeR + 1 && t.length === beforeT + 1;
+        }""",
+        arg=[before_reason, before_tools],
+        timeout=15000,
+    )
+    artifacts = os.path.join(os.path.dirname(__file__), "artifacts")
+    os.makedirs(artifacts, exist_ok=True)
+    page.screenshot(path=os.path.join(artifacts, "chat-stream-token-upsert.png"))
+    mock.hold_history_after_post = False
 
 
 def test_chat_own_send_does_not_stick_stop(page):

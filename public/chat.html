@@ -910,6 +910,7 @@
 
     function tickActiveRuns() {
       if (!chatSync.agentId || document.hidden || chatSync.ownSendActive || chatSync.hitching || !chatSync.primed) return;
+      if (messagesEl.querySelector('[data-stream-body]')) return;
       window.ADE.listActiveRuns({ agent_id: chatSync.agentId }).then(function(runs) {
         if (!Array.isArray(runs) || !runs.length) return;
         for (var i = 0; i < runs.length; i++) {
@@ -935,6 +936,45 @@
       }).catch(function() { /* poll miss is fine */ });
     }
 
+    function accStreamField(prev, next) {
+      if (next == null || next === '') return prev || '';
+      next = typeof next === 'string' ? next : JSON.stringify(next);
+      prev = prev || '';
+      if (!prev) return next;
+      if (next.indexOf(prev) === 0) return next;
+      if (prev.indexOf(next) === 0) return prev;
+      return prev + next;
+    }
+
+    function streamStepKey(obj, mt) {
+      mt = String(mt || messageTypeOf(obj) || 'step');
+      var id = obj.id != null ? obj.id : obj.otid;
+      if (id == null || id === '') return mt + ':live';
+      return mt + ':' + String(id);
+    }
+
+    function mergeStreamToolCalls(prev, obj) {
+      var next = collectToolCalls(obj);
+      if (!prev || !prev.length) return next.map(function (c) { return Object.assign({}, c); });
+      if (!next.length) return prev;
+      var byId = {};
+      prev.forEach(function (c) {
+        byId[String(c.tool_call_id || c.id || c.name || 'call')] = Object.assign({}, c);
+      });
+      next.forEach(function (c) {
+        var k = String(c.tool_call_id || c.id || c.name || 'call');
+        if (!byId[k]) {
+          byId[k] = Object.assign({}, c);
+          return;
+        }
+        var cur = byId[k];
+        if (c.name) cur.name = c.name;
+        if (c.tool_call_id) cur.tool_call_id = c.tool_call_id;
+        if (c.arguments != null) cur.arguments = accStreamField(cur.arguments, c.arguments);
+      });
+      return Object.keys(byId).map(function (k) { return byId[k]; });
+    }
+
     function attachStreamUi(opts) {
       opts = opts || {};
       var empty = messagesEl.querySelector('.chat-empty');
@@ -943,7 +983,7 @@
       messagesEl.appendChild(streamWrap);
       scrollToBottom();
       var bodyEl = streamWrap.querySelector('[data-stream-body]');
-      var state = { acc: '', sawAssistant: false, thinkTimer: null };
+      var state = { acc: '', sawAssistant: false, thinkTimer: null, stepAcc: {}, stepTools: {} };
       var thinkStart = Date.now();
       state.thinkTimer = setInterval(function() {
         if (state.sawAssistant) { clearInterval(state.thinkTimer); return; }
@@ -952,6 +992,43 @@
         var sh = bodyEl.querySelector('.chat-shimmer');
         if (sh) { sh.textContent = label; sh.setAttribute('data-shimmer-text', label); }
       }, 1000);
+      function upsertStep(obj, mt) {
+        var key = streamStepKey(obj, mt);
+        var merged = Object.assign({}, obj);
+        if (key && mt === 'reasoning_message') {
+          var seed = state.stepAcc[key];
+          if (seed == null) {
+            var existing = messagesEl.querySelector('[data-stream-key="' + key.replace(/"/g, '') + '"] .chat-reasoning-body');
+            seed = existing ? (existing.textContent || '') : '';
+          }
+          merged.reasoning = accStreamField(seed, obj.reasoning);
+          state.stepAcc[key] = merged.reasoning;
+        } else if (key && mt === 'hidden_reasoning_message') {
+          merged.hidden_reasoning = accStreamField(state.stepAcc[key], obj.hidden_reasoning);
+          state.stepAcc[key] = merged.hidden_reasoning;
+        } else if (key && (mt === 'tool_call_message' || mt === 'approval_request_message')) {
+          var calls = mergeStreamToolCalls(state.stepTools[key], obj);
+          state.stepTools[key] = calls;
+          merged.tool_calls = calls;
+          if (calls.length) merged.tool_call = calls[0];
+        }
+        var el = createMessageElement(merged);
+        if (!el) return;
+        if (key) el.setAttribute('data-stream-key', key);
+        if (mt === 'tool_call_message' && !el.dataset.dotState) el.dataset.dotState = 'running';
+        var prev = key ? messagesEl.querySelector('[data-stream-key="' + key.replace(/"/g, '') + '"]') : null;
+        if (prev) {
+          var wasOpen = prev.querySelector('details') && prev.querySelector('details').open;
+          prev.replaceWith(el);
+          if (wasOpen) {
+            var det = el.querySelector('details');
+            if (det) det.open = true;
+          }
+        } else {
+          messagesEl.insertBefore(el, streamWrap);
+        }
+        scrollToBottom();
+      }
       function onEvent(obj) {
         if (!obj) return;
         noteRunId(obj);
@@ -961,20 +1038,15 @@
           return;
         }
         var mt = String(obj.message_type || obj.type || '').toLowerCase();
+        if (mt === 'ping' || mt === 'keepalive' || mt === 'usage_statistics' || mt === 'stop_reason') return;
         if (mt && mt !== 'assistant_message' && mt !== 'assistant' && mt !== '_raw' && !obj.delta && !obj.token) {
-          if (mt === 'ping' || mt === 'keepalive') return;
-          var el = createMessageElement(obj);
-          if (el) {
-            if (mt === 'tool_call_message' && !el.dataset.dotState) el.dataset.dotState = 'running';
-            messagesEl.insertBefore(el, streamWrap);
-            scrollToBottom();
-          }
+          upsertStep(obj, mt);
           return;
         }
         var chunk = streamContentFromEvent(obj);
         if (!chunk) return;
         state.sawAssistant = true;
-        state.acc += chunk;
+        state.acc = accStreamField(state.acc, chunk);
         bodyEl.innerHTML = AC.parseMarkdown(state.acc);
         scrollToBottom();
       }
