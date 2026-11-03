@@ -59,7 +59,11 @@ $isRegistry = str_starts_with($path, '/v1/sanctum/registry');
 if ($isRegistry) {
     $upstream = ade_read_upstream_file($docRoot, 'ade_registry_upstream.url');
     if ($upstream === '') {
-        // Sensible local default when the file is missing (loopback Registry).
+        // Prefer the same edge as Letta (moya nginx path-splits /v1/sanctum/registry → :8870).
+        $upstream = ade_read_upstream_file($docRoot, 'ade_upstream.url');
+    }
+    if ($upstream === '') {
+        // Local lab default when no edge file exists.
         $upstream = 'http://127.0.0.1:8870';
     }
 } else {
