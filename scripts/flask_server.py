@@ -12,8 +12,11 @@ Usage:
   python3 scripts/flask_server.py
 
 Env:
-  ADE_FLASK_UPSTREAM — API base to proxy (default: http://127.0.0.1:8283)
-  ADE_FLASK_PORT     — listen port (default: 5055)
+  ADE_FLASK_UPSTREAM          — Letta Kernel base (default: http://127.0.0.1:8283)
+  ADE_FLASK_REGISTRY_UPSTREAM — Registry base (default: http://127.0.0.1:8870)
+  ADE_FLASK_PORT              — listen port (default: 5055)
+
+Path-split: /api/v1/sanctum/registry/* → Registry; other /api/* → Letta.
 """
 from __future__ import annotations
 
@@ -25,7 +28,11 @@ import requests
 
 ROOT = Path(__file__).resolve().parent.parent / "public"
 UPSTREAM_BASE = os.environ.get("ADE_FLASK_UPSTREAM", "http://127.0.0.1:8283").rstrip("/")
+REGISTRY_UPSTREAM = os.environ.get(
+    "ADE_FLASK_REGISTRY_UPSTREAM", "http://127.0.0.1:8870"
+).rstrip("/")
 PORT = int(os.environ.get("ADE_FLASK_PORT", "5055"))
+REGISTRY_PREFIX = "v1/sanctum/registry"
 
 LETTA_SDK_UA = "letta-client/1.0.0"
 STAINLESS_HEADER = "X-Stainless-Package-Version"
@@ -75,9 +82,18 @@ def static_files(path: str):
     return send_from_directory(ROOT, path)
 
 
+def select_upstream(path: str) -> tuple[str, bool]:
+    """Return (base_url, is_registry) for path-split."""
+    norm = path.lstrip("/")
+    if norm == REGISTRY_PREFIX or norm.startswith(REGISTRY_PREFIX + "/"):
+        return REGISTRY_UPSTREAM, True
+    return UPSTREAM_BASE, False
+
+
 @app.route("/api/<path:path>", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
 def api_proxy(path: str):
-    url = f"{UPSTREAM_BASE}/{path}"
+    base, is_registry = select_upstream(path)
+    url = f"{base}/{path.lstrip('/')}"
     query = request.query_string.decode("utf-8")
     if query:
         url = f"{url}?{query}"
@@ -97,15 +113,29 @@ def api_proxy(path: str):
     body = request.get_data()
     headers = build_upstream_headers(request.headers, body)
 
-    upstream = requests.request(
-        method=request.method,
-        url=url,
-        headers=headers,
-        data=body,
-        allow_redirects=True,
-        timeout=(30, 600),
-        stream=True,
-    )
+    try:
+        upstream = requests.request(
+            method=request.method,
+            url=url,
+            headers=headers,
+            data=body,
+            allow_redirects=True,
+            timeout=(30, 600),
+            stream=True,
+        )
+    except requests.RequestException as exc:
+        payload = {
+            "error": "Registry upstream failed" if is_registry else "Upstream proxy failed",
+            "detail": str(exc),
+        }
+        if is_registry:
+            payload["service"] = "sanctum-registry"
+            payload["hint"] = "Start Registry on loopback :8870 or set ADE_FLASK_REGISTRY_UPSTREAM"
+        return Response(
+            __import__("json").dumps(payload),
+            status=502,
+            mimetype="application/json",
+        )
 
     ct = (upstream.headers.get("Content-Type") or "").lower()
     passthrough = {}
@@ -141,6 +171,7 @@ def api_proxy(path: str):
 
 if __name__ == "__main__":
     print(f"Serving {ROOT} at http://127.0.0.1:{PORT}/")
-    print(f"API proxy: /api/* -> {UPSTREAM_BASE}/*")
+    print(f"API proxy: /api/v1/sanctum/registry/* -> {REGISTRY_UPSTREAM}/*")
+    print(f"API proxy: /api/* (else) -> {UPSTREAM_BASE}/*")
     print("Set ADE config base to http://127.0.0.1:%d/api (Settings or config.js)" % PORT)
     app.run(host="127.0.0.1", port=PORT, debug=False, threaded=True)

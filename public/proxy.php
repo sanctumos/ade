@@ -1,7 +1,8 @@
 <?php
 /**
- * Same-origin reverse proxy → self-hosted Letta.
- * Upstream: ../db/ade_upstream.url (one line, no trailing slash) beside the vhost.
+ * Same-origin reverse proxy with path-split:
+ *   /v1/sanctum/registry/* → Registry (db/ade_registry_upstream.url, default :8870)
+ *   everything else       → Letta Kernel (db/ade_upstream.url)
  * Client: ADE_CONFIG.base = https://ade.sanctumos.org/proxy.php
  * Requests: GET/POST/… proxy.php?path=/v1/agents/  (also PATH_INFO if enabled)
  */
@@ -18,26 +19,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-$docRoot = rtrim((string)($_SERVER['DOCUMENT_ROOT'] ?? __DIR__), '/');
-$upstreamFile = dirname($docRoot) . '/db/ade_upstream.url';
-if (!is_readable($upstreamFile)) {
-    // Repo-relative fallback when serving from checkout
-    $alt = dirname(__DIR__) . '/db/ade_upstream.url';
-    if (is_readable($alt)) {
-        $upstreamFile = $alt;
+/**
+ * Resolve a one-line upstream URL file beside the vhost db/ (or repo db/).
+ */
+function ade_read_upstream_file(string $docRoot, string $basename): string
+{
+    $candidates = [
+        dirname($docRoot) . '/db/' . $basename,
+        dirname(__DIR__) . '/db/' . $basename,
+    ];
+    foreach ($candidates as $file) {
+        if (is_readable($file)) {
+            $url = rtrim(trim((string)file_get_contents($file)), '/');
+            if ($url !== '' && preg_match('#^https?://#i', $url)) {
+                return $url;
+            }
+        }
     }
-}
-
-$upstream = '';
-if (is_readable($upstreamFile)) {
-    $upstream = trim((string)file_get_contents($upstreamFile));
-}
-$upstream = rtrim($upstream, '/');
-if ($upstream === '' || !preg_match('#^https?://#i', $upstream)) {
-    http_response_code(503);
-    header('Content-Type: application/json');
-    echo json_encode(['error' => 'ADE proxy upstream not configured (db/ade_upstream.url)']);
-    exit;
+    return '';
 }
 
 $path = '';
@@ -54,11 +53,29 @@ if ($path === '/' || str_contains($path, '..')) {
     exit;
 }
 
+$docRoot = rtrim((string)($_SERVER['DOCUMENT_ROOT'] ?? __DIR__), '/');
+$isRegistry = str_starts_with($path, '/v1/sanctum/registry');
+
+if ($isRegistry) {
+    $upstream = ade_read_upstream_file($docRoot, 'ade_registry_upstream.url');
+    if ($upstream === '') {
+        // Sensible local default when the file is missing (loopback Registry).
+        $upstream = 'http://127.0.0.1:8870';
+    }
+} else {
+    $upstream = ade_read_upstream_file($docRoot, 'ade_upstream.url');
+    if ($upstream === '') {
+        http_response_code(503);
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'ADE proxy upstream not configured (db/ade_upstream.url)']);
+        exit;
+    }
+}
+
 $query = $_GET;
 unset($query['path']);
 $qs = http_build_query($query);
 $url = $upstream . $path . ($qs !== '' ? ('?' . $qs) : '');
-
 $body = file_get_contents('php://input');
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
@@ -203,10 +220,19 @@ curl_close($ch);
 
 if ($ok === false) {
     if (!$headersSent) {
+        // Registry missing → honest failure (not silent Letta).
         http_response_code(502);
         header('Content-Type: application/json');
     }
-    echo json_encode(['error' => 'Upstream proxy failed', 'detail' => $err]);
+    $payload = [
+        'error' => $isRegistry ? 'Registry upstream failed' : 'Upstream proxy failed',
+        'detail' => $err,
+    ];
+    if ($isRegistry) {
+        $payload['service'] = 'sanctum-registry';
+        $payload['hint'] = 'Start Registry on loopback :8870 or set db/ade_registry_upstream.url';
+    }
+    echo json_encode($payload);
     exit;
 }
 
