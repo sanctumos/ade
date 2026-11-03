@@ -1,10 +1,12 @@
 # Lightweight CLI agent for installer bootstrap troubleshooting
 
-**Status:** locked · 2026-10-31 · **Mark: gptme. Goose is out.**
+**Status:** research locked · 2026-10-31 · **Mark: gptme. Goose is out.**  
+**Phase note (2026-11-03):** Installer spike + gptme experimentation are a **future bookmark**. Registry v0 does **not** implement this. Future gptme must consume Registry’s **live `/docs`** (table stakes), not GitHub alone.
+
 **Job:** occasional local devops while adapting `sanctumos/installer` bootstraps to a box (linux / docker / WSL / proot). Shell + enough session history to debug a failing customize pass. **Not** a Claude Code / Codex / Cursor-class coding agent. Prefer not Node.
 **Corpus host:** NewDev `~/installer-cli-agent-research-temp/` (52-video manifest; **22 transcripts in** when this was filed; batch still running).
 
-Letta Code stays **out** (Node, stateful coding-agent, different fork from Kernel). This report is what replaces it.
+Letta Code stays **out** (Node, stateful coding-agent, different fork from Kernel). This report is what replaces it for the **future** installer track.
 
 ---
 

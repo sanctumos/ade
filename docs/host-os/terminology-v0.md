@@ -1,6 +1,6 @@
 # Sanctum OS — terminology (v0)
 
-**Status:** first draft · 2026-10-31  
+**Status:** revised 2026-11-03 · Doc #1643  
 **Does not replace:** public [SanctumOS Naming Rubric](https://sanctumos.org/docs/architecture/naming-rubric)
 
 Sanctum is **not** OS-themed *or* neuroscience-themed. Both, by layer.
@@ -25,10 +25,9 @@ If it does not map to a brain region, do not force one. **Registry** is Windows-
 | Thing | Camp | **Name** | Is not |
 |-------|------|----------|--------|
 | The whole box | product | **SanctumOS** | Kernel, Registry |
-| Letta runtime `/v1/agents` | 1 + 3 | **Kernel** | Registry, Broca |
-| On-box config + inventory + light Broca transport | 1 | **Registry** (`sanctum-registry`) | The installer, the Kernel |
-| `sanctumos/installer` evolved | 1 | **Installer** (lightweight harness) | Letta Code, Ansible, a pile of env-forked shell forever |
-| On-disk drawer for Registry process | 1 | `control/` (may grow `registry/`) | Product name |
+| Letta runtime `/v1/agents` | 1 + 3 | **Kernel** | Registry, Broca — **required**, not optional |
+| On-box config + inventory + light Broca transport | 1 | **Registry** (`sanctumos/registry`) | The installer, the Kernel |
+| On-disk land for Registry process | 1 | `~/sanctum/registry/` (auth, state) | Product name |
 | Owner web client | 1 | **ADE** | A Broca, Letta Cloud ADE |
 | Per-agent speech / ingress | 2 | **Broca** | Registry, “the OS” |
 | Tool bus | 1 | **SMCP** | Letta’s MCP-servers tab |
@@ -39,17 +38,29 @@ If it does not map to a brain region, do not force one. **Registry** is Windows-
 
 ---
 
+## Prime agent (locked 2026-11-03)
+
+| Term | Means | Is not |
+|------|--------|--------|
+| **Prime agent** | The **conscious loop** — the main Letta agent for that person | A **cerebellum**; a **sleeptime** |
+
+v0.1.0 on moya fills the hive for **primes only**. Cerebellums and sleeptimes come later.
+
+Disk layout for modules: `agents/<agent name>/<module>` — e.g. `agents/athena/broca`. No `agent-` prefix, no `broca2`.
+
+---
+
 ## Registry vs Installer (the split)
 
 Windows: **Registry** is the database. **Installer / SCM** consume it and write back. You do not ask winreg to install Office.
 
 | | **Registry** | **Installer** |
 |--|--------------|---------------|
-| Holds | Sysinfo (Linux, WSL, Docker, proot, …), layout root, ports, installed vs desired, Sanctum Agent graph | Bootstrap *scripts* + adaptation logic |
-| Does | Serve facts over HTTP; **light transport** ADE ↔ Broca | Poll Registry, pick/adapt a bootstrap, apply, write facts back |
-| Does not | Become apt/ansible | Become a second Settings URL for ADE Chat |
+| Holds | Sysinfo (`os` + `kind`), layout root, ports, installed vs desired, Sanctum Agent graph; **self-served docs** | Bootstrap *scripts* + adaptation logic |
+| Does | Serve facts over HTTP; **light transport** ADE ↔ Broca; serve `/docs` for humans and agents | Poll Registry, pick/adapt a bootstrap, apply, write facts back |
+| Does not | Become apt/ansible; ship `apply` | Become a second Settings URL for ADE Chat |
 
-Tonight’s earlier draft stuffed apply/jobs onto the sidecar. **Wrong grain.** Apply is installer work. Registry stays a registry.
+**This phase:** Registry v0 only. Installer spike is a **future bookmark**.
 
 ---
 
@@ -58,7 +69,7 @@ Tonight’s earlier draft stuffed apply/jobs onto the sidecar. **Wrong grain.** 
 | Allowed in sentences | Not a rename |
 |----------------------|--------------|
 | Broca is the OS mouth | No component called Mouth |
-| Letta is the kernel | Kernel = Letta |
+| Letta is the kernel | Kernel = Letta (required) |
 | Registry is the OS hive | No component called Hive (unless we later name a hive file) |
 
 ---
@@ -68,7 +79,7 @@ Tonight’s earlier draft stuffed apply/jobs onto the sidecar. **Wrong grain.** 
 | Surface | Label |
 |---------|--------|
 | Default send | **Chat** (via Registry transport → Broca) |
-| Optional Letta `/messages` | **Kernel** |
-| What’s on this box | **Registry** |
-| Install / adapt bootstraps | **Installer** (may be CLI-first while we experiment) |
-| Bootstrap / Kernel debugger | **gptme** (compact CLI; not Goose; freeze later) |
+| Optional Letta `/messages` | **Kernel** (labeled alternate — Kernel itself is still required on the box) |
+| What’s on this box / edit hive | **Registry** (sidebar editor — regedit-like) |
+| Install / adapt bootstraps | **Installer** (CLI-first; **not this phase**) |
+| Future installer debugger | **gptme** (compact CLI; not Goose) — consumes Registry live docs |

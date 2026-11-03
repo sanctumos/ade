@@ -1,11 +1,12 @@
 # PRD stub — Sanctum ADE v2 × bootstrap installer
 
-**Status:** ideation stub (v0.3) — **superseded in part by 2026-10-31 Host OS draft**  
-**Date:** 2026-10-15 (this file) · **current architecture:** [`docs/host-os/`](host-os/README.md)  
-**Product:** Sanctum ADE (next major after v1 static UI) + SanctumOS installer evolution  
-**Related:** `sanctumos/installer` (kernel bootstraps, control plane), canonical layout in installer `docs/reference/docs-on-installer-criteria.md`
+**Status:** **ARCHIVE** until rewritten in place (Doc #1643 D2, 2026-11-03). Do **not** build from this body.  
+**Build authority:** [`docs/host-os/`](host-os/README.md) only.  
+**Date:** 2026-10-15 (this file) · superseded by host-os revisions through 2026-11-03  
+**Product:** Sanctum ADE + SanctumOS installer evolution  
+**Related:** `sanctumos/installer` · `sanctumos/registry`
 
-> **2026-10-31:** Letta is the **kernel** (optional `/v1`, never the only wire). Broca is the OS mouth. The sidecar is **Registry** (hive + light ADE↔Broca transport), not a mega-Host. **`sanctumos/installer`** evolves from bootstrap *collection* to a **lightweight OSS harness** that **polls Registry sysinfo** and adapts scripts (Linux / WSL / Docker / proot). **Not Letta Code** (separate Node coding-agent product). Apply is installer work, not Registry and not Letta. ADE: one Settings URL, path-split **E2**. E1 rejected. See [`host-os/`](host-os/README.md).
+> **2026-11-03:** Kernel (Letta) is **required** — “optional kernel” in older prose is struck. Registry lives in **`sanctumos/registry`**. Installer spike is parked this phase. See [`host-os/`](host-os/README.md) and Tasks Doc #1643.
 
 ---
 

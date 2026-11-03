@@ -1,19 +1,20 @@
-# Sanctum Registry + installer harness — first draft (2026-10-31)
+# Sanctum Registry + installer harness — host-os (authority)
 
-**Status:** first draft for Mark review. Not implemented. **Needs experimentation** — especially the installer harness.
+**Status:** build authority · revised 2026-11-03 from [Doc #1643](https://tasks.decisionsciencecorp.com/admin/doc.php?id=1643)  
+**Not:** a second PRD fork. Edit this tree in place when rulings change.
 
 | Piece | Job |
 |-------|-----|
-| **Registry** | Actual registry (sysinfo, inventory, desired/actual) **plus light transport** (ADE ↔ Broca loopback) |
-| **Installer** | Evolve `sanctumos/installer` from a **bootstrap collection** into a **lightweight OSS harness** (occasional local devops). Polls Registry, adapts scripts. **Not Letta Code.** |
-| **Kernel** | Letta — optional, never the only wire |
-| **Broca / SMCP** | Stay themselves. Installer puts them on disk; Registry records them; ADE talks Broca through Registry’s light transport |
+| **Registry** | Hive (sysinfo, inventory, desired/actual) **plus** light ADE ↔ Broca transport. Repo: **`sanctumos/registry`**, loopback **`:8870`**. Self-serves operator/agent docs. |
+| **Installer** | Separate harness (future). Polls Registry, adapts scripts, writes facts back. **Parked this phase** — no installer spike in Registry v0. |
+| **Kernel** | **Letta — required.** Not optional. Optional = which *chat wire* only (default Broca via Registry; labeled direct-Letta alternate). |
+| **Broca / SMCP** | Stay themselves. Registry records them; ADE talks Broca through Registry’s light transport. |
 
 | Doc | What it is |
 |-----|------------|
-| [terminology-v0.md](terminology-v0.md) | Four-camp rubric + Registry vs Host vs Kernel |
-| [architecture-v0.md](architecture-v0.md) | Layers, mermaid, installer evolution, engineering order |
-| [api-map-v0.md](api-map-v0.md) | Registry HTTP now; installer harness later |
-| [cli-agent-research-v0.md](cli-agent-research-v0.md) | I0 CLI agent: **gptme locked** (compact now; freeze later). Goose out. |
+| [terminology-v0.md](terminology-v0.md) | Four-camp rubric + Registry vs Installer + **prime agent** |
+| [architecture-v0.md](architecture-v0.md) | Layers, mermaid, engineering order (this phase) |
+| [api-map-v0.md](api-map-v0.md) | Registry HTTP — `/v1/sanctum/registry/...` only |
+| [cli-agent-research-v0.md](cli-agent-research-v0.md) | gptme research for **future** installer — not in Registry v0 build |
 
-Oct 15 PRD: [PRD-v2-bootstrap-installer.md](../PRD-v2-bootstrap-installer.md) — still useful for composite agents and bootstrap *contracts*. Apply/adapt lives on **installer**, not inside Letta.
+Oct 15 PRD: [PRD-v2-bootstrap-installer.md](../PRD-v2-bootstrap-installer.md) — **archive until rewritten in place.** Useful for composite-agent *nouns*; apply/adapt lives on **installer**, not inside Letta. Do not build from the old PRD body.
