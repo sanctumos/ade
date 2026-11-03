@@ -26,7 +26,8 @@
     chevron: svgIcon('<path d="m6 9 6 6 6-6"/>'),
     arrow: svgIcon('<path d="M5 12h14M13 6l6 6-6 6"/>'),
     panelCollapse: svgIcon('<path d="M15 18l-6-6 6-6"/><path d="M9 4v16"/>'),
-    panelExpand: svgIcon('<path d="M9 18l6-6-6-6"/><path d="M15 4v16"/>')
+    panelExpand: svgIcon('<path d="M9 18l6-6-6-6"/><path d="M15 4v16"/>'),
+    registry: svgIcon('<path d="M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z"/>')
   };
 
   function navLink(href, key, label) {
@@ -48,6 +49,7 @@
     '<div class="af-nav-section">Workspace</div>' +
     navLink('index.html', 'dashboard', 'Dashboard') +
     navLink('chat.html', 'chat', 'Chat') +
+    navLink('registry.html', 'registry', 'Registry') +
     navLink('agents.html', 'agents', 'Agents') +
     '<div class="af-nav-section" style="margin-top:14px">Server</div>' +
     navLink('tools.html', 'tools', 'Tools') +
@@ -112,6 +114,7 @@
   var ADE_ACTIVE_NAV_HREF = {
     dashboard: 'index.html',
     chat: 'chat.html',
+    registry: 'registry.html',
     agents: 'agents.html',
     tools: 'tools.html',
     mcp: 'mcp.html',
@@ -666,6 +669,7 @@
     getConfig: getConfig,
     setStoredBase: setStoredBase,
     setStoredKey: setStoredKey,
+    apiFetch: apiFetch,
     apiBase: apiBase,
     fillApiBaseDisplay: fillApiBaseDisplay,
     SKIN_SLUGS: SKIN_SLUGS,

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <script src="skin-boot.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Registry — Sanctum ADE</title>
+  <link rel="stylesheet" href="shell.css" />
+  <link rel="stylesheet" href="skins/skins.css" />
+  <link rel="stylesheet" href="registry.css" />
+</head>
+<body>
+  <div class="af-layout" data-ade-nav="registry">
+    <span id="ade-nav-inject"></span>
+    <main class="af-main">
+      <button type="button" class="af-nav-toggle" id="nav-toggle" aria-label="Open menu">≡</button>
+      <h1>Registry</h1>
+      <p class="af-muted">Browse and edit hive keys on this box. Facts only — nothing here starts Broca or runs an installer.</p>
+
+      <div id="reg-status" class="af-panel af-reg-status" aria-live="polite">
+        <span class="af-muted">Checking Registry…</span>
+      </div>
+
+      <div class="af-reg-split">
+        <section class="af-panel af-reg-tree-pane" aria-label="Key tree">
+          <div class="af-reg-toolbar">
+            <h2 class="af-reg-h2">Keys</h2>
+            <button type="button" class="af-btn af-btn-ghost af-small" id="reg-refresh">Refresh</button>
+          </div>
+          <ul id="reg-tree" class="af-reg-tree"></ul>
+          <form id="reg-create" class="af-reg-create">
+            <label class="af-label" for="reg-new-path">New key path</label>
+            <input class="af-input" id="reg-new-path" placeholder="agents/athena/broca/desired" autocomplete="off" />
+            <button type="submit" class="af-btn af-btn-primary af-small">Create</button>
+          </form>
+        </section>
+
+        <section class="af-panel af-reg-detail-pane" aria-label="Key detail">
+          <h2 class="af-reg-h2" id="reg-detail-title">Select a key</h2>
+          <p id="reg-detail-empty" class="af-muted">Pick a leaf in the tree, or create a path.</p>
+          <form id="reg-editor" class="af-reg-editor" hidden>
+            <label class="af-label" for="reg-value">Value (JSON)</label>
+            <textarea class="af-input af-reg-value" id="reg-value" rows="12" spellcheck="false"></textarea>
+            <div class="af-reg-actions">
+              <button type="submit" class="af-btn af-btn-primary">Save</button>
+              <button type="button" class="af-btn af-btn-ghost" id="reg-delete">Delete</button>
+            </div>
+            <p id="reg-editor-msg" class="af-muted af-small" role="status"></p>
+          </form>
+        </section>
+      </div>
+    </main>
+  </div>
+  <script src="config.js"></script>
+  <script src="tip.js"></script>
+  <script src="app.js"></script>
+  <script src="registry.js"></script>
+</body>
+</html>
