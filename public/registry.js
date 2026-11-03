@@ -33,7 +33,8 @@
     return root;
   }
 
-  function renderNode(tree, ul, prefix) {
+  function renderNode(tree, ul, prefix, depth) {
+    depth = depth || 0;
     Object.keys(tree)
       .sort()
       .forEach(function (name) {
@@ -41,10 +42,13 @@
         var li = document.createElement('li');
         var pathSoFar = prefix ? prefix + '/' + name : name;
         var childKeys = Object.keys(entry.__children || {});
+        li.dataset.depth = String(depth);
         if (entry.__leaf && childKeys.length === 0) {
+          li.className = 'af-reg-leaf';
           var btn = document.createElement('button');
           btn.type = 'button';
-          btn.textContent = pathSoFar;
+          btn.textContent = name;
+          btn.title = pathSoFar;
           btn.dataset.path = entry.__leaf;
           if (entry.__leaf === selectedPath) btn.classList.add('is-active');
           btn.addEventListener('click', function () {
@@ -52,14 +56,29 @@
           });
           li.appendChild(btn);
         } else {
+          li.className = 'af-reg-group';
           var folder = document.createElement('div');
           folder.className = 'af-reg-folder';
-          folder.textContent = pathSoFar + '/';
+          folder.title = pathSoFar + '/';
+          var mark = document.createElement('span');
+          mark.className = 'af-reg-folder-mark';
+          mark.setAttribute('aria-hidden', 'true');
+          var fname = document.createElement('span');
+          fname.className = 'af-reg-folder-name';
+          fname.textContent = name;
+          var fslash = document.createElement('span');
+          fslash.className = 'af-reg-folder-slash';
+          fslash.textContent = '/';
+          folder.appendChild(mark);
+          folder.appendChild(fname);
+          folder.appendChild(fslash);
           li.appendChild(folder);
           if (entry.__leaf) {
             var leafBtn = document.createElement('button');
             leafBtn.type = 'button';
-            leafBtn.textContent = pathSoFar + ' (value)';
+            leafBtn.className = 'af-reg-leaf-on-folder';
+            leafBtn.textContent = '(value)';
+            leafBtn.title = pathSoFar;
             leafBtn.dataset.path = entry.__leaf;
             if (entry.__leaf === selectedPath) leafBtn.classList.add('is-active');
             leafBtn.addEventListener('click', function () {
@@ -68,8 +87,9 @@
             li.appendChild(leafBtn);
           }
           var nested = document.createElement('ul');
-          nested.className = 'af-reg-tree';
-          renderNode(entry.__children, nested, pathSoFar);
+          nested.className = 'af-reg-tree af-reg-tree-nest';
+          nested.dataset.depth = String(depth + 1);
+          renderNode(entry.__children, nested, pathSoFar, depth + 1);
           li.appendChild(nested);
         }
         ul.appendChild(li);
