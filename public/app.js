@@ -694,6 +694,114 @@
     sendMessage: function (agentId, body) { return apiFetch('/v1/agents/' + agentId + '/messages', { method: 'POST', body: JSON.stringify(normalizeAgentSendBody(body)) }); },
     sendMessageStream: sendMessageStream,
     sendMessagePreferStream: sendMessagePreferStream,
+    /**
+     * Resolve Sanctum Registry uid for a Letta agent (hive letta/main or name match).
+     * Returns '' when Registry is unreachable or no mapping exists.
+     */
+    resolveRegistryUid: function (agentId, agentName) {
+      var aid = String(agentId || '');
+      var name = String(agentName || '').trim().toLowerCase();
+      return apiFetch('/v1/sanctum/registry/agents').then(function (data) {
+        var uids = (data && data.agents) || [];
+        if (!uids.length) return '';
+        var checks = uids.map(function (uid) {
+          return apiFetch('/v1/sanctum/registry/keys/agents/' + encodeURIComponent(uid) + '/letta/main')
+            .then(function (row) {
+              var v = row && (row.value != null ? row.value : row);
+              if (v && typeof v === 'object') v = v.id || v.agent_id || v.main || '';
+              return { uid: uid, main: String(v || '') };
+            })
+            .catch(function () { return { uid: uid, main: '' }; });
+        });
+        return Promise.all(checks).then(function (rows) {
+          for (var i = 0; i < rows.length; i++) {
+            if (rows[i].main && rows[i].main === aid) return rows[i].uid;
+          }
+          if (name) {
+            for (var j = 0; j < uids.length; j++) {
+              if (String(uids[j]).toLowerCase() === name) return uids[j];
+            }
+          }
+          return '';
+        });
+      }).catch(function () { return ''; });
+    },
+    /** POST Registry → Broca chat tunnel (outbox poll via wait_seconds). */
+    sendRegistryChat: function (uid, text, opts) {
+      opts = opts || {};
+      var body = {
+        text: text,
+        idempotency_key: opts.idempotency_key || undefined,
+        wait_seconds: opts.wait_seconds != null ? opts.wait_seconds : 45,
+        speaker: opts.speaker || 'owner',
+        username: opts.username || 'owner',
+        display_name: opts.display_name || 'Owner',
+        platform_user_id: opts.platform_user_id || 'ade'
+      };
+      return apiFetch('/v1/sanctum/registry/agents/' + encodeURIComponent(uid) + '/chat/messages', {
+        method: 'POST',
+        body: JSON.stringify(body),
+        signal: opts.signal
+      });
+    },
+    /**
+     * Default chat wire: Broca via Registry when mapped; honest Broca errors;
+     * labeled direct Letta only when Registry itself is down / unmapped.
+     */
+    sendChatPreferBroca: function (agentId, body, handlers, fetchOpts, meta) {
+      handlers = handlers || {};
+      meta = meta || {};
+      var text = (body && (body.input || body.text)) || '';
+      var agentName = meta.agentName || '';
+      var self = window.ADE;
+      return self.resolveRegistryUid(agentId, agentName).then(function (uid) {
+        if (!uid) {
+          if (handlers.onWire) handlers.onWire('letta', 'Registry has no Broca mapping — Kernel (direct)');
+          return self.sendMessagePreferStream(agentId, body, handlers, fetchOpts);
+        }
+        if (handlers.onWire) handlers.onWire('broca', 'Broca via Registry (' + uid + ')');
+        return self.sendRegistryChat(uid, text, {
+          wait_seconds: meta.wait_seconds != null ? meta.wait_seconds : 45,
+          signal: fetchOpts && fetchOpts.signal
+        }).then(function (res) {
+          var replyText = (res && res.text) || '';
+          if (!replyText && res && res.reply) {
+            replyText = res.reply.text || res.reply.message || '';
+          }
+          if (handlers.onEvent) {
+            handlers.onEvent({
+              message_type: '_json_response',
+              data: {
+                messages: replyText
+                  ? [{ message_type: 'assistant_message', content: replyText }]
+                  : []
+              }
+            });
+          }
+          if (handlers.onDone) handlers.onDone(res);
+          return res;
+        }).catch(function (err) {
+          var msg = (err && err.message) ? String(err.message) : String(err);
+          /* Missing / stopped Broca → honest error, never silent Letta. */
+          if (/API 409/.test(msg) || /broca_not_installed|broca_stopped/.test(msg)) {
+            var friendly = 'Broca is not available for this agent through Registry. '
+              + msg
+              + ' (Chat does not fall back to Letta when Broca is missing.)';
+            var e = new Error(friendly);
+            if (handlers.onError) handlers.onError(e);
+            throw e;
+          }
+          /* Registry itself unreachable → labeled Letta. */
+          if (/API 502|API 503|Failed to fetch|NetworkError|broca_auth_missing|ECONNREFUSED/i.test(msg)
+              || /registry unavailable|not_found.*registry/i.test(msg)) {
+            if (handlers.onWire) handlers.onWire('letta', 'Registry down — Kernel (direct)');
+            return self.sendMessagePreferStream(agentId, body, handlers, fetchOpts);
+          }
+          if (handlers.onError) handlers.onError(err);
+          throw err;
+        });
+      });
+    },
     isAbortError: isAbortError,
     isStreamTransportError: isStreamTransportError,
     getAgentMessages: function (agentId, params) {

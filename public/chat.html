@@ -1265,7 +1265,18 @@
         }).catch(function () { /* ignore */ }).finally(finish);
       }
 
-      window.ADE.sendMessagePreferStream(aid, { input: text }, {
+      var sendFn = window.ADE.sendChatPreferBroca || window.ADE.sendMessagePreferStream;
+      sendFn(aid, { input: text }, {
+        onWire: function(kind, label) {
+          var subEl = document.getElementById('chat-agent-sub');
+          if (subEl && label) {
+            var model = window.ADE.agentModelLabel(currentAgent());
+            subEl.innerHTML = '<span class="af-dot is-ok"></span>' +
+              AC.escHtml(model || 'Agent') +
+              ' · <span class="af-muted">' + AC.escHtml(label) + '</span>';
+          }
+          chatSync.wire = kind;
+        },
         onEvent: ui.onEvent,
         onDone: function() {
           ui.finish(true).finally(sendIdle);
@@ -1279,7 +1290,7 @@
           sendIdle();
           errorEl.innerHTML = '<div class="af-alert af-alert-danger" role="alert">' + (err && err.message ? err.message : err) + '</div>';
         }
-      }, ctrl ? { signal: ctrl.signal } : undefined).catch(function(err) {
+      }, ctrl ? { signal: ctrl.signal } : undefined, { agentName: currentAgentName() }).catch(function(err) {
         if (chatSync.stopping || (window.ADE.isAbortError && window.ADE.isAbortError(err))) {
           ui.finish(true).finally(sendIdle);
           return;
