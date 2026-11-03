@@ -87,7 +87,7 @@
             li.appendChild(leafBtn);
           }
           var nested = document.createElement('ul');
-          nested.className = 'af-reg-tree af-reg-tree-nest';
+          nested.className = 'af-reg-tree-nest';
           nested.dataset.depth = String(depth + 1);
           renderNode(entry.__children, nested, pathSoFar, depth + 1);
           li.appendChild(nested);
