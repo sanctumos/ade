@@ -48,6 +48,20 @@
   gap: 8px;
   flex-shrink: 0;
 }
+.chat-wire-wrap {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+}
+.chat-wire-wrap[hidden] { display: none !important; }
+.chat-wire-select {
+  max-width: 9.5rem;
+  min-width: 7.5rem;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  height: 32px;
+}
 
 .chat-find {
   display: flex;
@@ -883,6 +897,7 @@ html[data-chat-memory="closed"] .chat-memory-collapse {
 @media (max-width: 768px) {
   .chat-header { padding: 10px 14px; }
   .chat-header-actions .af-btn span { display: none; }
+  .chat-wire-select { max-width: 7.25rem; min-width: 6.5rem; font-size: 11px; }
   .chat-find { padding: 8px 14px; flex-wrap: wrap; }
   .chat-context-bar { padding: 8px 14px 10px; }
   .chat-workspace { position: relative; }

@@ -193,8 +193,9 @@ Required on the box. ADE may offer labeled direct Letta chat if Registry is down
 | Docs / agent help | `GET /v1/sanctum/registry/docs`… | Docs |
 | Registry editor | keys GET/PUT | R1 + ADE UI |
 | Agent Broca badge | `GET /v1/sanctum/registry/agents/{uid}` | R1 |
-| Chat default | `POST /v1/sanctum/registry/agents/{uid}/chat/messages` | R2 |
-| Chat kernel | existing Letta send (labeled) | alternate |
+| Chat default (Broca) | `POST /v1/sanctum/registry/agents/{uid}/chat/messages` when hive has Broca | R2 |
+| Chat wire pulldown | Broca vs Direct Letta (ADE Chat header; per-agent preference) | UI |
+| Chat kernel | existing Letta send (labeled) | alternate (pulldown or no Broca) |
 
 ---
 

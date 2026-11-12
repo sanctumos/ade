@@ -140,6 +140,7 @@
   var STORAGE_AGENT = 'ade_faithful_agent_id';
   var STORAGE_SKIN = 'af-skin-comp';
   var STORAGE_SIDEBAR = 'af-sidebar-collapsed';
+  var STORAGE_CHAT_WIRE = 'ade_chat_wire_mode';
   var SKIN_SLUGS = ['hey', 'ledger', 'brutalist', 'obsidian'];
   var SKIN_LABELS = {
     hey: 'HEY Bold',
@@ -726,6 +727,91 @@
         });
       }).catch(function () { return ''; });
     },
+    /** Per-agent Chat wire preference: broca | letta (browser localStorage). */
+    getChatWireMode: function (agentId) {
+      var aid = String(agentId || '');
+      if (!aid) return '';
+      try {
+        var raw = localStorage.getItem(STORAGE_CHAT_WIRE + ':' + aid);
+        if (raw === 'broca' || raw === 'letta') return raw;
+      } catch (e) { /* ignore */ }
+      return '';
+    },
+    setChatWireMode: function (agentId, mode) {
+      var aid = String(agentId || '');
+      if (!aid) return;
+      var m = mode === 'letta' ? 'letta' : 'broca';
+      try {
+        localStorage.setItem(STORAGE_CHAT_WIRE + ':' + aid, m);
+      } catch (e) { /* ignore */ }
+    },
+    /**
+     * Probe Registry hive for Broca on this agent (port + not stopped).
+     * That is the UI signal that Broca (+ broca-api plugin path) is wired.
+     */
+    probeBrocaWire: function (agentId, agentName) {
+      var self = window.ADE;
+      function hiveVal(row) {
+        if (!row) return null;
+        var v = row.value != null ? row.value : row;
+        return v;
+      }
+      function parsePort(v) {
+        if (typeof v === 'number' && v > 0 && v <= 65535) return v;
+        if (typeof v === 'string' && /^\d+$/.test(v.trim())) {
+          var n = parseInt(v.trim(), 10);
+          return n > 0 && n <= 65535 ? n : null;
+        }
+        if (v && typeof v === 'object' && v.port != null) return parsePort(v.port);
+        return null;
+      }
+      function parseActualStatus(v) {
+        if (v == null) return '';
+        if (typeof v === 'object') return String(v.status || v.value || '');
+        return String(v);
+      }
+      return self.resolveRegistryUid(agentId, agentName).then(function (uid) {
+        if (!uid) {
+          return { available: false, uid: '', reason: 'unmapped' };
+        }
+        var base = '/v1/sanctum/registry/keys/agents/' + encodeURIComponent(uid) + '/broca/';
+        return Promise.all([
+          apiFetch(base + 'port').then(hiveVal).catch(function () { return null; }),
+          apiFetch(base + 'actual').then(hiveVal).catch(function () { return null; }),
+          apiFetch(base + 'desired').then(hiveVal).catch(function () { return null; })
+        ]).then(function (rows) {
+          var portVal = rows[0];
+          var actualVal = rows[1];
+          var desiredVal = rows[2];
+          if (portVal == null && actualVal == null && desiredVal == null) {
+            return { available: false, uid: uid, reason: 'broca_not_installed' };
+          }
+          var actualStatus = parseActualStatus(actualVal);
+          if (actualStatus === 'stopped' || actualStatus === 'missing'
+              || actualStatus === 'absent' || actualStatus === 'not_installed') {
+            return { available: false, uid: uid, reason: 'broca_stopped', actual: actualStatus };
+          }
+          var desired = desiredVal != null ? String(desiredVal) : '';
+          if (desired === 'stopped' || desired === 'absent') {
+            return { available: false, uid: uid, reason: 'broca_stopped', desired: desired };
+          }
+          var port = parsePort(portVal);
+          if (port == null && actualVal && typeof actualVal === 'object') {
+            port = parsePort(actualVal.port);
+          }
+          if (port == null) {
+            return { available: false, uid: uid, reason: 'broca_not_installed' };
+          }
+          return {
+            available: true,
+            uid: uid,
+            port: port,
+            actual: actualStatus || 'running',
+            reason: 'ok'
+          };
+        });
+      });
+    },
     /** POST Registry → Broca chat tunnel (outbox poll via wait_seconds). */
     sendRegistryChat: function (uid, text, opts) {
       opts = opts || {};
@@ -748,13 +834,18 @@
     /**
      * Default chat wire: Broca via Registry when mapped; honest Broca errors;
      * labeled direct Letta only when Registry itself is down / unmapped.
+     * Pass meta.wire = 'letta' to force Kernel (direct); 'broca' to force Broca path.
      */
     sendChatPreferBroca: function (agentId, body, handlers, fetchOpts, meta) {
       handlers = handlers || {};
       meta = meta || {};
+      var self = window.ADE;
+      if (meta.wire === 'letta') {
+        if (handlers.onWire) handlers.onWire('letta', 'Kernel (direct)');
+        return self.sendMessagePreferStream(agentId, body, handlers, fetchOpts);
+      }
       var text = (body && (body.input || body.text)) || '';
       var agentName = meta.agentName || '';
-      var self = window.ADE;
       return self.resolveRegistryUid(agentId, agentName).then(function (uid) {
         if (!uid) {
           if (handlers.onWire) handlers.onWire('letta', 'Registry has no Broca mapping — Kernel (direct)');

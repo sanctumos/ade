@@ -71,15 +71,15 @@ Facts, not recipes:
 - **Inventory:** Kernel reachable? SMCP installed? Broca for `uid=athena` on port 8871?
 - **Desired vs actual:** recorded as keys; **no apply** on Registry
 - **Prime agents:** conscious loops only (not cerebellum, not sleeptime) for v0.1.0 fill-out
-- **No secrets in the hive ADE can read** — Broca loopback keys stay on disk; Registry injects them on the transport hop
+- **Registry hive is the vault** for Letta classic env and for per-agent inference keys when an agent has its own. It is **not** a copy of Letta’s per-agent model/provider settings. Broca **loopback transport** keys stay on agent Broca disk for the chat hop.
 
 Auth (D6): one shared bearer with Letta; canonical home under Registry (`~/sanctum/registry/auth/bearer`). ADE and CLI use the same credential (D4).
 
 ### 2.2 Light transport (ADE ↔ Broca)
 
 - ADE `POST /v1/sanctum/registry/agents/{uid}/chat/messages`
-- Registry → loopback Broca `POST /v1/messages` as **owner / platform=ade** (plugin name `ade`)
-- 202 + **outbox poll first** (stream later)
+- Registry → loopback Broca **`broca-api`** plugin: `POST /v1/messages` with identity args (`platform=ade`, `platform_user_id`, …). Repo **`sanctumos/broca-api`**. Spec: DSC Tasks Doc **#1685**.
+- 202 + **outbox poll first** (stream later). Paths stay under **`/v1/`**.
 - Broca registers its port with Registry on startup
 - Missing Broca → plain chat-pane error naming the problem (no silent Letta)
 
@@ -106,7 +106,7 @@ Installer spike and gptme experimentation are a **future bookmark**. Do not hard
 
 ## 4. ADE product identity
 
-Chat default = Registry transport → Broca. Kernel console = explicit Letta `/messages`, labeled. Registry sidebar = hive browser/editor.
+Chat default = Registry transport → Broca when hive shows Broca for the agent (port + not stopped). Header pulldown (next to Search / Configure) switches Broca vs labeled direct Letta; preference is per-agent in the browser. Registry sidebar = hive browser/editor.
 
 ---
 
@@ -150,7 +150,7 @@ Public paths = **`/v1/sanctum/registry/...` only** (D8). No bare `/registry/...`
 |------|---------|
 | Old `control/` Flask alpha | Drawer. Not ADE Chat. |
 | `registry_schema.md` in installer | Hive inspiration; don’t freeze UI schema |
-| Otto Broca HTTP | Transport shape for R2 |
+| `broca-api` (Doc #1685) | Broca HTTP mouth for R2; Otto bridge is legacy reference |
 | ADE `proxy.php` / Flask | Path-split at R0 |
 | PRD v2 body | Archive until rewritten in place |
 
@@ -179,5 +179,6 @@ Public paths = **`/v1/sanctum/registry/...` only** (D8). No bare `/registry/...`
 | 2026-11-03 | Order: health/sysinfo → inventory → Broca tunnel. Installer parked. |
 | 2026-11-03 | Docs table stakes (repo + live). ADE Registry editor sidebar. |
 | 2026-11-03 | Local tests until v0.1.0; then moya + fill **prime** agents (conscious loop ≠ cerebellum/sleeptime). |
+| 2026-11-11 | Broca HTTP mouth = **`broca-api`** (`sanctumos/broca-api`); identity on request; `/v1/` paths. Not an ADE-only Otto twin. Doc **#1685**. |
 
 Full audit: Tasks Doc #1643.
