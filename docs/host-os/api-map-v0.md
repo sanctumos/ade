@@ -193,9 +193,10 @@ Required on the box. ADE may offer labeled direct Letta chat if Registry is down
 | Docs / agent help | `GET /v1/sanctum/registry/docs`… | Docs |
 | Registry editor | keys GET/PUT | R1 + ADE UI |
 | Agent Broca badge | `GET /v1/sanctum/registry/agents/{uid}` | R1 |
-| Chat default (Broca) | `POST /v1/sanctum/registry/agents/{uid}/chat/messages` when hive has Broca | R2 |
-| Chat wire pulldown | Broca vs Direct Letta (ADE Chat header; per-agent preference) | UI |
-| Chat kernel | existing Letta send (labeled) | alternate (pulldown or no Broca) |
+| Chat Broca route | `POST …/chat/messages` `wait_seconds:0` when hive has Broca | R2 |
+| Chat watch (always) | Letta `/runs/active` + `streamRun` + `/agents/{id}/messages` | same in both wires |
+| Chat wire pulldown | Broca route vs Direct Letta send (header; per-agent) | UI |
+| Chat kernel send | Letta `/messages` (+ stream) | Direct Letta / fallback |
 
 ---
 

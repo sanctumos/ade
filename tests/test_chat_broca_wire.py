@@ -1,4 +1,8 @@
-"""Unit-ish: ADE sendChatPreferBroca prefers Registry Broca; 409 stays honest."""
+"""Registry Broca tunnel via ADE Flask proxy (enqueue + optional wait); 409 stays honest.
+
+ADE Chat itself uses wait_seconds=0 then watches Letta — this module still
+covers the Registry hop the Chat wire uses for enqueue.
+"""
 
 from __future__ import annotations
 

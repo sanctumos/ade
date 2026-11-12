@@ -77,9 +77,10 @@ Auth (D6): one shared bearer with Letta; canonical home under Registry (`~/sanct
 
 ### 2.2 Light transport (ADE ↔ Broca)
 
-- ADE `POST /v1/sanctum/registry/agents/{uid}/chat/messages`
+- ADE Chat uses Broca as **message routing only** — not as a curated outbox inbox.
+- ADE `POST /v1/sanctum/registry/agents/{uid}/chat/messages` with **`wait_seconds: 0`** (enqueue → 202).
 - Registry → loopback Broca **`broca-api`** plugin: `POST /v1/messages` with identity args (`platform=ade`, `platform_user_id`, …). Repo **`sanctumos/broca-api`**. Spec: DSC Tasks Doc **#1685**.
-- 202 + **outbox poll first** (stream later). Paths stay under **`/v1/`**.
+- After enqueue, ADE **watches Letta the same way as Direct** (`/runs/active` → `streamRun` / history `/messages`). Paths stay under **`/v1/`**.
 - Broca registers its port with Registry on startup
 - Missing Broca → plain chat-pane error naming the problem (no silent Letta)
 
@@ -106,7 +107,7 @@ Installer spike and gptme experimentation are a **future bookmark**. Do not hard
 
 ## 4. ADE product identity
 
-Chat default = Registry transport → Broca when hive shows Broca for the agent (port + not stopped). Header pulldown (next to Search / Configure) switches Broca vs labeled direct Letta; preference is per-agent in the browser. Registry sidebar = hive browser/editor.
+Chat default = Broca **route** when hive shows Broca for the agent (port + not stopped), then **watch Letta**. Header pulldown switches Broca-route vs Kernel-direct send; both modes read Letta for the run/stream/history. Preference is per-agent in the browser. Registry sidebar = hive browser/editor.
 
 ---
 

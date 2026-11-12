@@ -812,13 +812,16 @@
         });
       });
     },
-    /** POST Registry → Broca chat tunnel (outbox poll via wait_seconds). */
+    /**
+     * POST Registry → Broca enqueue.
+     * ADE Chat uses wait_seconds: 0 (route only) and watches Letta for the run.
+     */
     sendRegistryChat: function (uid, text, opts) {
       opts = opts || {};
       var body = {
         text: text,
         idempotency_key: opts.idempotency_key || undefined,
-        wait_seconds: opts.wait_seconds != null ? opts.wait_seconds : 45,
+        wait_seconds: opts.wait_seconds != null ? opts.wait_seconds : 0,
         speaker: opts.speaker || 'owner',
         username: opts.username || 'owner',
         display_name: opts.display_name || 'Owner',
@@ -832,9 +835,63 @@
       });
     },
     /**
-     * Default chat wire: Broca via Registry when mapped; honest Broca errors;
-     * labeled direct Letta only when Registry itself is down / unmapped.
-     * Pass meta.wire = 'letta' to force Kernel (direct); 'broca' to force Broca path.
+     * After Broca enqueue, wait for a new Letta run and stream it (same watch path as Direct Letta).
+     */
+    watchLettaRunAfterEnqueue: function (agentId, ignoreRunIds, handlers, fetchOpts, meta) {
+      var self = window.ADE;
+      handlers = handlers || {};
+      meta = meta || {};
+      var ignore = ignoreRunIds || {};
+      var timeoutMs = meta.watch_timeout_ms != null ? meta.watch_timeout_ms : 90000;
+      var started = Date.now();
+      function aborted() {
+        return !!(fetchOpts && fetchOpts.signal && fetchOpts.signal.aborted);
+      }
+      function pickRun(runs) {
+        for (var i = 0; i < (runs || []).length; i++) {
+          var r = runs[i];
+          if (!r || r.id == null) continue;
+          var rid = String(r.id);
+          if (ignore[rid]) continue;
+          if (r.background === true || r.background === 'true') continue;
+          var status = String(r.status || '').toLowerCase();
+          if (status && status !== 'running' && status !== 'created' && status !== 'pending') continue;
+          return rid;
+        }
+        return null;
+      }
+      function poll() {
+        if (aborted()) {
+          var err = new Error('Aborted');
+          err.name = 'AbortError';
+          return Promise.reject(err);
+        }
+        return self.listActiveRuns({ agent_id: agentId }).then(function (runs) {
+          var rid = pickRun(runs);
+          if (rid) return rid;
+          if (Date.now() - started >= timeoutMs) return null;
+          return new Promise(function (resolve) {
+            setTimeout(resolve, 400);
+          }).then(poll);
+        });
+      }
+      return poll().then(function (runId) {
+        if (!runId) {
+          /* Broca accepted the message; Letta run may still appear for the idle hitcher. */
+          if (handlers.onDone) handlers.onDone({ status: 'queued', watch_timeout: true });
+          return { status: 'queued', watch_timeout: true };
+        }
+        if (handlers.onEvent) {
+          handlers.onEvent({ message_type: 'ping', run_id: runId });
+        }
+        return self.streamRun(runId, { include_pings: true }, handlers, fetchOpts);
+      });
+    },
+    /**
+     * ADE Chat wire:
+     * - broca: Registry enqueue only, then watch Letta runs/messages (same as Direct).
+     * - letta: Kernel POST /messages (+ stream) directly.
+     * Pass meta.wire = 'letta' | 'broca'.
      */
     sendChatPreferBroca: function (agentId, body, handlers, fetchOpts, meta) {
       handlers = handlers || {};
@@ -851,27 +908,23 @@
           if (handlers.onWire) handlers.onWire('letta', 'Registry has no Broca mapping — Kernel (direct)');
           return self.sendMessagePreferStream(agentId, body, handlers, fetchOpts);
         }
-        if (handlers.onWire) handlers.onWire('broca', 'Broca via Registry (' + uid + ')');
-        return self.sendRegistryChat(uid, text, {
-          wait_seconds: meta.wait_seconds != null ? meta.wait_seconds : 45,
-          signal: fetchOpts && fetchOpts.signal
-        }).then(function (res) {
-          var replyText = (res && res.text) || '';
-          if (!replyText && res && res.reply) {
-            replyText = res.reply.response || res.reply.text || res.reply.message || '';
-          }
-          if (handlers.onEvent) {
-            handlers.onEvent({
-              message_type: '_json_response',
-              data: {
-                messages: replyText
-                  ? [{ message_type: 'assistant_message', content: replyText }]
-                  : []
-              }
-            });
-          }
-          if (handlers.onDone) handlers.onDone(res);
-          return res;
+        if (handlers.onWire) {
+          handlers.onWire('broca', 'Broca route · watching Letta (' + uid + ')');
+        }
+        /* Snapshot active runs so we hitch the new one Broca kicks off — not a prior zombie. */
+        return self.listActiveRuns({ agent_id: agentId }).catch(function () {
+          return [];
+        }).then(function (before) {
+          var ignore = {};
+          (before || []).forEach(function (r) {
+            if (r && r.id != null) ignore[String(r.id)] = true;
+          });
+          return self.sendRegistryChat(uid, text, {
+            wait_seconds: 0,
+            signal: fetchOpts && fetchOpts.signal
+          }).then(function () {
+            return self.watchLettaRunAfterEnqueue(agentId, ignore, handlers, fetchOpts, meta);
+          });
         }).catch(function (err) {
           var msg = (err && err.message) ? String(err.message) : String(err);
           /* Missing / stopped Broca → honest error, never silent Letta. */

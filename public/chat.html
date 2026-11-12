@@ -172,7 +172,9 @@
 
     function wireLabelForMode(mode, uid) {
       if (mode === 'broca') {
-        return uid ? ('Broca via Registry (' + uid + ')') : 'Broca via Registry';
+        return uid
+          ? ('Broca route · watching Letta (' + uid + ')')
+          : 'Broca route · watching Letta';
       }
       return 'Kernel (direct)';
     }

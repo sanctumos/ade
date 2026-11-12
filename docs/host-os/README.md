@@ -7,7 +7,7 @@
 |-------|-----|
 | **Registry** | Hive (sysinfo, inventory, desired/actual) **plus** light ADE ↔ Broca transport. Repo: **`sanctumos/registry`**, loopback **`:8870`**. Self-serves operator/agent docs. |
 | **Installer** | Separate harness (future). Polls Registry, adapts scripts, writes facts back. **Parked this phase** — no installer spike in Registry v0. |
-| **Kernel** | **Letta — required.** Not optional. Optional = which *chat wire* only (default Broca via Registry; labeled direct-Letta alternate). |
+| **Kernel** | **Letta — required.** Not optional. Optional = which *chat send wire* only (Broca route vs direct Letta); ADE always watches Letta for the run/stream/history. |
 | **Broca / SMCP** | Stay themselves. Registry records them; ADE talks Broca through Registry’s light transport. |
 
 | Doc | What it is |
