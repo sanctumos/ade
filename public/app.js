@@ -736,6 +736,7 @@
         speaker: opts.speaker || 'owner',
         username: opts.username || 'owner',
         display_name: opts.display_name || 'Owner',
+        platform: opts.platform || 'ade',
         platform_user_id: opts.platform_user_id || 'ade'
       };
       return apiFetch('/v1/sanctum/registry/agents/' + encodeURIComponent(uid) + '/chat/messages', {
@@ -766,7 +767,7 @@
         }).then(function (res) {
           var replyText = (res && res.text) || '';
           if (!replyText && res && res.reply) {
-            replyText = res.reply.text || res.reply.message || '';
+            replyText = res.reply.response || res.reply.text || res.reply.message || '';
           }
           if (handlers.onEvent) {
             handlers.onEvent({

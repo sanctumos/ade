@@ -46,10 +46,15 @@ class _MockBroca(BaseHTTPRequestHandler):
             return
         n = int(self.headers.get("Content-Length") or 0)
         data = json.loads(self.rfile.read(n).decode() or "{}")
+        if not str(data.get("platform") or "").strip() or not str(
+            data.get("platform_user_id") or ""
+        ).strip():
+            self._json(400, {"error": "platform_and_platform_user_id_required"})
+            return
         idem = str(data.get("idempotency_key") or "k")
         self.outbox[idem] = {
             "idempotency_key": idem,
-            "text": "broca-reply:" + str(data.get("text") or ""),
+            "response": "broca-reply:" + str(data.get("text") or ""),
         }
         self._json(202, {"status": "queued", "idempotency_key": idem})
 

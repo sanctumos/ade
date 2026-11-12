@@ -121,7 +121,9 @@ Markdown or plain text body from the shipped `docs/` tree (same content as the r
 
 ```text
 sys/...
+kernel/letta/env/{VAR}                         # Letta classic .env — Registry is home
 agents/{uid}/letta/main
+agents/{uid}/letta/inference_key               # only when agent has its own key
 agents/{uid}/broca/desired
 agents/{uid}/broca/actual
 agents/{uid}/broca/port
@@ -129,7 +131,9 @@ modules/smcp/desired
 modules/smcp/actual
 ```
 
+Do **not** copy Letta agent model/provider/endpoint into the hive — Letta owns those.
 Layout on disk: `agents/<agent name>/<module>` (e.g. `agents/athena/broca`).
+Env + inference-key vault: docs slug **`hive-keys`** + `tools/mirror_letta_into_registry.py`.
 
 **Prime** `uid`s = conscious loops. Cerebellum / sleeptime rows are not required for v0.1.0 fill-out.
 
@@ -145,7 +149,7 @@ Layout on disk: `agents/<agent name>/<module>` (e.g. `agents/athena/broca`).
 
 ## 4. Light transport (R2)
 
-Defaults (Mark rejects freely on the card): plugin `ade`; outbox poll first; Broca registers port on startup; missing Broca → honest error (no silent Letta).
+Defaults (locked 2026-11-11, wire-up closed 2026-11-12): Broca plugin **`broca-api`** (`sanctumos/broca-api`); Registry calls `POST /v1/messages` with identity args (`platform=ade`, `platform_user_id`, …) — **`platform` required**; outbox uses broca-api `response` field; loopback key from disk (`agents/{uid}/broca/ade.http_api_key`); hive holds port/desired/actual only; missing Broca → honest error (no silent Letta). Spec: DSC Tasks Doc **#1685** · API Doc **#1692**. Guinea pig uid `ade-playground` `:8879`.
 
 ### `POST /v1/sanctum/registry/agents/{uid}/chat/messages`
 
