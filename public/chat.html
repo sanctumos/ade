@@ -121,14 +121,14 @@
     </main>
   </div>
   <!-- ?v= busts browser cache when Message-as / wire helpers change -->
-  <script src="vendor/marked.min.js?v=20261125-message-as"></script>
-  <script src="vendor/purify.min.js?v=20261125-message-as"></script>
-  <script src="config.js?v=20261125-message-as"></script>
-  <script src="tip.js?v=20261125-message-as"></script>
-  <script src="app.js?v=20261125-message-as"></script>
-  <script src="memory-editor.js?v=20261125-message-as"></script>
-  <script src="chat-markdown.js?v=20261125-message-as"></script>
-  <script src="chat-sidecar.js?v=20261125-message-as"></script>
+  <script src="vendor/marked.min.js?v=20261125-broca-bg"></script>
+  <script src="vendor/purify.min.js?v=20261125-broca-bg"></script>
+  <script src="config.js?v=20261125-broca-bg"></script>
+  <script src="tip.js?v=20261125-broca-bg"></script>
+  <script src="app.js?v=20261125-broca-bg"></script>
+  <script src="memory-editor.js?v=20261125-broca-bg"></script>
+  <script src="chat-markdown.js?v=20261125-broca-bg"></script>
+  <script src="chat-sidecar.js?v=20261125-broca-bg"></script>
   <script>
     var AC = window.ADE_CHAT || {
       escHtml: function (s) {
@@ -216,8 +216,19 @@
     }
     function userLabel(u) {
       if (!u) return 'User';
-      var name = u.display_name || u.username || u.platform_user_id || 'User';
-      return name + ' · ' + u.platform + '/' + u.platform_user_id;
+      /* ADE Message-as: name only — platform/id stay in the option title. */
+      var name = String(u.display_name || '').trim()
+        || String(u.username || '').trim()
+        || String(u.platform_user_id || 'User');
+      return name;
+    }
+    function userTitle(u) {
+      if (!u) return '';
+      var bits = [];
+      if (u.platform) bits.push(String(u.platform));
+      if (u.platform_user_id) bits.push(String(u.platform_user_id));
+      if (u.username && String(u.username) !== userLabel(u)) bits.push('@' + u.username);
+      return bits.join(' · ');
     }
 
     function wireLabelForMode(mode, uid) {
@@ -288,7 +299,10 @@
       var html = '';
       for (var i = 0; i < chatWire.users.length; i++) {
         var u = chatWire.users[i];
-        html += '<option value="' + AC.escHtml(userSelectValue(u)) + '">' + AC.escHtml(userLabel(u)) + '</option>';
+        var title = userTitle(u);
+        html += '<option value="' + AC.escHtml(userSelectValue(u)) + '"'
+          + (title ? (' title="' + AC.escHtml(title) + '"') : '')
+          + '>' + AC.escHtml(userLabel(u)) + '</option>';
       }
       sel.innerHTML = html;
       var cur = chatWire.user && userSelectValue(chatWire.user);
@@ -1153,13 +1167,9 @@
           if (!r || r.id == null) continue;
           var rid = String(r.id);
           if (chatSync.ignoreRunIds[rid] || chatSync.hitchedRunIds[rid] || chatSync.currentRunIds[rid]) continue;
-          if (r.background === true || r.background === 'true') {
-            chatSync.ignoreRunIds[rid] = true;
-            continue;
-          }
+          /* Broca turns are background=true — hitch them. Age gate drops sleeptime zombies. */
           var status = String(r.status || '').toLowerCase();
           if (status && status !== 'running' && status !== 'created' && status !== 'pending') continue;
-          /* Prefer recently created runs; skip ancient zombies that slipped past priming. */
           var created = r.created_at ? Date.parse(r.created_at) : NaN;
           if (!isNaN(created) && (Date.now() - created) > 120000) {
             chatSync.ignoreRunIds[rid] = true;

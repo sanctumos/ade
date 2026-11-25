@@ -925,47 +925,85 @@
       var ignore = ignoreRunIds || {};
       var timeoutMs = meta.watch_timeout_ms != null ? meta.watch_timeout_ms : 90000;
       var started = Date.now();
+      var enqueueAt = meta.enqueue_at != null ? meta.enqueue_at : started;
+      /* Broca's Letta path uses background=True — do NOT skip those runs. */
       function aborted() {
         return !!(fetchOpts && fetchOpts.signal && fetchOpts.signal.aborted);
       }
       function pickRun(runs) {
+        var best = null;
+        var bestCreated = -1;
         for (var i = 0; i < (runs || []).length; i++) {
           var r = runs[i];
           if (!r || r.id == null) continue;
           var rid = String(r.id);
           if (ignore[rid]) continue;
-          if (r.background === true || r.background === 'true') continue;
           var status = String(r.status || '').toLowerCase();
           if (status && status !== 'running' && status !== 'created' && status !== 'pending') continue;
-          return rid;
+          var created = r.created_at ? Date.parse(r.created_at) : NaN;
+          if (!isNaN(created) && created + 5000 < enqueueAt) continue;
+          if (isNaN(created)) return rid;
+          if (created >= bestCreated) {
+            bestCreated = created;
+            best = rid;
+          }
         }
-        return null;
+        return best;
       }
+      function historyHasNewAssistant() {
+        /* Soft escape hatch: Broca may finish the turn before we hitch the stream. */
+        return self.getAgentMessages(agentId, { limit: 12 }).then(function (data) {
+          var rows = Array.isArray(data) ? data : (data && (data.messages || data.data)) || [];
+          for (var i = 0; i < rows.length; i++) {
+            var m = rows[i];
+            if (!m) continue;
+            var role = String(m.role || m.message_type || '').toLowerCase();
+            if (role.indexOf('assistant') === -1 && role !== 'assistant_message') continue;
+            var ts = m.date ? Date.parse(m.date) : (m.created_at ? Date.parse(m.created_at) : NaN);
+            if (!isNaN(ts) && ts + 500 >= enqueueAt) return true;
+          }
+          return false;
+        }).catch(function () { return false; });
+      }
+      var lastHistoryCheck = 0;
       function poll() {
         if (aborted()) {
           var err = new Error('Aborted');
           err.name = 'AbortError';
           return Promise.reject(err);
         }
+        var elapsed = Date.now() - started;
         return self.listActiveRuns({ agent_id: agentId }).then(function (runs) {
           var rid = pickRun(runs);
-          if (rid) return rid;
-          if (Date.now() - started >= timeoutMs) return null;
+          if (rid) return { runId: rid };
+          /* After 2s, also watch message history so we don't sit on Thinking for 90s. */
+          if (elapsed >= 2000 && (elapsed - lastHistoryCheck) >= 1500) {
+            lastHistoryCheck = elapsed;
+            return historyHasNewAssistant().then(function (ready) {
+              if (ready) return { history: true };
+              if (elapsed >= timeoutMs) return { timeout: true };
+              return new Promise(function (resolve) { setTimeout(resolve, 400); }).then(poll);
+            });
+          }
+          if (elapsed >= timeoutMs) return { timeout: true };
           return new Promise(function (resolve) {
             setTimeout(resolve, 400);
           }).then(poll);
         });
       }
-      return poll().then(function (runId) {
-        if (!runId) {
-          /* Broca accepted the message; Letta run may still appear for the idle hitcher. */
+      return poll().then(function (hit) {
+        if (!hit || hit.timeout) {
           if (handlers.onDone) handlers.onDone({ status: 'queued', watch_timeout: true });
           return { status: 'queued', watch_timeout: true };
         }
-        if (handlers.onEvent) {
-          handlers.onEvent({ message_type: 'ping', run_id: runId });
+        if (hit.history) {
+          if (handlers.onDone) handlers.onDone({ status: 'completed', via: 'history' });
+          return { status: 'completed', via: 'history' };
         }
-        return self.streamRun(runId, { include_pings: true }, handlers, fetchOpts);
+        if (handlers.onEvent) {
+          handlers.onEvent({ message_type: 'ping', run_id: hit.runId });
+        }
+        return self.streamRun(hit.runId, { include_pings: true }, handlers, fetchOpts);
       });
     },
     /**
@@ -1001,6 +1039,7 @@
             if (r && r.id != null) ignore[String(r.id)] = true;
           });
           var asUser = meta.brocaUser || self.getChatBrocaUser(agentId) || self.defaultBrocaChatUser();
+          var enqueueAt = Date.now();
           return self.sendRegistryChat(uid, text, {
             wait_seconds: 0,
             signal: fetchOpts && fetchOpts.signal,
@@ -1010,7 +1049,9 @@
             display_name: asUser.display_name || asUser.username || asUser.platform_user_id,
             speaker: asUser.speaker || 'owner'
           }).then(function () {
-            return self.watchLettaRunAfterEnqueue(agentId, ignore, handlers, fetchOpts, meta);
+            return self.watchLettaRunAfterEnqueue(agentId, ignore, handlers, fetchOpts, Object.assign({}, meta, {
+              enqueue_at: enqueueAt
+            }));
           });
         }).catch(function (err) {
           var msg = (err && err.message) ? String(err.message) : String(err);
