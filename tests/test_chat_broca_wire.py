@@ -26,6 +26,15 @@ sys.path.insert(0, str(REG_ROOT))
 class _MockBroca(BaseHTTPRequestHandler):
     api_key = "ade-wire-key"
     outbox: dict = {}
+    last_post: dict = {}
+    users = [
+        {
+            "platform": "telegram",
+            "platform_user_id": "424572255",
+            "username": "AskDoctorBitcoin",
+            "display_name": "Mark",
+        }
+    ]
 
     def log_message(self, *args):  # noqa: A003
         return
@@ -55,6 +64,7 @@ class _MockBroca(BaseHTTPRequestHandler):
         ).strip():
             self._json(400, {"error": "platform_and_platform_user_id_required"})
             return
+        type(self).last_post = data
         idem = str(data.get("idempotency_key") or "k")
         self.outbox[idem] = {
             "idempotency_key": idem,
@@ -65,6 +75,17 @@ class _MockBroca(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802
         if not self._auth():
             self._json(401, {"error": "unauthorized"})
+            return
+        path = urlparse(self.path).path.rstrip("/")
+        if path.endswith("/v1/users"):
+            self._json(
+                200,
+                {
+                    "users": list(self.users),
+                    "default_platform": "ade",
+                    "count": len(self.users),
+                },
+            )
             return
         q = parse_qs(urlparse(self.path).query)
         key = (q.get("idempotency_key") or [""])[0]
@@ -176,6 +197,55 @@ class ChatBrocaWireTests(unittest.TestCase):
             data = json.loads(resp.read().decode())
             self.assertEqual(resp.status, 409)
             self.assertEqual(data.get("error"), "broca_not_installed")
+            conn.close()
+        finally:
+            srv.shutdown()
+
+    def test_list_chat_users_and_identity_passthrough(self) -> None:
+        from werkzeug.serving import make_server
+
+        srv = make_server("127.0.0.1", 0, self._app, threaded=True)
+        port = srv.server_port
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        try:
+            conn = HTTPConnection("127.0.0.1", port, timeout=10)
+            conn.request(
+                "GET",
+                "/api/v1/sanctum/registry/agents/athena/chat/users",
+            )
+            resp = conn.getresponse()
+            data = json.loads(resp.read().decode())
+            self.assertEqual(resp.status, 200, msg=data)
+            self.assertEqual(data.get("count"), 1)
+            self.assertEqual(data["users"][0]["platform"], "telegram")
+            conn.close()
+
+            _MockBroca.last_post = {}
+            conn = HTTPConnection("127.0.0.1", port, timeout=15)
+            body = json.dumps(
+                {
+                    "text": "as mark",
+                    "idempotency_key": "wire-as-user",
+                    "wait_seconds": 5,
+                    "platform": "telegram",
+                    "platform_user_id": "424572255",
+                    "username": "AskDoctorBitcoin",
+                    "display_name": "Mark",
+                    "speaker": "owner",
+                }
+            ).encode()
+            conn.request(
+                "POST",
+                "/api/v1/sanctum/registry/agents/athena/chat/messages",
+                body,
+                {"Content-Type": "application/json", "Content-Length": str(len(body))},
+            )
+            resp = conn.getresponse()
+            raw = resp.read().decode()
+            self.assertEqual(resp.status, 200, msg=raw)
+            self.assertEqual(_MockBroca.last_post.get("platform"), "telegram")
+            self.assertEqual(_MockBroca.last_post.get("platform_user_id"), "424572255")
+            self.assertEqual(_MockBroca.last_post.get("display_name"), "Mark")
             conn.close()
         finally:
             srv.shutdown()

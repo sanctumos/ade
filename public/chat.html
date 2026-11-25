@@ -30,6 +30,11 @@
               <option value="letta">Direct Letta</option>
             </select>
           </label>
+          <label class="chat-user-wrap" id="chat-user-wrap" hidden>
+            <span class="visually-hidden">Message as</span>
+            <select class="af-select chat-user-select" id="chat-user-select" title="Broca user identity for this send" aria-label="Message as Broca user">
+            </select>
+          </label>
           <button type="button" class="af-btn af-btn-secondary af-btn-sm" id="chat-find-open" title="Search this conversation" aria-label="Search this conversation" aria-controls="chat-find" aria-expanded="false"><span id="chat-find-open-icon"></span><span>Search</span></button>
           <span class="af-tip">
             <button type="button" class="af-tip-btn" aria-expanded="false" aria-controls="af-tip-chat-configure" aria-label="Explain: Configure">?</button>
@@ -147,6 +152,19 @@
         }
         chatWire.mode = mode;
         if (aid && window.ADE.setChatWireMode) window.ADE.setChatWireMode(aid, mode);
+        syncUserSelectUi();
+        applyWireSubtitle();
+      });
+    })();
+    (function bindChatUserSelect() {
+      var sel = document.getElementById('chat-user-select');
+      if (!sel) return;
+      sel.addEventListener('change', function () {
+        var aid = currentAgentId();
+        var u = userFromSelectValue(sel.value);
+        if (!aid || !u || !window.ADE.setChatBrocaUser) return;
+        chatWire.user = u;
+        window.ADE.setChatBrocaUser(aid, u);
         applyWireSubtitle();
       });
     })();
@@ -168,13 +186,43 @@
       return sel && sel.selectedIndex >= 0 && sel.value ? sel.options[sel.selectedIndex].text : 'Agent';
     }
 
-    var chatWire = { available: false, uid: '', mode: 'letta', probeToken: 0 };
+    var chatWire = { available: false, uid: '', mode: 'letta', probeToken: 0, users: [], user: null };
+
+    function userKey(u) {
+      if (!u) return '';
+      return String(u.platform || '') + '\0' + String(u.platform_user_id || '');
+    }
+    function userSelectValue(u) {
+      if (!u) return '';
+      return encodeURIComponent(String(u.platform || '')) + '|' + encodeURIComponent(String(u.platform_user_id || ''));
+    }
+    function userFromSelectValue(val) {
+      var parts = String(val || '').split('|');
+      if (parts.length < 2) return null;
+      var platform = decodeURIComponent(parts[0] || '');
+      var puid = decodeURIComponent(parts[1] || '');
+      for (var i = 0; i < chatWire.users.length; i++) {
+        var u = chatWire.users[i];
+        if (String(u.platform) === platform && String(u.platform_user_id) === puid) return u;
+      }
+      return null;
+    }
+    function userLabel(u) {
+      if (!u) return 'User';
+      var name = u.display_name || u.username || u.platform_user_id || 'User';
+      return name + ' · ' + u.platform + '/' + u.platform_user_id;
+    }
 
     function wireLabelForMode(mode, uid) {
       if (mode === 'broca') {
-        return uid
+        var base = uid
           ? ('Broca route · watching Letta (' + uid + ')')
           : 'Broca route · watching Letta';
+        if (chatWire.user) {
+          var who = chatWire.user.display_name || chatWire.user.username || chatWire.user.platform_user_id;
+          return base + ' · as ' + who;
+        }
+        return base;
       }
       return 'Kernel (direct)';
     }
@@ -195,10 +243,67 @@
       if (!wrap || !sel) return;
       if (!chatWire.available) {
         wrap.hidden = true;
+        syncUserSelectUi();
         return;
       }
       wrap.hidden = false;
       sel.value = chatWire.mode === 'letta' ? 'letta' : 'broca';
+      syncUserSelectUi();
+    }
+
+    function syncUserSelectUi() {
+      var wrap = document.getElementById('chat-user-wrap');
+      var sel = document.getElementById('chat-user-select');
+      if (!wrap || !sel) return;
+      var show = !!(chatWire.available && chatWire.mode === 'broca');
+      if (!show) {
+        wrap.hidden = true;
+        return;
+      }
+      wrap.hidden = false;
+      var html = '';
+      for (var i = 0; i < chatWire.users.length; i++) {
+        var u = chatWire.users[i];
+        html += '<option value="' + AC.escHtml(userSelectValue(u)) + '">' + AC.escHtml(userLabel(u)) + '</option>';
+      }
+      sel.innerHTML = html || '<option value="">No users</option>';
+      var cur = chatWire.user && userSelectValue(chatWire.user);
+      if (cur) sel.value = cur;
+      else if (chatWire.users[0]) {
+        chatWire.user = chatWire.users[0];
+        sel.value = userSelectValue(chatWire.users[0]);
+      }
+    }
+
+    function refreshChatUsers(aid, uid) {
+      if (!uid || !window.ADE.listRegistryChatUsers) {
+        chatWire.users = window.ADE.defaultBrocaChatUser ? [window.ADE.defaultBrocaChatUser()] : [];
+        chatWire.user = chatWire.users[0] || null;
+        syncUserSelectUi();
+        return Promise.resolve();
+      }
+      return window.ADE.listRegistryChatUsers(uid).then(function (data) {
+        if (currentAgentId() !== aid) return;
+        chatWire.users = (data && data.users) || [];
+        var stored = window.ADE.getChatBrocaUser ? window.ADE.getChatBrocaUser(aid) : null;
+        var pick = null;
+        if (stored) {
+          var sk = userKey(stored);
+          for (var i = 0; i < chatWire.users.length; i++) {
+            if (userKey(chatWire.users[i]) === sk) { pick = chatWire.users[i]; break; }
+          }
+          if (!pick) {
+            /* Keep a stored identity even if Broca has not listed it yet. */
+            chatWire.users.push(stored);
+            pick = stored;
+          }
+        }
+        chatWire.user = pick || chatWire.users[0] || null;
+        if (chatWire.user && window.ADE.setChatBrocaUser) {
+          window.ADE.setChatBrocaUser(aid, chatWire.user);
+        }
+        syncUserSelectUi();
+      });
     }
 
     function refreshChatWire() {
@@ -208,6 +313,8 @@
         chatWire.available = false;
         chatWire.uid = '';
         chatWire.mode = 'letta';
+        chatWire.users = [];
+        chatWire.user = null;
         syncWireSelectUi();
         return Promise.resolve();
       }
@@ -219,9 +326,15 @@
           var stored = window.ADE.getChatWireMode(aid);
           chatWire.mode = stored === 'letta' ? 'letta' : 'broca';
           if (!stored) window.ADE.setChatWireMode(aid, 'broca');
-        } else {
-          chatWire.mode = 'letta';
+          return refreshChatUsers(aid, chatWire.uid).then(function () {
+            if (token !== chatWire.probeToken) return;
+            syncWireSelectUi();
+            applyWireSubtitle();
+          });
         }
+        chatWire.mode = 'letta';
+        chatWire.users = [];
+        chatWire.user = null;
         syncWireSelectUi();
         applyWireSubtitle();
       }).catch(function () {
@@ -229,6 +342,8 @@
         chatWire.available = false;
         chatWire.uid = '';
         chatWire.mode = 'letta';
+        chatWire.users = [];
+        chatWire.user = null;
         syncWireSelectUi();
         applyWireSubtitle();
       });
@@ -1362,6 +1477,9 @@
       if (!chatWire.available) wireMode = 'letta';
       var sendFn = window.ADE.sendChatPreferBroca || window.ADE.sendMessagePreferStream;
       var sendMeta = { agentName: currentAgentName(), wire: wireMode };
+      if (wireMode === 'broca' && chatWire.user) {
+        sendMeta.brocaUser = chatWire.user;
+      }
       if (!window.ADE.sendChatPreferBroca && wireMode === 'letta') {
         sendFn = window.ADE.sendMessagePreferStream;
       }

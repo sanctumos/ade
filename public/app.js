@@ -141,6 +141,7 @@
   var STORAGE_SKIN = 'af-skin-comp';
   var STORAGE_SIDEBAR = 'af-sidebar-collapsed';
   var STORAGE_CHAT_WIRE = 'ade_chat_wire_mode';
+  var STORAGE_CHAT_BROCA_USER = 'ade_chat_broca_user';
   var SKIN_SLUGS = ['hey', 'ledger', 'brutalist', 'obsidian'];
   var SKIN_LABELS = {
     hey: 'HEY Bold',
@@ -812,6 +813,84 @@
         });
       });
     },
+    /** Synthetic ADE-owner identity when Broca has no profiles yet. */
+    defaultBrocaChatUser: function () {
+      return {
+        platform: 'ade',
+        platform_user_id: 'ade',
+        username: 'owner',
+        display_name: 'ADE owner',
+        speaker: 'owner',
+        synthetic: true
+      };
+    },
+    /** Per-agent Broca “message as” identity (browser localStorage). */
+    getChatBrocaUser: function (agentId) {
+      var aid = String(agentId || '');
+      if (!aid) return null;
+      try {
+        var raw = localStorage.getItem(STORAGE_CHAT_BROCA_USER + ':' + aid);
+        if (!raw) return null;
+        var u = JSON.parse(raw);
+        if (!u || !u.platform || !u.platform_user_id) return null;
+        return u;
+      } catch (e) { return null; }
+    },
+    setChatBrocaUser: function (agentId, user) {
+      var aid = String(agentId || '');
+      if (!aid || !user || !user.platform || !user.platform_user_id) return;
+      try {
+        localStorage.setItem(STORAGE_CHAT_BROCA_USER + ':' + aid, JSON.stringify({
+          platform: String(user.platform),
+          platform_user_id: String(user.platform_user_id),
+          username: user.username != null ? String(user.username) : '',
+          display_name: user.display_name != null ? String(user.display_name) : '',
+          speaker: user.speaker != null ? String(user.speaker) : 'owner'
+        }));
+      } catch (e) { /* ignore */ }
+    },
+    /**
+     * Broca platform_profiles via Registry (any plugin). Always includes ADE owner.
+     */
+    listRegistryChatUsers: function (uid) {
+      var self = window.ADE;
+      var fallback = [self.defaultBrocaChatUser()];
+      if (!uid) return Promise.resolve({ users: fallback, uid: '' });
+      return apiFetch('/v1/sanctum/registry/agents/' + encodeURIComponent(uid) + '/chat/users')
+        .then(function (data) {
+          var rows = (data && data.users) || [];
+          var out = [];
+          var seen = {};
+          function keyOf(u) {
+            return String(u.platform || '') + '\0' + String(u.platform_user_id || '');
+          }
+          function push(u) {
+            if (!u || !u.platform || u.platform_user_id == null || u.platform_user_id === '') return;
+            var k = keyOf(u);
+            if (seen[k]) return;
+            seen[k] = true;
+            out.push({
+              platform: String(u.platform),
+              platform_user_id: String(u.platform_user_id),
+              username: u.username != null ? String(u.username) : '',
+              display_name: u.display_name != null ? String(u.display_name) : '',
+              speaker: u.speaker != null ? String(u.speaker) : 'owner',
+              synthetic: !!u.synthetic,
+              letta_user_id: u.letta_user_id
+            });
+          }
+          push(self.defaultBrocaChatUser());
+          rows.forEach(push);
+          return {
+            uid: uid,
+            users: out,
+            default_platform: (data && data.default_platform) || 'ade'
+          };
+        })
+        .catch(function () {
+          return { uid: uid, users: fallback, default_platform: 'ade' };
+        });
+    },
     /**
      * POST Registry → Broca enqueue.
      * ADE Chat uses wait_seconds: 0 (route only) and watches Letta for the run.
@@ -919,9 +998,15 @@
           (before || []).forEach(function (r) {
             if (r && r.id != null) ignore[String(r.id)] = true;
           });
+          var asUser = meta.brocaUser || self.getChatBrocaUser(agentId) || self.defaultBrocaChatUser();
           return self.sendRegistryChat(uid, text, {
             wait_seconds: 0,
-            signal: fetchOpts && fetchOpts.signal
+            signal: fetchOpts && fetchOpts.signal,
+            platform: asUser.platform,
+            platform_user_id: asUser.platform_user_id,
+            username: asUser.username || asUser.display_name || asUser.platform_user_id,
+            display_name: asUser.display_name || asUser.username || asUser.platform_user_id,
+            speaker: asUser.speaker || 'owner'
           }).then(function () {
             return self.watchLettaRunAfterEnqueue(agentId, ignore, handlers, fetchOpts, meta);
           });
