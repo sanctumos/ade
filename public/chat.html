@@ -120,16 +120,23 @@
       </div>
     </main>
   </div>
-  <script src="vendor/marked.min.js"></script>
-  <script src="vendor/purify.min.js"></script>
-  <script src="config.js"></script>
-  <script src="tip.js"></script>
-  <script src="app.js"></script>
-  <script src="memory-editor.js"></script>
-  <script src="chat-markdown.js"></script>
-  <script src="chat-sidecar.js"></script>
+  <!-- ?v= busts browser cache when Message-as / wire helpers change -->
+  <script src="vendor/marked.min.js?v=20261125-message-as"></script>
+  <script src="vendor/purify.min.js?v=20261125-message-as"></script>
+  <script src="config.js?v=20261125-message-as"></script>
+  <script src="tip.js?v=20261125-message-as"></script>
+  <script src="app.js?v=20261125-message-as"></script>
+  <script src="memory-editor.js?v=20261125-message-as"></script>
+  <script src="chat-markdown.js?v=20261125-message-as"></script>
+  <script src="chat-sidecar.js?v=20261125-message-as"></script>
   <script>
-    var AC = window.ADE_CHAT;
+    var AC = window.ADE_CHAT || {
+      escHtml: function (s) {
+        return String(s == null ? '' : s)
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      }
+    };
     var messagesEl = document.getElementById('messages');
     var inputEl = document.getElementById('input');
     var errorEl = document.getElementById('error');
@@ -251,6 +258,18 @@
       syncUserSelectUi();
     }
 
+    function fallbackBrocaUser() {
+      if (window.ADE && window.ADE.defaultBrocaChatUser) return window.ADE.defaultBrocaChatUser();
+      return {
+        platform: 'ade',
+        platform_user_id: 'ade',
+        username: 'owner',
+        display_name: 'ADE owner',
+        speaker: 'owner',
+        synthetic: true
+      };
+    }
+
     function syncUserSelectUi() {
       var wrap = document.getElementById('chat-user-wrap');
       var sel = document.getElementById('chat-user-select');
@@ -260,13 +279,18 @@
         wrap.hidden = true;
         return;
       }
+      /* Never paint an empty picker while Broca is on — stale app.js used to. */
+      if (!chatWire.users || !chatWire.users.length) {
+        chatWire.users = [fallbackBrocaUser()];
+        chatWire.user = chatWire.users[0];
+      }
       wrap.hidden = false;
       var html = '';
       for (var i = 0; i < chatWire.users.length; i++) {
         var u = chatWire.users[i];
         html += '<option value="' + AC.escHtml(userSelectValue(u)) + '">' + AC.escHtml(userLabel(u)) + '</option>';
       }
-      sel.innerHTML = html || '<option value="">No users</option>';
+      sel.innerHTML = html;
       var cur = chatWire.user && userSelectValue(chatWire.user);
       if (cur) sel.value = cur;
       else if (chatWire.users[0]) {
@@ -276,15 +300,9 @@
     }
 
     function refreshChatUsers(aid, uid) {
-      if (!uid || !window.ADE.listRegistryChatUsers) {
-        chatWire.users = window.ADE.defaultBrocaChatUser ? [window.ADE.defaultBrocaChatUser()] : [];
-        chatWire.user = chatWire.users[0] || null;
-        syncUserSelectUi();
-        return Promise.resolve();
-      }
-      return window.ADE.listRegistryChatUsers(uid).then(function (data) {
+      function applyUsers(list) {
         if (currentAgentId() !== aid) return;
-        chatWire.users = (data && data.users) || [];
+        chatWire.users = (list && list.length) ? list : [fallbackBrocaUser()];
         var stored = window.ADE.getChatBrocaUser ? window.ADE.getChatBrocaUser(aid) : null;
         var pick = null;
         if (stored) {
@@ -293,7 +311,6 @@
             if (userKey(chatWire.users[i]) === sk) { pick = chatWire.users[i]; break; }
           }
           if (!pick) {
-            /* Keep a stored identity even if Broca has not listed it yet. */
             chatWire.users.push(stored);
             pick = stored;
           }
@@ -303,6 +320,16 @@
           window.ADE.setChatBrocaUser(aid, chatWire.user);
         }
         syncUserSelectUi();
+      }
+      if (!uid || !window.ADE.listRegistryChatUsers) {
+        applyUsers([fallbackBrocaUser()]);
+        return Promise.resolve();
+      }
+      return window.ADE.listRegistryChatUsers(uid).then(function (data) {
+        applyUsers((data && data.users) || []);
+      }).catch(function (err) {
+        console.warn('ADE Message-as: listRegistryChatUsers failed', err);
+        applyUsers([fallbackBrocaUser()]);
       });
     }
 

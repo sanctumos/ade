@@ -855,7 +855,7 @@
     listRegistryChatUsers: function (uid) {
       var self = window.ADE;
       var fallback = [self.defaultBrocaChatUser()];
-      if (!uid) return Promise.resolve({ users: fallback, uid: '' });
+      if (!uid) return Promise.resolve({ users: fallback, uid: '', default_platform: 'ade' });
       return apiFetch('/v1/sanctum/registry/agents/' + encodeURIComponent(uid) + '/chat/users')
         .then(function (data) {
           var rows = (data && data.users) || [];
@@ -881,13 +881,15 @@
           }
           push(self.defaultBrocaChatUser());
           rows.forEach(push);
+          if (!out.length) out = fallback.slice();
           return {
             uid: uid,
             users: out,
             default_platform: (data && data.default_platform) || 'ade'
           };
         })
-        .catch(function () {
+        .catch(function (err) {
+          console.warn('ADE listRegistryChatUsers', err);
           return { uid: uid, users: fallback, default_platform: 'ade' };
         });
     },
